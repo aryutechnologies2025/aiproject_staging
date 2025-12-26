@@ -30,9 +30,9 @@ services:
     image: postgres:15
     container_name: aryu_db
     environment:
-      POSTGRES_DB: aryu_db
+      POSTGRES_DB: bot_staging
       POSTGRES_USER: aryu_user
-      POSTGRES_PASSWORD: aryu_password
+      POSTGRES_PASSWORD: YUra@2025
     ports:
       - "5432:5432"
     volumes:
