@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: aryu_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app   # 👈 THIS IS THE KEY
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis:7
+    container_name: aryu_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  db:
+    image: postgres:15
+    container_name: aryu_db
+    environment:
+      POSTGRES_DB: aryu_db
+      POSTGRES_USER: aryu_user
+      POSTGRES_PASSWORD: aryu_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
