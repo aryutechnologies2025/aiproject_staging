@@ -2,19 +2,13 @@ version: "3.9"
 
 services:
   api:
-    build: .
+    image: aryu_api:latest
     container_name: aryu_api
-    ports:
-      - "8000:8000"
+    restart: always
     env_file:
       - .env
-    volumes:
-      - .:/app            # 👈 Live code sync (DEV only)
-    command: >
-      uvicorn app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
+    ports:
+      - "8000:8000"
     depends_on:
       - redis
       - db
@@ -22,22 +16,18 @@ services:
   redis:
     image: redis:7
     container_name: aryu_redis
-    ports:
-      - "6379:6379"
     restart: always
 
   db:
     image: postgres:15
     container_name: aryu_db
+    restart: always
     environment:
       POSTGRES_DB: aryu_db
       POSTGRES_USER: aryu_user
-      POSTGRES_PASSWORD: aryu_password
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: STRONG_PASSWORD
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
 
 volumes:
   postgres_data:
