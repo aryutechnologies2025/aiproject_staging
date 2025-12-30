@@ -1,6 +1,5 @@
 # main.py
 from fastapi import FastAPI
-from app.models import hrms_alert
 from app.core.database import Base, engine
 import os
 from fastapi.staticfiles import StaticFiles
