@@ -14,10 +14,21 @@ app = FastAPI(title="Aryu Academy AI Bot", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Allow all origins
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://airesumebuilder.aryuacademy.com",
+        "https://ai.aryuacademy.com",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],          # Allow GET, POST, PUT, DELETE
-    allow_headers=["*"],          # Allow all headers
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
 )
 
 @app.on_event("startup")
