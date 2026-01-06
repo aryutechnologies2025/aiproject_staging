@@ -1,82 +1,142 @@
 import os
-import httpx
-from dotenv import load_dotenv
+from groq import Groq
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.prompt_service import get_prompt
 
-load_dotenv()
+# Groq client
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
-OLLAMA_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434")
-GEMMA_MODEL = os.getenv("GEMMA_MODEL", "gemma2:9b")
-LLAMA_MODEL = os.getenv("LLAMA_MODEL", "llama3.1:8b")
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 
 async def call_llm(
     user_message: str,
     agent_name: str,
     db: AsyncSession,
-    model: str = "gemma",   # "gemma" or "llama"
+    model: str = "groq",   # default groq
 ):
     # Load system prompt
     system_prompt = await get_prompt(db, agent_name)
     if not system_prompt:
         system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises."
 
-    # Select model
-    selected_model = GEMMA_MODEL if model == "gemma" else LLAMA_MODEL
-
-
+    # Safety truncation
     SYSTEM_SAFE = system_prompt[:3500]
     USER_SAFE = user_message[:1500]
 
-    # Decide API type
-    is_chat_model = selected_model.startswith(("gemma", "llama"))
-
-    # Build payload
-    if is_chat_model:
-        url = f"{OLLAMA_URL}/api/chat"
-        payload = {
-            "model": selected_model,
-            "stream": False,
-            "messages": [
+    try:
+        # Call Groq Chat Completion
+        completion = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
                 {"role": "system", "content": SYSTEM_SAFE},
                 {"role": "user", "content": USER_SAFE},
             ],
-        }
-    else:
-        url = f"{OLLAMA_URL}/api/generate"
-        payload = {
-            "model": selected_model,
-            "prompt": f"{SYSTEM_SAFE}\n\nUser: {USER_SAFE}\nAssistant:",
-            "stream": False,
-        }
-    print(payload.get('model'))
-    print("🚀 Sending request to:", url)
+            temperature=0.7,
+            max_completion_tokens=1024,
+            top_p=1,
+            stream=False,
+        )
 
-    # 5️⃣ Call Ollama
-    try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            res = await client.post(url, json=payload)
-
-        if res.status_code != 200:
-            print("❌ OLLAMA ERROR:", res.status_code, res.text)
-            return "Sorry, I’m having trouble responding right now 😊"
-
-        data = res.json()
-
-        # 6️⃣ Normalize response
-        if "message" in data:             # chat models
-            return data["message"]["content"].strip()
-
-        if "response" in data:            # generate models
-            return data["response"].strip()
-
-        print("❌ UNKNOWN OLLAMA FORMAT:", data)
-        return "I couldn’t generate a response. Please try again."
+        return completion.choices[0].message.content.strip()
 
     except Exception as e:
-        print("❌ OLLAMA EXCEPTION:", repr(e))
+        print("❌ GROQ ERROR:", repr(e))
         return "The system is taking a bit longer. Please try again 😊"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import os
+# import httpx
+# from dotenv import load_dotenv
+# from sqlalchemy.ext.asyncio import AsyncSession
+# from app.services.prompt_service import get_prompt
+
+# load_dotenv()
+
+# OLLAMA_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434")
+# LLAMA_MODEL = os.getenv("LLAMA_MODEL", "llama3.1:8b")
+
+
+# async def call_llm(
+#     user_message: str,
+#     agent_name: str,
+#     db: AsyncSession,
+#     model: str = "llama",   # "llama"
+# ):
+#     # Load system prompt
+#     system_prompt = await get_prompt(db, agent_name)
+#     if not system_prompt:
+#         system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises."
+
+#     # Select model
+#     selected_model = LLAMA_MODEL if model == "llama" else LLAMA_MODEL  # Currently only LLAMA_MODEL is defined
+
+
+#     SYSTEM_SAFE = system_prompt[:3500]
+#     USER_SAFE = user_message[:1500]
+
+#     # Decide API type
+#     is_chat_model = selected_model
+
+#     # Build payload
+#     if is_chat_model:
+#         url = f"{OLLAMA_URL}/api/chat"
+#         payload = {
+#             "model": selected_model,
+#             "stream": False,
+#             "messages": [
+#                 {"role": "system", "content": SYSTEM_SAFE},
+#                 {"role": "user", "content": USER_SAFE},
+#             ],
+#         }
+#     else:
+#         url = f"{OLLAMA_URL}/api/generate"
+#         payload = {
+#             "model": selected_model,
+#             "prompt": f"{SYSTEM_SAFE}\n\nUser: {USER_SAFE}\nAssistant:",
+#             "stream": False,
+#         }
+#     print(payload.get('model'))
+#     print("🚀 Sending request to:", url)
+
+#     # Call Ollama
+#     try:
+#         async with httpx.AsyncClient(timeout=90.0) as client:
+#             res = await client.post(url, json=payload)
+
+#         if res.status_code != 200:
+#             print("❌ OLLAMA ERROR:", res.status_code, res.text)
+#             return "Sorry, I’m having trouble responding right now 😊"
+
+#         data = res.json()
+
+#         # Normalize response
+#         if "message" in data:             # chat models
+#             return data["message"]["content"].strip()
+
+#         if "response" in data:            # generate models
+#             return data["response"].strip()
+
+#         print("❌ UNKNOWN OLLAMA FORMAT:", data)
+#         return "I couldn’t generate a response. Please try again."
+
+#     except Exception as e:
+#         print("❌ OLLAMA EXCEPTION:", repr(e))
+#         return "The system is taking a bit longer. Please try again 😊"
     
 
 # SYSTEM_PROMPT = """You are **YURA**, Aryu Academy’s multilingual WhatsApp & YouTube assistant. 

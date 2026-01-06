@@ -5,13 +5,12 @@ from app.services.prompt_service import get_prompt
 import re
 import json
 
-async def suggest_experience(data: dict, db: AsyncSession):
+async def suggest_experience(data: dict, db: AsyncSession) -> dict:
     """
-    Generate AI-optimized experience bullet points.
+    Generate resume-ready experience bullet points ONLY.
     """
-    system_prompt = await get_prompt(db, "resume_builder")
 
-    user_input = f"""
+    user_prompt = f"""
 Generate ATS-optimized resume experience bullet points.
 
 Job Title: {data.get("job_title")}
@@ -21,168 +20,97 @@ Location: {data.get("location")}
 Current Description: {data.get("description") or ""}
 Tone: {data.get("tone", "professional")}
 
-Rules:
-- Use strong action verbs.
-- Convert duties into achievements.
-- Add measurable impact if possible.
-- Do NOT invent fake details.
-- Output 6-8 bullet points only.
+RULES:
+- Output 6 to 8 bullet points ONLY
+- Each bullet must start with an action verb
+- Resume language only
+- No introductions, explanations, or questions
+- Do NOT invent information
 """
 
     response = await call_llm(
-        model="gemma",
-        user_message=user_input,
+        model="groq",
+        user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
     )
 
-    return {"bullets": response}
-
-def build_summary_input(data: dict) -> str:
-    experiences_text = []
-    for exp in data.get("experiences", []):
-        experiences_text.append(
-            f"- {exp.get('job_title')} at {exp.get('company')} "
-            f"({exp.get('start_date')} to {exp.get('end_date')}), "
-            f"Skills: {', '.join(exp.get('skills', []))}"
-        )
-
-    education_text = []
-    for edu in data.get("education", []):
-        education_text.append(
-            f"- {edu.get('degree')} from {edu.get('institution')} ({edu.get('year')})"
-        )
-
-    return f"""
-Experience:
-{chr(10).join(experiences_text)}
-
-Education:
-{chr(10).join(education_text)}
-
-Core Skills:
-{', '.join(data.get("skills", []))}
-""".strip()
-
-async def suggest_summary(data: dict, db: AsyncSession):
-    system_prompt = await get_prompt(db, "resume_builder")
-
-    structured_input = build_summary_input(data)
-
-    user_input = f"""
-Write a polished 2–4 line professional summary.
-
-{structured_input}
-
-Tone: {data.get("tone", "modern professional")}
-
-Rules:
-- ATS-friendly.
-- No personal pronouns.
-- No placeholders.
-- No bullet points.
-- Write like a senior resume writer.
-"""
-
-    response = await call_llm(
-        model="gemma",
-        user_message=user_input,
-        agent_name="resume_builder",
-        db=db,
-    )
-
-    return {"summary": response}
+    return {
+        "experience_bullets": response.strip()
+    }
 
 
-def build_skills_prompt(summary, experience, education, title):
-    return f"""
-Generate the Skills section only.
+async def suggest_summary(data: dict, db: AsyncSession) -> dict:
+    """
+    Generate a concise ATS-optimized resume summary ONLY.
+    """
 
-STRICT RULES:
-- Output valid JSON only
-- JSON must contain a single key "skills"
-- Include 5 to 8 skills only
-- Skills must be HARD, TECHNICAL, or ROLE-SPECIFIC
-- DO NOT include soft skills or personality traits
-- DO NOT include generic skills (communication, teamwork, leadership, etc.)
-- DO NOT explain anything
-
-Inference Rules:
-- If detailed experience is provided, extract skills ONLY from that content
-- If experience is minimal or missing, infer STANDARD INDUSTRY HARD SKILLS
-  that are commonly expected for the given job title
-- Use the job title as the ONLY inference signal
-- Do NOT guess tools unless they are industry-standard for the role
+    user_prompt = f"""
+Write a professional resume summary.
 
 Job Title:
-{title}
-
-User Content:
-Summary:
-{summary}
+{data.get("job_title", "")}
 
 Experience:
-{experience}
+{data.get("experience", "")}
+
+Skills:
+{", ".join(data.get("skills", []))}
 
 Education:
-{education}
+{data.get("education", "")}
+
+Tone:
+{data.get("tone", "modern professional")}
+
+STRICT RULES:
+- Output ONLY the summary text
+- 2 to 4 lines maximum
+- ATS-friendly wording
+- No personal pronouns (I, me, my, we)
+- No bullet points
+- No headings or labels
+- No explanations, greetings, or follow-up questions
+- Resume language ONLY
 """
 
-def extract_skills_json(response: str):
-    try:
-        return json.loads(response)
-    except Exception:
-        return {"skills": []}
-
-
-def validate_skills_output(data: dict):
-    if "skills" not in data:
-        raise ValueError("Missing skills key")
-
-    skills = data["skills"]
-
-    if not isinstance(skills, list):
-        raise ValueError("Skills must be a list")
-
-    if not 5 <= len(skills) <= 8:
-        raise ValueError("Skills must contain 5–8 items")
-
-    for skill in skills:
-        if not isinstance(skill, str):
-            raise ValueError("Skill must be a string")
-
-
-async def suggest_skills(
-    db: AsyncSession,
-    summary: str = "",
-    experience: str = "",
-    education: str = "",
-    title: str = "",
-    model: str = "gemma"
-) -> dict:
-
-    user_prompt = build_skills_prompt(
-        summary=summary,
-        experience=experience,
-        education=education,
-        title=title
-    )
-
-    raw_response = await call_llm(
+    response = await call_llm(
+        model="groq",
         user_message=user_prompt,
-        agent_name="resume_skills",
+        agent_name="resume_builder",
         db=db,
-        model=model,
-        expect_json=False
     )
 
-    skills_json = extract_skills_json(raw_response)
-    validate_skills_output(skills_json)
-    return skills_json
+    return {
+        "summary": response.strip()
+    }
+
+
+def build_skills_prompt(job_titles: list[str], career_level: str = "experienced") -> str:
+    roles = ", ".join(job_titles) if job_titles else "Entry-level professional"
+
+    return f"""
+Generate role-specific technical skills.
+
+Roles:
+{roles}
+
+Career Level:
+{career_level}
+
+Rules:
+- Output ONLY skill names
+- One skill per line
+- 5 to 8 skills only
+- HARD, TECHNICAL, or ROLE-SPECIFIC skills only
+- No soft skills
+- No explanations
+- No formatting
+- No extra text
+"""
 
 
 async def suggest_education(data: dict, db: AsyncSession):
-    system_prompt = await get_prompt(db, "resume_builder")
 
     education_list = data.get("education", [])
 
@@ -190,39 +118,45 @@ async def suggest_education(data: dict, db: AsyncSession):
         raise HTTPException(400, "education must be a list")
 
     if len(education_list) == 0:
-        # user sent no education → still allow, handle gracefully
         user_input = """
-User provided no education details.
-Generate a general placeholder education bullet point section.
+Generate education bullet points for a candidate with no formal education details.
+
+Rules:
+- Output ONLY bullet points
+- 2 bullet points only
+- No invented degree names
+- Generic, ATS-safe phrasing
 """
     else:
         formatted_entries = ""
 
         for edu in education_list:
             formatted_entries += f"""
-Degree: {edu.get("degree")}
-Institution: {edu.get("college")}
-Year: {edu.get("year")}
-Location: {edu.get("location")}
-Grade: {edu.get("grade")}
-Achievements: {edu.get("achievements")}
+Degree: {edu.get("degree", "")}
+Institution: {edu.get("college", "")}
+Year: {edu.get("year", "")}
+Location: {edu.get("location", "")}
+Grade: {edu.get("grade", "")}
+Achievements: {edu.get("achievements", "")}
 ----
 """
 
         user_input = f"""
-Generate resume education bullet points. All fields are optional.
+Generate resume education bullet points.
 
 Education Details:
 {formatted_entries}
 
 Rules:
-- If a field is missing, skip it gracefully.
-- Do NOT invent any information.
-- Write 2–3 bullet points for each entry.
+- Output ONLY bullet points
+- Write 2–3 bullet points per education entry
+- If a field is missing, skip it
+- Do NOT invent any information
+- ATS-optimized language only
 """
 
     response = await call_llm(
-        model="gemma",
+        model="groq",
         user_message=user_input,
         agent_name="resume_builder",
         db=db,
@@ -231,3 +165,77 @@ Rules:
     return {"education_bullets": response}
 
 
+def build_ats_resume_json_prompt(
+    job_title: str,
+    company: str,
+    job_description: str
+) -> str:
+    return f"""
+Generate an ATS-optimized resume in STRICT JSON format.
+
+Job Title:
+{job_title}
+
+Company:
+{company}
+
+Job Description:
+{job_description}
+
+OUTPUT RULES (MANDATORY):
+- Output VALID JSON ONLY
+- No markdown
+- No explanations
+- No extra text
+- No trailing commas
+
+JSON SCHEMA (STRICT):
+
+{{
+  "summary": "2–3 line professional summary, no personal pronouns",
+  "experience": [
+    "5–7 achievement-based bullet points aligned to job description"
+  ],
+  "skills": [
+    "6–8 hard technical or role-specific skills only"
+  ]
+}}
+      
+CONTENT RULES:
+- ATS-friendly
+- No invented metrics
+- No soft skills
+- No assumptions beyond provided job description
+"""
+
+async def generate_ats_resume_json(data: dict, db: AsyncSession):
+    """
+    Generate ATS resume (summary + experience + skills) in JSON.
+    """
+
+    job_title = data.get("job_title")
+    job_description = data.get("job_description")
+    company = data.get("company", "")
+
+    if not job_title or not job_description:
+        raise ValueError("job_title and job_description are required")
+
+    user_prompt = build_ats_resume_json_prompt(
+        job_title=job_title,
+        company=company,
+        job_description=job_description
+    )
+
+    raw_response = await call_llm(
+        model="groq",
+        user_message=user_prompt,
+        agent_name="resume_builder",
+        db=db,
+        expect_json=False
+    )
+
+    try:
+        return json.loads(raw_response)
+    except Exception:
+        raise ValueError("LLM returned invalid JSON")
+    

@@ -41,7 +41,7 @@ def calculate_overdue_tasks(
     project_name: str | None = None
 ):
     today = datetime.now(timezone.utc)
-    OVERDUE_DAYS = 5  # 🔒 FIXED RULE
+    OVERDUE_DAYS = 5  # FIXED RULE
 
     result = {}
 
@@ -64,7 +64,7 @@ def calculate_overdue_tasks(
         if emp_id not in employees:
             continue
 
-        # ✅ ONLY createdAt (or dueDate if exists)
+        # ONLY createdAt (or dueDate if exists)
         raw_date = task.get("dueDate") or task.get("createdAt")
         if not raw_date:
             continue
@@ -78,7 +78,7 @@ def calculate_overdue_tasks(
             f"pending_days={pending_days}"
         )
 
-        # ✅ FINAL RULE
+        # FINAL RULE
         if pending_days <= OVERDUE_DAYS:
             continue
 

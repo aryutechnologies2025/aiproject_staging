@@ -21,7 +21,6 @@ async def yura_chat(message: str, session_id: str, db):
     # Save user message to Redis memory
     save_chat_message(session_id, "user", message)
 
-    # 1️⃣ CONTACT HANDLING
     # CONTACT HANDLING (HIGHEST PRIORITY)
     if detect_contact_intent(message):
         contact_type = detect_specific_contact(message)
@@ -43,7 +42,7 @@ async def yura_chat(message: str, session_id: str, db):
         save_chat_message(session_id, "assistant", reply)
         return reply
 
-    # 2️⃣ MEETING FLOW
+    # MEETING FLOW
     meeting_state = get_meeting_state(session_id)
 
     if meeting_state["mode"]:
@@ -85,7 +84,7 @@ async def yura_chat(message: str, session_id: str, db):
         save_chat_message(session_id, "assistant", reply)
         return reply
 
-    # 3️⃣ NORMAL CHAT WITH MEMORY
+    # NORMAL CHAT WITH MEMORY
     history = get_chat_history(session_id)
 
     context = "\n".join(
@@ -93,13 +92,13 @@ async def yura_chat(message: str, session_id: str, db):
     )
 
     ai_reply = await call_llm(
-        model="gemma",
+        model="groq",
         user_message=f"{context}\nUser: {message}",
         agent_name="yura_website_bot",
         db=db
     )
 
-    # 4️⃣ LEAD CTA
+    # LEAD CTA
     if detect_lead_intent(message):
         ai_reply += "\n\nI can help you with batch details or connect you with our team."
 

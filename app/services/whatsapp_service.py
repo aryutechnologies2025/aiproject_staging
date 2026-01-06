@@ -435,10 +435,10 @@ async def process_incoming_message(payload: dict, db: AsyncSession):
         # ============================================================
 
         try:
-            # 1️⃣ Save user message
+            # Save user message
             save_chat_message(from_number, "user", user_text)
 
-            # 2️⃣ Load chat history
+            # Load chat history
             history = get_chat_history(from_number)
             context = "\n".join(
                 f"{m['role']}: {m['content']}" for m in history
@@ -464,10 +464,10 @@ async def process_incoming_message(payload: dict, db: AsyncSession):
                     )
                     return
 
-            # 3️⃣ Call AI with memory
+            # Call AI with memory
             llm_reply = await call_llm(
-                model="gemma",
-                user_message=f"{context}\nUser: {user_text}",
+                model="groq",
+                user_message=user_text,
                 agent_name="whatsapp_bot",
                 db=db
             )
@@ -475,10 +475,10 @@ async def process_incoming_message(payload: dict, db: AsyncSession):
             if not llm_reply or not isinstance(llm_reply, str):
                 llm_reply = "I'm here to help 😊 Could you repeat that?"
 
-            # 4️⃣ Save AI reply
+            # Save AI reply
             save_chat_message(from_number, "assistant", llm_reply)
 
-            # 5️⃣ Send to WhatsApp
+            # Send to WhatsApp
             await send_whatsapp_message(from_number, llm_reply)
 
         except Exception as e:

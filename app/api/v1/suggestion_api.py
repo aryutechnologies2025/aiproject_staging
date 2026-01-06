@@ -1,61 +1,66 @@
-# suggestion_api.py
-
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.services.llm_client import call_llm
+from pydantic import BaseModel
 
 router = APIRouter()
 
 
-# --------------- Request Schema ---------------
+# -------------------- REQUEST SCHEMA --------------------
 class SuggestRequest(BaseModel):
     text: str
     tone: str | None = "neutral"
 
 
-# --------------- Response Schema ---------------
+# -------------------- RESPONSE SCHEMA --------------------
 class SuggestResponse(BaseModel):
     success: bool
     output: str
 
-def build_tone_instruction(tone: str):
+
+# -------------------- TONE HANDLER --------------------
+def build_tone_instruction(tone: str) -> str:
     tone = tone.lower()
-    if tone == "professional":
-        return "Write the output in a professional and formal tone."
-    if tone == "friendly":
-        return "Write the output in a friendly, warm, conversational tone."
-    if tone == "simple":
-        return "Write the output in simple and easy-to-understand language."
-    if tone == "formal":
-        return "Write the output in a very polite and formal tone."
-    if tone == "casual":
-        return "Write the output in a casual, natural tone."
-    return ""  # neutral
+
+    tone_map = {
+        "professional": "Write in a professional and formal tone.",
+        "friendly": "Write in a friendly and conversational tone.",
+        "simple": "Write in simple, easy-to-understand language.",
+        "formal": "Write in a polite and formal tone.",
+        "casual": "Write in a casual and natural tone.",
+    }
+
+    return tone_map.get(tone, "")
 
 
-# --------------- MAIN UNIVERSAL SUGGESTION API ---------------
+# -------------------- MAIN API --------------------
 @router.post("/", response_model=SuggestResponse)
-async def suggest_text(payload: SuggestRequest, db: AsyncSession = Depends(get_db)):
-
+async def suggest_text(
+    payload: SuggestRequest,
+    db: AsyncSession = Depends(get_db),
+):
     if not payload.text.strip():
-        return SuggestResponse(success=False, output="Please provide some text.")
+        return SuggestResponse(
+            success=False,
+            output="Input text is required."
+        )
 
-    # Build tone-specific instruction
     tone_instruction = build_tone_instruction(payload.tone)
 
-    # Append tone instruction to the user message
-    user_message = payload.text + f"\n\nTONE_INSTRUCTION: {tone_instruction}"
+    user_prompt = payload.text
+    if tone_instruction:
+        user_prompt += f"\n\nInstruction: {tone_instruction}"
 
-    # Call the universal agent with Qwen
-    ai_result = await call_llm(
-        model="gemma",
-        user_message=user_message,
+    ai_output = await call_llm(
+        model="groq",
+        user_message=user_prompt,
         agent_name="universal",
-        db=db
+        db=db,
     )
 
-    return SuggestResponse(success=True, output=ai_result)
-
+    return SuggestResponse(
+        success=True,
+        output=ai_output.strip()
+    )

@@ -1,64 +1,73 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
+from app.services.resume_services import (
+    suggest_experience,
+    suggest_summary,
+    build_skills_prompt,
+    suggest_education,
+    generate_ats_resume_json,
+)
 from app.services.llm_client import call_llm
-from app.services.prompt_service import get_prompt
 
 router = APIRouter()
 
 
-@router.post("/generate")
-async def generate_resume_suggestion(
+@router.post("/experience")
+async def generate_experience(
     data: dict,
-    type: str = Query(..., description="exp, summary, skills, edu"),
     db: AsyncSession = Depends(get_db),
 ):
-    system_prompt = await get_prompt(db, "resume_builder")
+    return await suggest_experience(data, db)
 
-    # Build minimal prompt based on type → EASY + FAST
-    if type == "exp":
-        user_msg = f"""
-Generate 5-8 resume bullet points.
+@router.post("/summary")
+async def generate_summary(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    return await suggest_summary(data, db)
 
-Job Title: {data.get("job_title")}
-Company: {data.get("company")}
-Description: {data.get("description")}
+@router.post("/skills")
+async def generate_skills(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    job_titles = data.get("job_titles", [])
+    career_level = data.get("career_level", "experienced")
 
-Rules:
-- Short bullets.
-- ATS-friendly.
-- No fake details.
-"""
-    elif type == "summary":
-        user_msg = f"""
-Write a 5-8 line resume summary.
+    if not isinstance(job_titles, list):
+        raise HTTPException(400, "job_titles must be a list")
 
-Skills: {data.get("skills")}
-Experience: {data.get("experience")}
-"""
-    elif type == "skills":
-        user_msg = f"""
-Suggest 10–15 resume skills based on:
+    user_prompt = build_skills_prompt(
+        job_titles=job_titles,
+        career_level=career_level
+    )
 
-Job Title: {data.get("job_title")}
-Existing Skills: {data.get("skills")}
-"""
-    elif type == "edu":
-        user_msg = f"""
-Write 5-8 resume bullet points for education.
-
-Degree: {data.get("degree")}
-College: {data.get("college")}
-"""
-    else:
-        raise HTTPException(400, "Invalid type. Use exp, summary, skills, edu.")
-
-    # ONE FAST LLM CALL
     response = await call_llm(
-        model="llama",
-        user_message=user_msg,
+        model="groq",
+        user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
     )
 
-    return {"result": response}
+    skills = [line.strip() for line in response.splitlines() if line.strip()]
+    return {"skills": skills}
+
+@router.post("/education")
+async def generate_education(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    return await suggest_education(data, db)
+
+@router.post("/generate-resume")
+async def generate_resume_json(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await generate_ats_resume_json(data, db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

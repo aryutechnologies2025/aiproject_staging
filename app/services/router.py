@@ -17,7 +17,7 @@ async def route_message(message: str, user_id: str):
     msg_lower = message.lower()
     lang = detect_language(message)
 
-    # 🎯 High-priority rules
+    # High-priority rules
 
     # 1. First-time welcome
     if msg_lower in ("hi", "hello", "hey", "hai", "hii"):
