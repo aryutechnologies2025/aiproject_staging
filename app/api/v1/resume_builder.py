@@ -8,6 +8,7 @@ from app.services.resume_services import (
     build_skills_prompt,
     suggest_education,
     generate_ats_resume_json,
+    refine_resume_section,
 )
 from app.services.llm_client import call_llm
 
@@ -70,4 +71,18 @@ async def generate_resume_json(
         return await generate_ats_resume_json(data, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/refine")
+async def refine_resume(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    return await refine_resume_section(
+        section_name=payload["section"],
+        existing_content=payload["existing_content"],
+        user_instruction=payload["instruction"],
+        experience_level=payload.get("experience_level", "experienced"),
+        db=db,
+    )
 

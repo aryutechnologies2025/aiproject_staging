@@ -21,6 +21,7 @@ Current Description: {data.get("description") or ""}
 Tone: {data.get("tone", "professional")}
 
 RULES:
+- Output ONLY bullet points
 - Output 6 to 8 bullet points ONLY
 - Each bullet must start with an action verb
 - Resume language only
@@ -123,7 +124,7 @@ Generate education bullet points for a candidate with no formal education detail
 
 Rules:
 - Output ONLY bullet points
-- 2 bullet points only
+- 3 to 5 bullet points only
 - No invented degree names
 - Generic, ATS-safe phrasing
 """
@@ -200,7 +201,7 @@ JSON SCHEMA (STRICT):
     "6–8 hard technical or role-specific skills only"
   ]
 }}
-      
+
 CONTENT RULES:
 - ATS-friendly
 - No invented metrics
@@ -239,3 +240,54 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession):
     except Exception:
         raise ValueError("LLM returned invalid JSON")
     
+
+async def refine_resume_section(
+    *,
+    section_name: str,
+    existing_content: str,
+    user_instruction: str,
+    experience_level: str,
+    db: AsyncSession
+) -> dict:
+    """
+    Refines existing resume content based on user instruction.
+    NOT a chatbot. Output is resume-ready only.
+    """
+
+    prompt = f"""
+You are a professional resume editor.
+
+SECTION:
+{section_name}
+
+EXISTING CONTENT:
+{existing_content}
+
+USER INSTRUCTION:
+{user_instruction}
+
+EXPERIENCE LEVEL:
+{experience_level}
+
+STRICT RULES:
+- Modify ONLY based on user instruction
+- Preserve resume format
+- Do NOT add explanations
+- Do NOT ask questions
+- Do NOT invent experience
+- ATS-optimized language only
+- Output ONLY the updated content
+"""
+
+    response = await call_llm(
+        model="groq",
+        user_message=prompt,
+        agent_name="resume_builder",
+        db=db,
+    )
+
+    return {
+        "section": section_name,
+        "updated_content": response.strip()
+    }
+
