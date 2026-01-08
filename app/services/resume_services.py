@@ -76,8 +76,10 @@ STRICT RULES:
 
     # LLM call (NO DB here)
     response = await call_llm(
+        model="groq",
         user_message=user_prompt,
-        system_prompt=system_prompt,
+        agent_name="resume_builder",
+        db=db,
     )
 
     return {"summary": response}
