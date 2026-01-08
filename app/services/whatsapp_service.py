@@ -466,7 +466,6 @@ async def process_incoming_message(payload: dict, db: AsyncSession):
 
             # Call AI with memory
             llm_reply = await call_llm(
-                model="groq",
                 user_message=user_text,
                 agent_name="whatsapp_bot",
                 db=db

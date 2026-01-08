@@ -54,7 +54,6 @@ async def suggest_text(
         user_prompt += f"\n\nInstruction: {tone_instruction}"
 
     ai_output = await call_llm(
-        model="groq",
         user_message=user_prompt,
         agent_name="universal",
         db=db,

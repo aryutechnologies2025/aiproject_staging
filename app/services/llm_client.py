@@ -26,7 +26,7 @@ async def call_llm(
 
     try:
         completion = groq_client.chat.completions.create(
-            model=model,   # model is fixed here
+            model=GROQ_MODEL,   # model is fixed here
             messages=[
                 {"role": "system", "content": SYSTEM_SAFE},
                 {"role": "user", "content": USER_SAFE},

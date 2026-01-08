@@ -366,7 +366,6 @@ OUTPUT FORMAT:
 
     # 6️⃣ Call LLM
     raw_response = await call_llm(
-        model="groq",
         user_message=final_prompt,
         agent_name="hrms_management",
         db=db
@@ -458,7 +457,6 @@ OUTPUT FORMAT:
 
     # Call LLM
     raw_response = await call_llm(
-        model="groq",
         user_message=final_prompt,
         agent_name="hrms_management",
         db=db

@@ -92,7 +92,6 @@ async def yura_chat(message: str, session_id: str, db):
     )
 
     ai_reply = await call_llm(
-        model="groq",
         user_message=f"{context}\nUser: {message}",
         agent_name="yura_website_bot",
         db=db

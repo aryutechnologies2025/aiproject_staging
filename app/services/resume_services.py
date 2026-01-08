@@ -30,7 +30,6 @@ RULES:
 """
 
     response = await call_llm(
-        model="groq",
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
@@ -76,7 +75,6 @@ STRICT RULES:
 
     # LLM call (NO DB here)
     response = await call_llm(
-        model="groq",
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
@@ -156,7 +154,6 @@ Rules:
 """
 
     response = await call_llm(
-        model="groq",
         user_message=user_input,
         agent_name="resume_builder",
         db=db,
@@ -227,7 +224,6 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession):
     )
 
     raw_response = await call_llm(
-        model="groq",
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
@@ -278,7 +274,6 @@ STRICT RULES:
 """
 
     response = await call_llm(
-        model="groq",
         user_message=prompt,
         agent_name="resume_builder",
         db=db,
