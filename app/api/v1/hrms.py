@@ -6,11 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...services.hrms_service import (
     fetch_employees,
     fetch_tasks,
-    calculate_overdue_tasks
+    calculate_overdue_tasks,
+    create_task_via_ai,
+    describe_task_from_title,
 )
 from app.core.database import get_db
 
-router = APIRouter(prefix="/ai/hrms", tags=["HRMS AI"])
+router = APIRouter(prefix="/api/ai/hrms", tags=["HRMS AI"])
 
 @router.get("/overdue-employees")
 async def overdue_employees(
@@ -94,3 +96,25 @@ async def admin_responses(db: AsyncSession = Depends(get_db)):
         "SELECT employee_name, response, received_at FROM alert_responses ORDER BY received_at DESC"
     )
     return rows.fetchall()
+
+@router.post("/task")
+async def ai_create_task(payload: dict, db: AsyncSession = Depends(get_db)):
+    return await create_task_via_ai(
+        db=db,
+        user_prompt=payload["prompt"],
+        project_name=payload["projectName"],
+        assigned_to=payload["assignedTo"],
+        created_by_id=payload["createdById"]
+    )
+
+@router.post("/tasks-description")
+async def ai_create_task_description(payload: dict, db: AsyncSession = Depends(get_db)):
+    description = await describe_task_from_title(
+        db=db,
+        title=payload["title"],
+        project_name=payload["projectName"]
+    )
+    return {
+        "description": description
+    }
+

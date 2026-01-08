@@ -22,7 +22,7 @@ Tone: {data.get("tone", "professional")}
 
 RULES:
 - Output ONLY bullet points
-- Output 6 to 8 bullet points ONLY
+- Output 15 to 20 bullet points ONLY
 - Each bullet must start with an action verb
 - Resume language only
 - No introductions, explanations, or questions
@@ -42,10 +42,12 @@ RULES:
 
 
 async def suggest_summary(data: dict, db: AsyncSession) -> dict:
-    """
-    Generate a concise ATS-optimized resume summary ONLY.
-    """
+    # DB work FIRST
+    system_prompt = await get_prompt(db, "resume_builder")
+    if not system_prompt:
+        system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises."
 
+    # Build user prompt
     user_prompt = f"""
 Write a professional resume summary.
 
@@ -68,23 +70,18 @@ STRICT RULES:
 - Output ONLY the summary text
 - 2 to 4 lines maximum
 - ATS-friendly wording
-- No personal pronouns (I, me, my, we)
+- No personal pronouns
 - No bullet points
-- No headings or labels
-- No explanations, greetings, or follow-up questions
-- Resume language ONLY
 """
 
+    # LLM call (NO DB here)
     response = await call_llm(
-        model="groq",
         user_message=user_prompt,
-        agent_name="resume_builder",
-        db=db,
+        system_prompt=system_prompt,
     )
 
-    return {
-        "summary": response.strip()
-    }
+    return {"summary": response}
+
 
 
 def build_skills_prompt(job_titles: list[str], career_level: str = "experienced") -> str:
@@ -232,7 +229,6 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession):
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
-        expect_json=False
     )
 
     try:

@@ -2,6 +2,8 @@ import os
 from groq import Groq
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.prompt_service import get_prompt
+import asyncio
+from functools import partial
 
 # Groq client
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -11,32 +13,30 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 
 async def call_llm(
+    *,
     user_message: str,
-    agent_name: str,
-    db: AsyncSession,
-    model: str = "groq",   # default groq
+    system_prompt: str,
 ):
-    # Load system prompt
-    system_prompt = await get_prompt(db, agent_name)
-    if not system_prompt:
-        system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises."
-
-    # Safety truncation
     SYSTEM_SAFE = system_prompt[:3500]
     USER_SAFE = user_message[:1500]
 
+    loop = asyncio.get_running_loop()
+
     try:
-        # Call Groq Chat Completion
-        completion = groq_client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_SAFE},
-                {"role": "user", "content": USER_SAFE},
-            ],
-            temperature=0.7,
-            max_completion_tokens=1024,
-            top_p=1,
-            stream=False,
+        completion = await loop.run_in_executor(
+            None,
+            partial(
+                groq_client.chat.completions.create,
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_SAFE},
+                    {"role": "user", "content": USER_SAFE},
+                ],
+                temperature=0.7,
+                max_completion_tokens=1024,
+                top_p=1,
+                stream=False,
+            ),
         )
 
         return completion.choices[0].message.content.strip()
