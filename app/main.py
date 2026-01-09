@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.core.database import Base, engine
 import os
 from fastapi.staticfiles import StaticFiles
-from app.api.v1 import whatsapp, youtube, admin, health, resume_builder, prompt, suggestion_api, hrms, yura_chat_api
+from app.api.v1 import whatsapp, youtube, admin, health, resume_builder, prompt, suggestion_api, hrms, yura_chat_api, ats_api
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -46,6 +46,7 @@ app.include_router(resume_builder.router, prefix="/api/v1/resume", tags=["Resume
 app.include_router(suggestion_api.router, prefix="/api/v1/suggest", tags=["Suggestions AI"])
 app.include_router(hrms.router)
 app.include_router(yura_chat_api.router)
+app.include_router(ats_api.router, prefix="/api/v1/ats", tags=["ATS"])
 
 
 # Serve static files from app/static
