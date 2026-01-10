@@ -7,6 +7,9 @@ class Experience(BaseModel):
     company: str
     bullets: List[str]
 
+class Education(BaseModel):
+    degree: str
+    educationDescription: List[str]
 
 class ATSScanRequest(BaseModel):
     name: str
@@ -15,7 +18,7 @@ class ATSScanRequest(BaseModel):
     summary: Optional[str]
     skills: List[str]
     experience: List[Experience]
-    education: List[str]
+    education: List[Education]
 
     # editor metadata
     font: str
