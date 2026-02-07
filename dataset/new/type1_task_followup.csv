@@ -1,0 +1,221 @@
+instruction,task,assignedTo,status,pendingDays,output
+Generate follow-up message for pending task,Compliance filing,Arun,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,arun kumar,blocked,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,bala,pending,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,abdul,pending,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,bharath waj,pending,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,kanimozhi,blocked,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,jp,in-progress,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,tamil,in-progress,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,venu,pending,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,suba,pending,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,vishali,in-progress,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,yuvaraj,pending,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,aruna,pending,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,ak,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,Arun,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,arun kumar,in-progress,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,bala,blocked,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,abdul,blocked,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bharath waj,in-progress,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,kanimozhi,in-progress,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,jp,in-progress,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,tamil,blocked,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,venu,blocked,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,suba,pending,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,vishali,blocked,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,yuvaraj,blocked,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,aruna,pending,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,ak,blocked,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,Arun,blocked,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,arun kumar,blocked,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bala,blocked,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,abdul,pending,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,bharath waj,blocked,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,kanimozhi,in-progress,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,jp,blocked,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,tamil,pending,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,venu,in-progress,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,suba,in-progress,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,vishali,in-progress,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,yuvaraj,blocked,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,aruna,in-progress,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,ak,in-progress,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,Arun,in-progress,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,arun kumar,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,bala,in-progress,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,abdul,blocked,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,bharath waj,blocked,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,kanimozhi,in-progress,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,jp,pending,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,tamil,pending,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,venu,pending,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,suba,in-progress,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,vishali,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,yuvaraj,in-progress,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,aruna,blocked,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,ak,in-progress,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,Arun,blocked,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,arun kumar,pending,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,bala,blocked,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,abdul,pending,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,bharath waj,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,kanimozhi,in-progress,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,jp,pending,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,tamil,in-progress,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,venu,in-progress,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,suba,pending,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,vishali,pending,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,yuvaraj,in-progress,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,aruna,pending,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,ak,in-progress,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,Arun,in-progress,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,arun kumar,in-progress,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,bala,pending,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,abdul,pending,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,bharath waj,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,kanimozhi,pending,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,jp,in-progress,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,tamil,pending,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,venu,pending,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,suba,blocked,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,vishali,pending,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,yuvaraj,blocked,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,aruna,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,ak,in-progress,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,Arun,in-progress,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,arun kumar,blocked,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,bala,blocked,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,abdul,in-progress,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,bharath waj,in-progress,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,kanimozhi,pending,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,jp,pending,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,tamil,in-progress,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,venu,in-progress,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,suba,in-progress,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,vishali,blocked,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,yuvaraj,in-progress,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,aruna,blocked,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,ak,in-progress,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,Arun,in-progress,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,arun kumar,blocked,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bala,pending,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,abdul,blocked,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,bharath waj,pending,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,kanimozhi,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,jp,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,tamil,in-progress,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,venu,pending,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,suba,in-progress,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,vishali,pending,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,yuvaraj,blocked,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,aruna,blocked,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,ak,pending,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,Arun,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,arun kumar,in-progress,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,bala,blocked,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,abdul,blocked,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,bharath waj,pending,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,kanimozhi,blocked,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,jp,blocked,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,tamil,in-progress,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,venu,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,suba,in-progress,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,vishali,in-progress,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,yuvaraj,in-progress,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,aruna,blocked,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,ak,blocked,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,Arun,in-progress,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,arun kumar,blocked,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,bala,in-progress,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,abdul,pending,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bharath waj,pending,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,kanimozhi,pending,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,jp,pending,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,tamil,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,venu,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,suba,pending,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,vishali,pending,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,yuvaraj,pending,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,aruna,blocked,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,ak,in-progress,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,Arun,blocked,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,arun kumar,blocked,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,bala,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,abdul,blocked,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,bharath waj,in-progress,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,kanimozhi,in-progress,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,jp,pending,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,tamil,pending,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,venu,pending,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,suba,pending,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,vishali,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,yuvaraj,blocked,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,aruna,pending,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,ak,pending,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,Arun,in-progress,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,arun kumar,in-progress,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,bala,in-progress,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,abdul,blocked,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,bharath waj,blocked,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,kanimozhi,blocked,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,jp,blocked,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,tamil,blocked,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,venu,pending,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,suba,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,vishali,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,yuvaraj,in-progress,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,aruna,blocked,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,ak,pending,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,Arun,in-progress,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,arun kumar,blocked,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,bala,in-progress,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,abdul,in-progress,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,bharath waj,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,kanimozhi,blocked,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,jp,pending,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,tamil,in-progress,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,venu,pending,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,suba,blocked,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,vishali,blocked,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,yuvaraj,in-progress,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,aruna,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,ak,in-progress,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,Arun,blocked,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,arun kumar,pending,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bala,pending,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,abdul,in-progress,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,bharath waj,blocked,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,kanimozhi,blocked,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,jp,in-progress,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,tamil,pending,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,venu,pending,11,The task has been pending for 11 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,suba,blocked,12,The task has been pending for 12 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Attendance reconciliation,vishali,in-progress,13,The task has been pending for 13 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,yuvaraj,in-progress,14,The task has been pending for 14 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,aruna,blocked,15,The task has been pending for 15 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,ak,in-progress,16,The task has been pending for 16 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,Arun,blocked,17,The task has been pending for 17 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,arun kumar,pending,18,The task has been pending for 18 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bala,pending,19,The task has been pending for 19 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,abdul,pending,20,The task has been pending for 20 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bharath waj,blocked,21,The task has been pending for 21 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,kanimozhi,blocked,22,The task has been pending for 22 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,jp,in-progress,23,The task has been pending for 23 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Policy review,tamil,pending,24,The task has been pending for 24 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,venu,blocked,25,The task has been pending for 25 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,suba,in-progress,26,The task has been pending for 26 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Onboarding documentation,vishali,blocked,27,The task has been pending for 27 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,yuvaraj,blocked,28,The task has been pending for 28 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,aruna,in-progress,29,The task has been pending for 29 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,ak,in-progress,30,The task has been pending for 30 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Appraisal data entry,Arun,in-progress,1,The task has been pending for 1 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,arun kumar,blocked,2,The task has been pending for 2 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bala,pending,3,The task has been pending for 3 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,abdul,pending,4,The task has been pending for 4 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,bharath waj,in-progress,5,The task has been pending for 5 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Audit preparation,kanimozhi,pending,6,The task has been pending for 6 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Vendor contract upload,jp,in-progress,7,The task has been pending for 7 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Exit clearance,tamil,in-progress,8,The task has been pending for 8 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Compliance filing,venu,blocked,9,The task has been pending for 9 days and requires action as per HRMS tracking standards.
+Generate follow-up message for pending task,Payroll verification,suba,pending,10,The task has been pending for 10 days and requires action as per HRMS tracking standards.

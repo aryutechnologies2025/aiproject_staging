@@ -24,6 +24,7 @@ DATABASE_URL = os.getenv("POSTGRES_URL")
 
 DATABASE_URL = DATABASE_URL.replace(
     "postgresql+asyncpg",
+    "postgresql+psycopg2",
 )
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))

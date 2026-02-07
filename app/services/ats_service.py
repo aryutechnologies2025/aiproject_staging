@@ -1,5 +1,5 @@
 
-from app.utils.ats_rules import run_ats_rules, keyword_match, calculate_final_score, calculate_final_score_non_ai
+from app.utils.ats_rules import build_sections_array, run_ats_rules, keyword_match, calculate_final_score_non_ai
 import json
 
 
@@ -73,14 +73,14 @@ Job Description:
 {job_description}
 
 OUTPUT STRICT JSON ONLY:
-{
-  "content_coverage_score": number between 70 and 100,
-  "keyword_alignment_score": number between 60 and 100,
-  "structure_completeness_score": number between 80 and 100,
-  "ai_issues": [list of soft ATS issues],
-  "missing_skills": [critical missing technical skills],
-  "improvement_suggestions": [clear, positive ATS suggestions]
-}
+{{
+  "content_coverage_score": 80,
+  "keyword_alignment_score": 75,
+  "structure_completeness_score": 85,
+  "ai_issues": ["Example soft issue"],
+  "missing_skills": ["Example skill"],
+  "improvement_suggestions": ["Example suggestion"]
+}}
 """
 
 
@@ -121,61 +121,44 @@ async def ai_evaluate_resume(llm_client, resume):
         ]
 
     return {
-        "content_coverage_score": max(70, raw.get("content_coverage_score", 80)),
-        "keyword_alignment_score": max(60, raw.get("keyword_alignment_score", 75)),
-        "structure_completeness_score": max(80, raw.get("structure_completeness_score", 85)),
         "ai_issues": ai_issues,
+        "improvement_suggestions": ai_suggestions,
         "missing_skills": raw.get("missing_skills", []),
-        "improvement_suggestions": ai_suggestions
     }
 
 
 
 async def scan_resume_with_ai(resume, llm_client=None):
-    rule_score, issues = run_ats_rules(resume)
+    # 1. Rule-based ATS
+    rule_score, rule_issues = run_ats_rules(resume)
+
+    # 2. Keyword match
     keyword_score = keyword_match(resume, resume.job_description)
 
-    ai_scores = {
-        "content_coverage_score": 80,
-        "keyword_alignment_score": 75,
-        "structure_completeness_score": 85
-    }
-    missing_skills = []
-    ai_suggestions = []
-    ai_issues = []
+    # 3. Final score (non-AI, predictable)
+    final_score = calculate_final_score_non_ai(
+        rule_score,
+        keyword_score
+    )
 
+    # 4. Missing skills (AI optional)
+    ai_issues = []
+    ai_suggestions = []
     if llm_client and resume.job_description:
         ai_result = await ai_evaluate_resume(llm_client, resume)
-        for key in ai_scores:
-            if key in ai_result:
-                ai_scores[key] = ai_result[key]
         missing_skills = ai_result.get("missing_skills", [])
-        ai_suggestions = ai_result.get("improvement_suggestions", [])
         ai_issues = ai_result.get("ai_issues", [])
+        ai_suggestions = ai_result.get("improvement_suggestions", [])
 
-    ai_quality_score = (
-        ai_scores["content_coverage_score"] * 0.4 +
-        ai_scores["keyword_alignment_score"] * 0.4 +
-        ai_scores["structure_completeness_score"] * 0.2
-    )
-    ai_quality_score = max(ai_quality_score, 75)
-
-    final_score = calculate_final_score(
-        rule_score,
-        keyword_score,
-        ai_quality_score
-    )
-    all_issues = list(dict.fromkeys(issues + ai_issues))
-
-    return {
-        "ats_score": max(round(final_score, 2), 72),
-        "rule_score": rule_score,
-        "keyword_match_percentage": keyword_score,
-        "ai_quality_score": round(ai_quality_score, 2),
-        "issues": all_issues,
-        "suggestions": ai_suggestions,
+    res = {
+        "ats_score": max(final_score, 0),
+        "sections": build_sections_array(rule_issues),
         "missing_skills": missing_skills,
-        "status": "ATS Friendly"
+        "ai_issues": ai_issues,
+        "recommendations": ai_suggestions
     }
+    print(res)
+    # 5. Build FINAL response
+    return res
 
 

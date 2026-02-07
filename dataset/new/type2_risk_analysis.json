@@ -1,0 +1,4352 @@
+[
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-08"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Policy review",
+          "status": "in-progress",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-23"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Compliance filing",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-02-09"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-08"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Compliance filing",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "vishali",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "yuvaraj",
+      "tasks": [
+        {
+          "title": "Payroll verification",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "aruna",
+      "tasks": [
+        {
+          "title": "Exit clearance",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "ak",
+      "tasks": [
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-24"
+        },
+        {
+          "title": "Exit clearance",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Arun",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "arun kumar",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bala",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "abdul",
+      "tasks": [
+        {
+          "title": "Onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "bharath waj",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "in-progress",
+          "dueDate": "2026-02-08"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "kanimozhi",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        },
+        {
+          "title": "Audit preparation",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-23"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "jp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "tamil",
+      "tasks": [
+        {
+          "title": "Audit preparation",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Policy review",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "venu",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Payroll verification",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "suba",
+      "tasks": [
+        {
+          "title": "Policy review",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Appraisal data entry",
+          "status": "pending",
+          "dueDate": "2026-02-09"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Task status indicates potential delivery, dependency, or compliance risk requiring review."
+  }
+]

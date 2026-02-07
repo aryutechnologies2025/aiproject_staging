@@ -1,0 +1,846 @@
+[
+  {
+    "type": "follow_up_message",
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Upload final report",
+      "assignedTo": "Archana R",
+      "status": "pending",
+      "pendingDays": 6
+    },
+    "output": "The final report upload is pending for over six days. Please share the current status or any blockers."
+  },
+  {
+    "type": "follow_up_message",
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Complete code review",
+      "assignedTo": "Rajesh Kumar",
+      "status": "pending",
+      "pendingDays": 3
+    },
+    "output": "Code review has been pending for 3 days. Could you please provide an update on the progress?"
+  },
+  {
+    "type": "follow_up_message",
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Submit expense report",
+      "assignedTo": "Priya Sharma",
+      "status": "pending",
+      "pendingDays": 10
+    },
+    "output": "Your expense report submission is overdue by 10 days. This requires immediate attention to process reimbursements."
+  },
+  {
+    "type": "follow_up_message",
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Update project documentation",
+      "assignedTo": "Vikram Singh",
+      "status": "pending",
+      "pendingDays": 1
+    },
+    "output": "Reminder: Project documentation update is pending since yesterday. Please complete it at your earliest convenience."
+  },
+  {
+    "type": "follow_up_message",
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Team performance review",
+      "assignedTo": "Meena Patel",
+      "status": "pending",
+      "pendingDays": 15
+    },
+    "output": "Team performance review is significantly overdue (15 days). This is critical for quarterly assessments. Please prioritize completion."
+  },
+  {
+    "type": "risk_analysis",
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Archana R",
+      "tasks": [
+        {"title": "API integration", "status": "in-progress", "dueDate": "2026-02-01"},
+        {"title": "Dashboard UI", "status": "pending", "dueDate": "2026-01-28"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "Dashboard UI task is overdue and requires immediate attention. API integration is at risk of delay."
+  },
+  {
+    "type": "risk_analysis",
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "tasks": [
+        {"title": "Database migration", "status": "pending", "dueDate": "2026-02-08"},
+        {"title": "Security audit", "status": "in-progress", "dueDate": "2026-02-10"},
+        {"title": "Performance testing", "status": "completed", "dueDate": "2026-02-05"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "Performance testing completed on time. Database migration due in 2 days - status update needed. Security audit is progressing as scheduled."
+  },
+  {
+    "type": "risk_analysis",
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Sharma",
+      "tasks": [
+        {"title": "Client presentation", "status": "pending", "dueDate": "2026-02-05"},
+        {"title": "Budget approval", "status": "pending", "dueDate": "2026-02-04"},
+        {"title": "Resource allocation", "status": "pending", "dueDate": "2026-02-03"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "Critical: All three tasks are overdue. Resource allocation is 3 days overdue, budget approval 2 days overdue, and client presentation 1 day overdue. Immediate action required."
+  },
+  {
+    "type": "risk_analysis",
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {"title": "Module development", "status": "in-progress", "dueDate": "2026-02-15"},
+        {"title": "Unit testing", "status": "not-started", "dueDate": "2026-02-20"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "All tasks are on track. Module development is progressing well with 9 days remaining. Unit testing is scheduled appropriately."
+  },
+  {
+    "type": "risk_analysis",
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meena Patel",
+      "tasks": [],
+      "today": "2026-02-06"
+    },
+    "output": "No active tasks assigned. Consider reviewing workload distribution."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can you extend my task deadline?",
+    "output": "Deadline changes must be handled by the project manager through the standard workflow."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for leave tomorrow",
+    "output": "Leave applications must be submitted at least 3 days in advance through the leave management portal, unless it's an emergency leave."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "How do I claim overtime?",
+    "output": "Overtime claims should be submitted through the attendance module with manager approval. Ensure you log actual hours worked beyond regular schedule."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I work from home permanently?",
+    "output": "Work from home policies vary by role and department. Please discuss with your reporting manager and submit a formal request through HR for evaluation."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "I forgot to mark attendance yesterday",
+    "output": "Please submit an attendance regularization request through the HRMS portal with appropriate justification. Your manager will need to approve it."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "Where can I access my payslips?",
+    "output": "Payslips are available in the 'Compensation' section of your HRMS portal. They are typically uploaded by the 5th of each month."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I reassign my task to someone else?",
+    "output": "Task reassignment requires manager approval. Please discuss with your team lead and use the task management module to initiate the transfer."
+  },
+  {
+    "type": "policy_response",
+    "instruction": "Respond according to HRMS policy",
+    "input": "I need access to the production server",
+    "output": "Production server access requires IT security approval. Submit an access request through the IT service portal with business justification."
+  },
+  {
+    "type": "project_summary",
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "PSS Portal",
+      "tasks": [
+        {"title": "UI Design", "status": "completed"},
+        {"title": "API Integration", "status": "in-progress"}
+      ]
+    },
+    "output": "UI design is completed. API integration is currently in progress."
+  },
+  {
+    "type": "project_summary",
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Mobile App Redesign",
+      "tasks": [
+        {"title": "User Research", "status": "completed"},
+        {"title": "Wireframing", "status": "completed"},
+        {"title": "Prototype Development", "status": "in-progress"},
+        {"title": "User Testing", "status": "pending"}
+      ]
+    },
+    "output": "User research and wireframing phases are completed. Prototype development is currently underway. User testing is scheduled to begin next."
+  },
+  {
+    "type": "project_summary",
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "CRM Implementation",
+      "tasks": [
+        {"title": "Requirements Gathering", "status": "completed"},
+        {"title": "Vendor Selection", "status": "completed"},
+        {"title": "Data Migration", "status": "in-progress"},
+        {"title": "Training Sessions", "status": "pending"},
+        {"title": "Go-Live Preparation", "status": "pending"}
+      ]
+    },
+    "output": "Requirements gathering and vendor selection completed successfully. Data migration is in progress. Training sessions and go-live preparation are pending."
+  },
+  {
+    "type": "project_summary",
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Security Audit 2026",
+      "tasks": [
+        {"title": "Vulnerability Scanning", "status": "completed"},
+        {"title": "Penetration Testing", "status": "in-progress"},
+        {"title": "Report Generation", "status": "not-started"}
+      ]
+    },
+    "output": "Vulnerability scanning has been completed. Penetration testing is currently in progress. Report generation will commence after testing completion."
+  },
+  {
+    "type": "project_summary",
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "E-commerce Platform",
+      "tasks": [
+        {"title": "Payment Gateway Integration", "status": "blocked"},
+        {"title": "Product Catalog Setup", "status": "in-progress"},
+        {"title": "Checkout Flow", "status": "pending"}
+      ]
+    },
+    "output": "Product catalog setup is progressing. Payment gateway integration is currently blocked and requires attention. Checkout flow development is pending integration completion."
+  },
+  {
+    "type": "team_productivity",
+    "instruction": "Analyze team productivity and provide insights",
+    "input": {
+      "team": "Development Team A",
+      "members": [
+        {"name": "Archana R", "tasksCompleted": 8, "tasksPending": 2, "tasksInProgress": 1},
+        {"name": "Rajesh Kumar", "tasksCompleted": 5, "tasksPending": 4, "tasksInProgress": 2},
+        {"name": "Priya Sharma", "tasksCompleted": 10, "tasksPending": 1, "tasksInProgress": 1}
+      ],
+      "period": "Last 2 weeks"
+    },
+    "output": "Team completed 23 tasks in the last 2 weeks. Priya Sharma shows highest productivity with 10 completions. Rajesh Kumar has 4 pending tasks requiring attention. Overall team performance is good with 83% task completion rate."
+  },
+  {
+    "type": "team_productivity",
+    "instruction": "Analyze team productivity and provide insights",
+    "input": {
+      "team": "QA Team",
+      "members": [
+        {"name": "Vikram Singh", "tasksCompleted": 3, "tasksPending": 8, "tasksInProgress": 3},
+        {"name": "Meena Patel", "tasksCompleted": 2, "tasksPending": 9, "tasksInProgress": 2}
+      ],
+      "period": "Last week"
+    },
+    "output": "Warning: QA team has significantly high pending tasks (17 total). Only 5 tasks completed last week. Team may be overloaded or facing blockers. Recommend resource review or priority realignment."
+  },
+  {
+    "type": "leave_management",
+    "instruction": "Process leave request and provide response",
+    "input": {
+      "employee": "Archana R",
+      "leaveType": "annual",
+      "startDate": "2026-02-15",
+      "endDate": "2026-02-20",
+      "availableLeaves": 12,
+      "requestedDays": 6
+    },
+    "output": "Leave request for 6 days is within available balance (12 days). Request can be processed subject to manager approval and team workload considerations."
+  },
+  {
+    "type": "leave_management",
+    "instruction": "Process leave request and provide response",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "leaveType": "sick",
+      "startDate": "2026-02-06",
+      "endDate": "2026-02-06",
+      "availableLeaves": 5,
+      "requestedDays": 1
+    },
+    "output": "Sick leave for 1 day approved. Medical certificate required if absence exceeds 2 consecutive days. Remaining sick leave balance: 4 days."
+  },
+  {
+    "type": "leave_management",
+    "instruction": "Process leave request and provide response",
+    "input": {
+      "employee": "Priya Sharma",
+      "leaveType": "annual",
+      "startDate": "2026-03-01",
+      "endDate": "2026-03-10",
+      "availableLeaves": 5,
+      "requestedDays": 10
+    },
+    "output": "Leave request denied. Requested days (10) exceed available balance (5). Please adjust dates or consider unpaid leave option in consultation with HR."
+  },
+  {
+    "type": "attendance_alert",
+    "instruction": "Generate attendance violation alert",
+    "input": {
+      "employee": "Vikram Singh",
+      "issue": "late_arrival",
+      "occurrences": 5,
+      "period": "this month",
+      "threshold": 3
+    },
+    "output": "Attendance alert: Vikram Singh has exceeded the late arrival threshold with 5 occurrences this month (threshold: 3). Manager notification sent for corrective action."
+  },
+  {
+    "type": "attendance_alert",
+    "instruction": "Generate attendance violation alert",
+    "input": {
+      "employee": "Meena Patel",
+      "issue": "missing_attendance",
+      "occurrences": 3,
+      "period": "last week",
+      "threshold": 2
+    },
+    "output": "Critical: Meena Patel has 3 days of unmarked attendance last week. Immediate regularization required or it will be marked as leave of absence."
+  },
+  {
+    "type": "performance_review",
+    "instruction": "Generate performance review reminder",
+    "input": {
+      "employee": "Archana R",
+      "reviewType": "quarterly",
+      "dueDate": "2026-02-10",
+      "today": "2026-02-06",
+      "manager": "Suresh Menon"
+    },
+    "output": "Quarterly performance review for Archana R is due on Feb 10 (4 days remaining). Manager Suresh Menon should schedule review meeting and complete assessment."
+  },
+  {
+    "type": "performance_review",
+    "instruction": "Generate performance review reminder",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "reviewType": "annual",
+      "dueDate": "2026-02-05",
+      "today": "2026-02-06",
+      "manager": "Anita Desai"
+    },
+    "output": "Overdue: Annual performance review for Rajesh Kumar was due yesterday. Manager Anita Desai must complete review immediately to avoid compliance issues."
+  },
+  {
+    "type": "resource_allocation",
+    "instruction": "Analyze resource allocation and suggest optimization",
+    "input": {
+      "project": "Website Revamp",
+      "allocatedResources": [
+        {"name": "Archana R", "role": "Developer", "allocation": 100},
+        {"name": "Vikram Singh", "role": "Tester", "allocation": 50}
+      ],
+      "projectLoad": "high",
+      "timeline": "2 weeks"
+    },
+    "output": "Current allocation may be insufficient for high-load project with 2-week timeline. Suggest increasing tester allocation to 100% or adding additional QA resource. Developer allocation is appropriate."
+  },
+  {
+    "type": "resource_allocation",
+    "instruction": "Analyze resource allocation and suggest optimization",
+    "input": {
+      "project": "Maintenance Tasks",
+      "allocatedResources": [
+        {"name": "Rajesh Kumar", "role": "Developer", "allocation": 80},
+        {"name": "Priya Sharma", "role": "Developer", "allocation": 70}
+      ],
+      "projectLoad": "low",
+      "timeline": "ongoing"
+    },
+    "output": "Resources appear over-allocated for low-load maintenance project. Consider reducing allocation to 40-50% per resource and reassigning capacity to higher priority projects."
+  },
+  {
+    "type": "compliance_check",
+    "instruction": "Check compliance and generate report",
+    "input": {
+      "employee": "Meena Patel",
+      "checks": [
+        {"item": "Background verification", "status": "completed"},
+        {"item": "NDA signed", "status": "completed"},
+        {"item": "Security training", "status": "pending"},
+        {"item": "Policy acknowledgment", "status": "completed"}
+      ]
+    },
+    "output": "Compliance status: 3/4 items completed. Security training is pending and must be completed within 30 days of joining. Please schedule training session."
+  },
+  {
+    "type": "compliance_check",
+    "instruction": "Check compliance and generate report",
+    "input": {
+      "employee": "Vikram Singh",
+      "checks": [
+        {"item": "Annual compliance training", "status": "expired"},
+        {"item": "Data privacy certification", "status": "pending"},
+        {"item": "Code of conduct", "status": "completed"}
+      ]
+    },
+    "output": "Alert: Annual compliance training has expired. Data privacy certification is pending. Both must be completed immediately to maintain active status."
+  },
+  {
+    "type": "expense_approval",
+    "instruction": "Review expense claim and provide decision guidance",
+    "input": {
+      "employee": "Archana R",
+      "expenseType": "travel",
+      "amount": 8500,
+      "limit": 10000,
+      "receipts": true,
+      "managerApproval": "pending"
+    },
+    "output": "Expense claim within policy limits (8500/10000). All receipts attached. Eligible for approval pending manager review."
+  },
+  {
+    "type": "expense_approval",
+    "instruction": "Review expense claim and provide decision guidance",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "expenseType": "meal",
+      "amount": 3500,
+      "limit": 2000,
+      "receipts": true,
+      "managerApproval": "pending"
+    },
+    "output": "Expense claim exceeds policy limit by 1500. Requires additional justification and senior management approval. Please add comments explaining the overage."
+  },
+  {
+    "type": "expense_approval",
+    "instruction": "Review expense claim and provide decision guidance",
+    "input": {
+      "employee": "Priya Sharma",
+      "expenseType": "accommodation",
+      "amount": 15000,
+      "limit": 20000,
+      "receipts": false,
+      "managerApproval": "pending"
+    },
+    "output": "Claim rejected: Missing receipt documentation. Please upload hotel bill and payment proof to resubmit claim."
+  },
+  {
+    "type": "training_recommendation",
+    "instruction": "Analyze skill gaps and recommend training",
+    "input": {
+      "employee": "Vikram Singh",
+      "currentSkills": ["Java", "SQL", "REST API"],
+      "projectRequirements": ["Java", "SQL", "Microservices", "Docker", "Kubernetes"],
+      "role": "Senior Developer"
+    },
+    "output": "Skill gap identified: Microservices architecture, Docker, and Kubernetes. Recommend enrolling in containerization and microservices training programs to meet project requirements."
+  },
+  {
+    "type": "training_recommendation",
+    "instruction": "Analyze skill gaps and recommend training",
+    "input": {
+      "employee": "Meena Patel",
+      "currentSkills": ["Manual Testing", "Selenium", "JIRA"],
+      "projectRequirements": ["Automation Testing", "Selenium", "API Testing", "Performance Testing"],
+      "role": "QA Engineer"
+    },
+    "output": "Development areas: API testing and performance testing. Suggest training on REST Assured for API testing and JMeter/LoadRunner for performance testing to enhance automation capabilities."
+  },
+  {
+    "type": "escalation",
+    "instruction": "Identify escalation need and create alert",
+    "input": {
+      "issue": "Multiple pending approvals",
+      "manager": "Suresh Menon",
+      "pendingItems": [
+        {"type": "leave_request", "count": 5, "oldestPending": 8},
+        {"type": "timesheet", "count": 3, "oldestPending": 12},
+        {"type": "expense_claim", "count": 2, "oldestPending": 6}
+      ]
+    },
+    "output": "Escalation alert: Manager Suresh Menon has 10 pending approvals. Critical: Timesheet approval pending for 12 days. Recommend immediate action to clear backlog."
+  },
+  {
+    "type": "escalation",
+    "instruction": "Identify escalation need and create alert",
+    "input": {
+      "issue": "Project delay risk",
+      "project": "CRM Implementation",
+      "delayedTasks": 4,
+      "criticalPath": true,
+      "stakeholders": ["Anita Desai", "Rajesh Kumar"]
+    },
+    "output": "Critical escalation: CRM Implementation has 4 delayed tasks on critical path. Project timeline at risk. Immediate stakeholder meeting recommended with Anita Desai and Rajesh Kumar."
+  },
+  {
+    "type": "onboarding_status",
+    "instruction": "Track new employee onboarding progress",
+    "input": {
+      "employee": "Amit Verma",
+      "joiningDate": "2026-02-01",
+      "today": "2026-02-06",
+      "checklist": [
+        {"task": "System access granted", "status": "completed"},
+        {"task": "Workstation setup", "status": "completed"},
+        {"task": "Team introduction", "status": "completed"},
+        {"task": "Buddy assigned", "status": "completed"},
+        {"task": "Initial training", "status": "in-progress"},
+        {"task": "First project assignment", "status": "pending"}
+      ]
+    },
+    "output": "Onboarding Day 6: Amit Verma has completed 4/6 checklist items. Initial training is in progress. First project assignment pending. Overall onboarding on track."
+  },
+  {
+    "type": "onboarding_status",
+    "instruction": "Track new employee onboarding progress",
+    "input": {
+      "employee": "Sneha Reddy",
+      "joiningDate": "2026-01-28",
+      "today": "2026-02-06",
+      "checklist": [
+        {"task": "System access granted", "status": "completed"},
+        {"task": "Workstation setup", "status": "pending"},
+        {"task": "Team introduction", "status": "completed"},
+        {"task": "Buddy assigned", "status": "pending"},
+        {"task": "Initial training", "status": "not-started"}
+      ]
+    },
+    "output": "Alert: Onboarding Day 10 for Sneha Reddy. Critical delays in workstation setup and buddy assignment. Initial training not started. IT and HR intervention required."
+  },
+  {
+    "type": "exit_process",
+    "instruction": "Manage employee exit process and track clearances",
+    "input": {
+      "employee": "Karthik Nair",
+      "lastWorkingDay": "2026-02-15",
+      "today": "2026-02-06",
+      "clearances": [
+        {"department": "IT", "status": "pending"},
+        {"department": "Finance", "status": "pending"},
+        {"department": "HR", "status": "pending"},
+        {"department": "Admin", "status": "pending"}
+      ]
+    },
+    "output": "Exit process initiated for Karthik Nair. Last working day: Feb 15 (9 days remaining). All clearances pending. Reminder emails sent to respective departments for asset return and final settlements."
+  },
+  {
+    "type": "exit_process",
+    "instruction": "Manage employee exit process and track clearances",
+    "input": {
+      "employee": "Divya Krishnan",
+      "lastWorkingDay": "2026-02-10",
+      "today": "2026-02-06",
+      "clearances": [
+        {"department": "IT", "status": "completed"},
+        {"department": "Finance", "status": "completed"},
+        {"department": "HR", "status": "pending"},
+        {"department": "Admin", "status": "completed"}
+      ]
+    },
+    "output": "Exit process for Divya Krishnan: 4 days to last working day. 3/4 clearances completed. HR clearance pending for final documents and exit interview. Urgent completion required."
+  },
+  {
+    "type": "shift_management",
+    "instruction": "Manage shift schedules and conflicts",
+    "input": {
+      "date": "2026-02-10",
+      "shift": "night",
+      "requiredStaff": 5,
+      "assignedStaff": [
+        {"name": "Archana R", "status": "confirmed"},
+        {"name": "Vikram Singh", "status": "on_leave"},
+        {"name": "Meena Patel", "status": "confirmed"}
+      ]
+    },
+    "output": "Shift alert for Feb 10 night shift: Only 2/5 required staff confirmed. Vikram Singh is on leave. Need to assign 3 more staff members urgently to meet operational requirements."
+  },
+  {
+    "type": "shift_management",
+    "instruction": "Manage shift schedules and conflicts",
+    "input": {
+      "date": "2026-02-08",
+      "shift": "morning",
+      "requiredStaff": 8,
+      "assignedStaff": [
+        {"name": "Rajesh Kumar", "status": "confirmed"},
+        {"name": "Priya Sharma", "status": "confirmed"},
+        {"name": "Amit Verma", "status": "confirmed"},
+        {"name": "Sneha Reddy", "status": "confirmed"},
+        {"name": "Karthik Nair", "status": "confirmed"},
+        {"name": "Divya Krishnan", "status": "confirmed"},
+        {"name": "Archana R", "status": "confirmed"},
+        {"name": "Vikram Singh", "status": "confirmed"}
+      ]
+    },
+    "output": "Morning shift for Feb 08 is fully staffed (8/8). All team members confirmed. No action required."
+  },
+  {
+    "type": "asset_management",
+    "instruction": "Track company assets and issue alerts",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "assets": [
+        {"item": "Laptop - Dell XPS", "id": "LAP-2045", "assignedDate": "2024-03-15", "status": "active"},
+        {"item": "Mobile - iPhone 14", "id": "MOB-3021", "assignedDate": "2024-03-15", "status": "active"},
+        {"item": "Monitor", "id": "MON-1532", "assignedDate": "2024-03-15", "status": "damaged"}
+      ]
+    },
+    "output": "Asset alert: Monitor (MON-1532) marked as damaged. Initiate replacement request and damage assessment. Other assets in good condition."
+  },
+  {
+    "type": "asset_management",
+    "instruction": "Track company assets and issue alerts",
+    "input": {
+      "employee": "Priya Sharma",
+      "assets": [
+        {"item": "Laptop - MacBook Pro", "id": "LAP-2089", "assignedDate": "2023-06-10", "status": "due_for_refresh"}
+      ]
+    },
+    "output": "Asset refresh notification: Laptop (LAP-2089) is 2.5 years old and due for refresh cycle. Schedule upgrade assessment and order new device if eligible."
+  },
+  {
+    "type": "policy_violation",
+    "instruction": "Detect and report policy violations",
+    "input": {
+      "employee": "Vikram Singh",
+      "violation": "consecutive_late_logins",
+      "occurrences": 7,
+      "period": "last 10 days",
+      "policy": "Punctuality Policy"
+    },
+    "output": "Policy violation: Vikram Singh has 7 late logins in last 10 days, exceeding the acceptable threshold. First written warning to be issued as per Punctuality Policy guidelines."
+  },
+  {
+    "type": "policy_violation",
+    "instruction": "Detect and report policy violations",
+    "input": {
+      "employee": "Meena Patel",
+      "violation": "internet_usage",
+      "details": "Excessive non-work related browsing",
+      "flaggedBy": "IT Security",
+      "policy": "Acceptable Use Policy"
+    },
+    "output": "Security alert: Meena Patel flagged for excessive non-work internet usage by IT Security. Manager counseling recommended as per Acceptable Use Policy. Monitor for next 30 days."
+  },
+  {
+    "type": "certification_tracking",
+    "instruction": "Track professional certifications and renewals",
+    "input": {
+      "employee": "Archana R",
+      "certifications": [
+        {"name": "AWS Solutions Architect", "expiryDate": "2026-03-15", "status": "expiring_soon"},
+        {"name": "Scrum Master", "expiryDate": "2027-08-20", "status": "valid"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "Certification renewal alert: AWS Solutions Architect certification expires in 37 days. Recommend scheduling renewal exam. Scrum Master certification is valid until Aug 2027."
+  },
+  {
+    "type": "certification_tracking",
+    "instruction": "Track professional certifications and renewals",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "certifications": [
+        {"name": "PMP", "expiryDate": "2026-01-31", "status": "expired"}
+      ],
+      "today": "2026-02-06"
+    },
+    "output": "Critical: PMP certification expired on Jan 31, 2026. Immediate renewal required to maintain certified status for client projects. Contact employee urgently."
+  },
+  {
+    "type": "goal_tracking",
+    "instruction": "Monitor employee goals and progress",
+    "input": {
+      "employee": "Priya Sharma",
+      "period": "Q1 2026",
+      "goals": [
+        {"title": "Complete 3 client projects", "progress": 66, "status": "on_track"},
+        {"title": "Mentor 2 junior developers", "progress": 100, "status": "completed"},
+        {"title": "Obtain Azure certification", "progress": 30, "status": "at_risk"}
+      ]
+    },
+    "output": "Q1 Goal Status: Priya Sharma has completed mentoring goal ahead of schedule. Client project goal is on track (2/3 completed). Azure certification progress is slow (30%) and requires attention to meet Q1 deadline."
+  },
+  {
+    "type": "goal_tracking",
+    "instruction": "Monitor employee goals and progress",
+    "input": {
+      "employee": "Vikram Singh",
+      "period": "Q1 2026",
+      "goals": [
+        {"title": "Reduce bug count by 20%", "progress": 85, "status": "on_track"},
+        {"title": "Automate 5 test suites", "progress": 40, "status": "on_track"},
+        {"title": "Improve test coverage to 90%", "progress": 15, "status": "behind"}
+      ]
+    },
+    "output": "Q1 Goal Status: Vikram Singh is performing well on bug reduction (85% progress). Test automation is progressing adequately (2/5 completed). Test coverage goal is significantly behind and needs immediate focus."
+  },
+  {
+    "type": "timesheet_validation",
+    "instruction": "Validate timesheet entries and flag issues",
+    "input": {
+      "employee": "Archana R",
+      "week": "Jan 27 - Feb 02, 2026",
+      "entries": [
+        {"date": "2026-01-27", "hours": 8, "project": "PSS Portal"},
+        {"date": "2026-01-28", "hours": 10, "project": "PSS Portal"},
+        {"date": "2026-01-29", "hours": 8, "project": "PSS Portal"},
+        {"date": "2026-01-30", "hours": 12, "project": "PSS Portal"},
+        {"date": "2026-01-31", "hours": 8, "project": "PSS Portal"}
+      ],
+      "totalHours": 46,
+      "expectedHours": 40
+    },
+    "output": "Timesheet validation: Archana R logged 46 hours (6 hours overtime). Two days show extended hours (10h and 12h). Overtime pre-approval required. Please verify and obtain manager authorization."
+  },
+  {
+    "type": "timesheet_validation",
+    "instruction": "Validate timesheet entries and flag issues",
+    "input": {
+      "employee": "Rajesh Kumar",
+      "week": "Jan 27 - Feb 02, 2026",
+      "entries": [
+        {"date": "2026-01-27", "hours": 8, "project": "CRM Implementation"},
+        {"date": "2026-01-29", "hours": 8, "project": "CRM Implementation"},
+        {"date": "2026-01-31", "hours": 7, "project": "CRM Implementation"}
+      ],
+      "totalHours": 23,
+      "expectedHours": 40
+    },
+    "output": "Timesheet alert: Rajesh Kumar logged only 23 hours for the week. Missing entries for Jan 28 and Jan 30. Please complete timesheet or submit leave/regularization request."
+  },
+  {
+    "type": "succession_planning",
+    "instruction": "Identify succession planning needs",
+    "input": {
+      "position": "Senior Developer - Team Lead",
+      "currentHolder": "Suresh Menon",
+      "criticalRole": true,
+      "potentialSuccessors": [
+        {"name": "Archana R", "readiness": "ready_now", "experience": "4 years"},
+        {"name": "Rajesh Kumar", "readiness": "ready_in_6_months", "experience": "3 years"}
+      ]
+    },
+    "output": "Succession plan for Senior Developer - Team Lead: Archana R is ready for immediate succession with 4 years experience. Rajesh Kumar can be ready in 6 months with targeted leadership training. Recommend cross-training both candidates."
+  },
+  {
+    "type": "succession_planning",
+    "instruction": "Identify succession planning needs",
+    "input": {
+      "position": "QA Manager",
+      "currentHolder": "Anita Desai",
+      "criticalRole": true,
+      "potentialSuccessors": []
+    },
+    "output": "Critical gap: No identified successors for QA Manager position. High organizational risk. Recommend immediate talent assessment and development program to build leadership pipeline."
+  },
+  {
+    "type": "diversity_metrics",
+    "instruction": "Track diversity and inclusion metrics",
+    "input": {
+      "department": "Engineering",
+      "totalEmployees": 45,
+      "demographics": {
+        "gender": {"male": 32, "female": 13},
+        "experienceLevel": {"entry": 12, "mid": 23, "senior": 10}
+      }
+    },
+    "output": "Diversity analysis for Engineering: Gender ratio is 71% male, 29% female. Experience distribution: 27% entry-level, 51% mid-level, 22% senior-level. Consider targeted hiring initiatives to improve gender balance."
+  },
+  {
+    "type": "workload_analysis",
+    "instruction": "Analyze employee workload and flag concerns",
+    "input": {
+      "employee": "Priya Sharma",
+      "activeTasks": 8,
+      "averageTaskLoad": 4,
+      "overtimeHours": 15,
+      "period": "last 2 weeks"
+    },
+    "output": "Workload alert: Priya Sharma has 8 active tasks (team average: 4) and logged 15 overtime hours in 2 weeks. Risk of burnout. Recommend workload rebalancing and manager discussion."
+  },
+  {
+    "type": "workload_analysis",
+    "instruction": "Analyze employee workload and flag concerns",
+    "input": {
+      "employee": "Meena Patel",
+      "activeTasks": 2,
+      "averageTaskLoad": 5,
+      "overtimeHours": 0,
+      "period": "last 2 weeks"
+    },
+    "output": "Workload observation: Meena Patel has 2 active tasks (below team average of 5) with no overtime. Consider assigning additional responsibilities to optimize capacity utilization."
+  },
+  {
+    "type": "interview_scheduling",
+    "instruction": "Coordinate interview scheduling",
+    "input": {
+      "candidate": "Arun Patel",
+      "position": "Full Stack Developer",
+      "interviewRounds": [
+        {"round": "Technical Round 1", "interviewer": "Archana R", "status": "completed"},
+        {"round": "Technical Round 2", "interviewer": "Suresh Menon", "status": "scheduled"},
+        {"round": "HR Round", "interviewer": "HR Team", "status": "pending"}
+      ]
+    },
+    "output": "Interview status for Arun Patel: Technical Round 1 completed successfully. Technical Round 2 scheduled with Suresh Menon. HR Round to be scheduled after technical assessment completion."
+  },
+  {
+    "type": "benefits_enrollment",
+    "instruction": "Track benefits enrollment status",
+    "input": {
+      "employee": "Amit Verma",
+      "enrollmentDeadline": "2026-02-15",
+      "today": "2026-02-06",
+      "benefits": [
+        {"type": "Health Insurance", "status": "enrolled"},
+        {"type": "Retirement Plan", "status": "pending"},
+        {"type": "Life Insurance", "status": "pending"}
+      ]
+    },
+    "output": "Benefits enrollment reminder: Amit Verma has 9 days until deadline. Health insurance enrolled. Retirement plan and life insurance enrollment pending. Send reminder notification."
+  },
+  {
+    "type": "project_budget",
+    "instruction": "Monitor project budget and expenses",
+    "input": {
+      "project": "CRM Implementation",
+      "totalBudget": 500000,
+      "spentToDate": 425000,
+      "remainingBudget": 75000,
+      "completionPercentage": 70,
+      "projectedOverrun": 50000
+    },
+    "output": "Budget alert: CRM Implementation is 70% complete with 85% budget utilized (425K/500K). Projected overrun of 50K based on current burn rate. Recommend cost control measures or budget revision request."
+  },
+  {
+    "type": "incident_reporting",
+    "instruction": "Process workplace incident report",
+    "input": {
+      "reportedBy": "Vikram Singh",
+      "incidentType": "safety",
+      "date": "2026-02-05",
+      "severity": "minor",
+      "description": "Slipped on wet floor near cafeteria",
+      "actionTaken": "First aid provided"
+    },
+    "output": "Incident logged: Minor safety incident reported by Vikram Singh on Feb 05. First aid administered. Follow-up actions: Install warning signs, review cleaning procedures, monitor for 48 hours. Safety officer notified."
+  }
+]

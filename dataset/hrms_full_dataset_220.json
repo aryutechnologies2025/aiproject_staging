@@ -1,0 +1,3064 @@
+[
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Meera Joshi",
+      "status": "blocked",
+      "pendingDays": 1
+    },
+    "output": "The assigned task has been pending for 1 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Suresh Iyer",
+      "status": "blocked",
+      "pendingDays": 1
+    },
+    "output": "The assigned task has been pending for 1 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "HR data migration",
+      "assignedTo": "Karthik R",
+      "status": "in-progress",
+      "pendingDays": 2
+    },
+    "output": "The assigned task has been pending for 2 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Attendance reconciliation",
+      "assignedTo": "Neha Verma",
+      "status": "blocked",
+      "pendingDays": 2
+    },
+    "output": "The assigned task has been pending for 2 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Attendance reconciliation",
+      "assignedTo": "Vikram Singh",
+      "status": "pending",
+      "pendingDays": 3
+    },
+    "output": "The assigned task has been pending for 3 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Neha Verma",
+      "status": "in-progress",
+      "pendingDays": 3
+    },
+    "output": "The assigned task has been pending for 3 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Pooja Malhotra",
+      "status": "in-progress",
+      "pendingDays": 4
+    },
+    "output": "The assigned task has been pending for 4 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Vikram Singh",
+      "status": "blocked",
+      "pendingDays": 4
+    },
+    "output": "The assigned task has been pending for 4 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "HR data migration",
+      "assignedTo": "Suresh Iyer",
+      "status": "in-progress",
+      "pendingDays": 5
+    },
+    "output": "The assigned task has been pending for 5 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Ravi Kumar",
+      "status": "pending",
+      "pendingDays": 5
+    },
+    "output": "The assigned task has been pending for 5 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Vikram Singh",
+      "status": "blocked",
+      "pendingDays": 6
+    },
+    "output": "The assigned task has been pending for 6 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Ravi Kumar",
+      "status": "in-progress",
+      "pendingDays": 6
+    },
+    "output": "The assigned task has been pending for 6 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Amit Das",
+      "status": "pending",
+      "pendingDays": 7
+    },
+    "output": "The assigned task has been pending for 7 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Priya Nair",
+      "status": "pending",
+      "pendingDays": 7
+    },
+    "output": "The assigned task has been pending for 7 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Vikram Singh",
+      "status": "blocked",
+      "pendingDays": 8
+    },
+    "output": "The assigned task has been pending for 8 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Payroll data verification",
+      "assignedTo": "Priya Nair",
+      "status": "in-progress",
+      "pendingDays": 8
+    },
+    "output": "The assigned task has been pending for 8 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Performance appraisal entry",
+      "assignedTo": "Suresh Iyer",
+      "status": "in-progress",
+      "pendingDays": 9
+    },
+    "output": "The assigned task has been pending for 9 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Anita Sharma",
+      "status": "in-progress",
+      "pendingDays": 9
+    },
+    "output": "The assigned task has been pending for 9 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Payroll data verification",
+      "assignedTo": "Anita Sharma",
+      "status": "pending",
+      "pendingDays": 10
+    },
+    "output": "The assigned task has been pending for 10 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Karthik R",
+      "status": "in-progress",
+      "pendingDays": 10
+    },
+    "output": "The assigned task has been pending for 10 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Meera Joshi",
+      "status": "blocked",
+      "pendingDays": 11
+    },
+    "output": "The assigned task has been pending for 11 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Neha Verma",
+      "status": "blocked",
+      "pendingDays": 11
+    },
+    "output": "The assigned task has been pending for 11 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Payroll data verification",
+      "assignedTo": "Amit Das",
+      "status": "in-progress",
+      "pendingDays": 12
+    },
+    "output": "The assigned task has been pending for 12 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Neha Verma",
+      "status": "in-progress",
+      "pendingDays": 12
+    },
+    "output": "The assigned task has been pending for 12 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Performance appraisal entry",
+      "assignedTo": "Amit Das",
+      "status": "in-progress",
+      "pendingDays": 13
+    },
+    "output": "The assigned task has been pending for 13 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Compliance audit filing",
+      "assignedTo": "Vikram Singh",
+      "status": "in-progress",
+      "pendingDays": 13
+    },
+    "output": "The assigned task has been pending for 13 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Compliance audit filing",
+      "assignedTo": "Suresh Iyer",
+      "status": "blocked",
+      "pendingDays": 14
+    },
+    "output": "The assigned task has been pending for 14 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Payroll data verification",
+      "assignedTo": "Pooja Malhotra",
+      "status": "in-progress",
+      "pendingDays": 14
+    },
+    "output": "The assigned task has been pending for 14 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Amit Das",
+      "status": "blocked",
+      "pendingDays": 15
+    },
+    "output": "The assigned task has been pending for 15 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Payroll data verification",
+      "assignedTo": "Amit Das",
+      "status": "pending",
+      "pendingDays": 15
+    },
+    "output": "The assigned task has been pending for 15 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Performance appraisal entry",
+      "assignedTo": "Vikram Singh",
+      "status": "pending",
+      "pendingDays": 16
+    },
+    "output": "The assigned task has been pending for 16 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Amit Das",
+      "status": "in-progress",
+      "pendingDays": 16
+    },
+    "output": "The assigned task has been pending for 16 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "HR data migration",
+      "assignedTo": "Karthik R",
+      "status": "in-progress",
+      "pendingDays": 17
+    },
+    "output": "The assigned task has been pending for 17 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Karthik R",
+      "status": "pending",
+      "pendingDays": 17
+    },
+    "output": "The assigned task has been pending for 17 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Attendance reconciliation",
+      "assignedTo": "Pooja Malhotra",
+      "status": "in-progress",
+      "pendingDays": 18
+    },
+    "output": "The assigned task has been pending for 18 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Vikram Singh",
+      "status": "blocked",
+      "pendingDays": 18
+    },
+    "output": "The assigned task has been pending for 18 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Neha Verma",
+      "status": "pending",
+      "pendingDays": 19
+    },
+    "output": "The assigned task has been pending for 19 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Ravi Kumar",
+      "status": "pending",
+      "pendingDays": 19
+    },
+    "output": "The assigned task has been pending for 19 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Meera Joshi",
+      "status": "in-progress",
+      "pendingDays": 20
+    },
+    "output": "The assigned task has been pending for 20 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Anita Sharma",
+      "status": "pending",
+      "pendingDays": 20
+    },
+    "output": "The assigned task has been pending for 20 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "HR data migration",
+      "assignedTo": "Pooja Malhotra",
+      "status": "blocked",
+      "pendingDays": 21
+    },
+    "output": "The assigned task has been pending for 21 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Pooja Malhotra",
+      "status": "pending",
+      "pendingDays": 21
+    },
+    "output": "The assigned task has been pending for 21 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Amit Das",
+      "status": "blocked",
+      "pendingDays": 22
+    },
+    "output": "The assigned task has been pending for 22 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Pooja Malhotra",
+      "status": "pending",
+      "pendingDays": 22
+    },
+    "output": "The assigned task has been pending for 22 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Suresh Iyer",
+      "status": "in-progress",
+      "pendingDays": 23
+    },
+    "output": "The assigned task has been pending for 23 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Neha Verma",
+      "status": "pending",
+      "pendingDays": 23
+    },
+    "output": "The assigned task has been pending for 23 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Compliance audit filing",
+      "assignedTo": "Anita Sharma",
+      "status": "blocked",
+      "pendingDays": 24
+    },
+    "output": "The assigned task has been pending for 24 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Karthik R",
+      "status": "blocked",
+      "pendingDays": 24
+    },
+    "output": "The assigned task has been pending for 24 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Meera Joshi",
+      "status": "in-progress",
+      "pendingDays": 25
+    },
+    "output": "The assigned task has been pending for 25 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Karthik R",
+      "status": "in-progress",
+      "pendingDays": 25
+    },
+    "output": "The assigned task has been pending for 25 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Vikram Singh",
+      "status": "in-progress",
+      "pendingDays": 26
+    },
+    "output": "The assigned task has been pending for 26 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Karthik R",
+      "status": "in-progress",
+      "pendingDays": 26
+    },
+    "output": "The assigned task has been pending for 26 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Neha Verma",
+      "status": "pending",
+      "pendingDays": 27
+    },
+    "output": "The assigned task has been pending for 27 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Exit formalities clearance",
+      "assignedTo": "Meera Joshi",
+      "status": "in-progress",
+      "pendingDays": 27
+    },
+    "output": "The assigned task has been pending for 27 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Meera Joshi",
+      "status": "in-progress",
+      "pendingDays": 28
+    },
+    "output": "The assigned task has been pending for 28 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Meera Joshi",
+      "status": "in-progress",
+      "pendingDays": 28
+    },
+    "output": "The assigned task has been pending for 28 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Leave policy review",
+      "assignedTo": "Priya Nair",
+      "status": "blocked",
+      "pendingDays": 29
+    },
+    "output": "The assigned task has been pending for 29 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Vendor contract upload",
+      "assignedTo": "Neha Verma",
+      "status": "pending",
+      "pendingDays": 29
+    },
+    "output": "The assigned task has been pending for 29 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Statutory filing",
+      "assignedTo": "Meera Joshi",
+      "status": "blocked",
+      "pendingDays": 30
+    },
+    "output": "The assigned task has been pending for 30 days. Please complete and update the HRMS at the earliest."
+  },
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Performance appraisal entry",
+      "assignedTo": "Anita Sharma",
+      "status": "pending",
+      "pendingDays": 30
+    },
+    "output": "The assigned task has been pending for 30 days. Immediate action is required. Continued delay will be escalated."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-04"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Pooja Malhotra",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Suresh Iyer",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "pending",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "HR data migration",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Anita Sharma",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Pooja Malhotra",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Pooja Malhotra",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Neha Verma",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Suresh Iyer",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Neha Verma",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Neha Verma",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Anita Sharma",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Amit Das",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "in-progress",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Anita Sharma",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Suresh Iyer",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "HR data migration",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Anita Sharma",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Amit Das",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "HR data migration",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-02-06"
+        },
+        {
+          "title": "HR data migration",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "completed",
+          "dueDate": "2026-02-04"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed",
+          "dueDate": "2026-02-01"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Pooja Malhotra",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed",
+          "dueDate": "2026-01-25"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Karthik R",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-05"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Anita Sharma",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed",
+          "dueDate": "2026-02-06"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Priya Nair",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "in-progress",
+          "dueDate": "2026-02-02"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending",
+          "dueDate": "2026-02-05"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "completed",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed",
+          "dueDate": "2026-01-31"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "completed",
+          "dueDate": "2026-02-02"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress",
+          "dueDate": "2026-02-07"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "completed",
+          "dueDate": "2026-02-03"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Vikram Singh",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Meera Joshi",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending",
+          "dueDate": "2026-02-03"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending",
+          "dueDate": "2026-01-27"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-26"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress",
+          "dueDate": "2026-01-28"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Pooja Malhotra",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending",
+          "dueDate": "2026-01-29"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "Review indicates overdue or high-risk tasks that may impact compliance, payroll accuracy, or operational timelines. Prioritization and escalation are advised where applicable."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who approves role changes?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I access payroll data?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I missed mandatory training.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I modify attendance after submission?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Is work from home allowed?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Who can approve overtime?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I extend my deadline?",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "I want to apply for sick leave.",
+    "output": "Requests are governed strictly by HRMS policy. Approval authority, eligibility, and timelines must be followed as configured in the system."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed"
+        },
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "completed"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "in-progress"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "completed"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        },
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "completed"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        },
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        },
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "completed"
+        },
+        {
+          "title": "HR data migration",
+          "status": "completed"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "completed"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "completed"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed"
+        },
+        {
+          "title": "HR data migration",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "completed"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "in-progress"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "completed"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "completed"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed"
+        },
+        {
+          "title": "Statutory filing",
+          "status": "in-progress"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        },
+        {
+          "title": "HR data migration",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress"
+        },
+        {
+          "title": "HR data migration",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "pending"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "HR data migration",
+          "status": "in-progress"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "pending"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Revamp",
+      "tasks": [
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "completed"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Exit formalities clearance",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "in-progress"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Compliance Tracker",
+      "tasks": [
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Statutory filing",
+          "status": "pending"
+        },
+        {
+          "title": "Leave policy review",
+          "status": "pending"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        },
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "in-progress"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Vendor contract upload",
+          "status": "pending"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "pending"
+        },
+        {
+          "title": "Performance appraisal entry",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        },
+        {
+          "title": "Payroll data verification",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "in-progress"
+        },
+        {
+          "title": "Employee onboarding documentation",
+          "status": "completed"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Attendance System Upgrade",
+      "tasks": [
+        {
+          "title": "Compliance audit filing",
+          "status": "in-progress"
+        },
+        {
+          "title": "Attendance reconciliation",
+          "status": "completed"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "completed"
+        },
+        {
+          "title": "Compliance audit filing",
+          "status": "pending"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "Payroll Automation",
+      "tasks": [
+        {
+          "title": "Leave policy review",
+          "status": "pending"
+        },
+        {
+          "title": "Exit formalities clearance",
+          "status": "completed"
+        }
+      ]
+    },
+    "output": "The project shows mixed progress across tasks. Completed items are stable, in-progress tasks require monitoring, and pending items may affect delivery timelines."
+  }
+]

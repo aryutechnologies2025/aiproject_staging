@@ -1,0 +1,49 @@
+[
+  {
+    "instruction": "Generate follow-up message for pending task",
+    "input": {
+      "task": "Employee onboarding documentation",
+      "assignedTo": "Ravi Kumar",
+      "status": "pending",
+      "pendingDays": 1
+    },
+    "output": "This is a gentle reminder to complete the employee onboarding documentation assigned to you. The task has been pending for 1 day. Please update the status in the HRMS portal."
+  },
+  {
+    "instruction": "Analyze HRMS state and summarize risks",
+    "input": {
+      "employee": "Ravi Kumar",
+      "tasks": [
+        {
+          "title": "Employee onboarding documentation",
+          "status": "pending",
+          "dueDate": "2026-01-30"
+        }
+      ],
+      "today": "2026-02-04"
+    },
+    "output": "The onboarding documentation task is overdue, creating a risk of non-compliance and delayed employee activation. Immediate completion is recommended."
+  },
+  {
+    "instruction": "Respond according to HRMS policy",
+    "input": "Can I get an extension for submitting my timesheet?",
+    "output": "Timesheet submission deadlines are fixed as per company policy. Extensions may be granted only with manager approval recorded in the HRMS system."
+  },
+  {
+    "instruction": "Generate daily project summary",
+    "input": {
+      "project": "HRMS Portal Revamp",
+      "tasks": [
+        {
+          "title": "UI redesign",
+          "status": "completed"
+        },
+        {
+          "title": "Role permission mapping",
+          "status": "in-progress"
+        }
+      ]
+    },
+    "output": "The HRMS Portal Revamp project shows steady progress with UI redesign completed and role permission mapping in progress."
+  }
+]

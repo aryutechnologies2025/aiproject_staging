@@ -1,6 +1,7 @@
 # api/v1/hrms.py
 
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, Form, Body
+from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...services.hrms_service import (
@@ -9,6 +10,7 @@ from ...services.hrms_service import (
     calculate_overdue_tasks,
     create_task_via_ai,
     describe_task_from_title,
+    generate_project_requirements_from_text,
 )
 from app.core.database import get_db
 
@@ -116,5 +118,44 @@ async def ai_create_task_description(payload: dict, db: AsyncSession = Depends(g
     )
     return {
         "description": description
+    }
+
+
+@router.post("/project-requirements")
+async def ai_generate_project_requirements(
+    payload: Optional[Dict[str, Any]] = Body(None),
+    projectName: Optional[str] = Form(None),
+    rawText: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Accepts BOTH:
+    - application/json
+    - multipart/form-data
+    """
+
+    # ---- Normalize input ----
+    if payload:
+        project_name = payload.get("projectName")
+        raw_text = payload.get("rawText")
+    else:
+        project_name = projectName
+        raw_text = rawText
+
+    if not project_name or not raw_text:
+        raise ValueError("projectName and rawText are required")
+
+    requirements = await generate_project_requirements_from_text(
+        db=db,
+        project_name=project_name,
+        raw_text=raw_text
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "projectName": project_name,
+            "projectRequirements": requirements
+        }
     }
 

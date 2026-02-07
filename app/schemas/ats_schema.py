@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class Experience(BaseModel):
@@ -28,9 +28,13 @@ class ATSScanRequest(BaseModel):
 
     job_description: Optional[str] = None
 
+class ATSSection(BaseModel):
+    issues_count: int
+    issues: List[str]
 
 class ATSScanResponse(BaseModel):
     ats_score: int
-    keyword_match_percentage: int
-    issues: List[str]
-    suggestions: List[str]
+    sections: List[Dict[str, ATSSection]]
+    missing_skills: List[str]
+    ai_issues: List[str] = []
+    recommendations: List[str] = []

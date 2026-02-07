@@ -4,11 +4,14 @@ from datetime import datetime, timezone
 from typing import Dict, List
 from bs4 import BeautifulSoup
 from datetime import date, timedelta
+
+from pydantic import ValidationError
 from app.services.llm_client import call_llm
 from app.services.prompt_service import get_prompt
 import httpx
 import re
 import json
+from app.services.ai_logger import log_ai_interaction
 from datetime import datetime, timedelta
 
 EMPLOYEE_API = "https://hrms.aryuprojects.com/api/employees/all-active-employees"
@@ -50,26 +53,20 @@ async def get_hrms_token() -> str:
 
         return token
 
-def clean_project_description(html: str) -> str:
-    if not html:
-        return "No project description provided."
-
-    soup = BeautifulSoup(html, "html.parser")
-    return soup.get_text(separator=" ").strip()
-
 def build_project_context(project: dict) -> str:
-    description = clean_project_description(project["description"])
+    description = project["description"] or "No project requirements provided."
 
     return f"""
 Project Name: {project['name']}
 
-Project Description:
+Project Requirements:
 {description}
 
 Project Timeline:
 Start Date: {project['startDate']}
 End Date: {project['endDate']}
 """.strip()
+
 
 async def fetch_employees() -> Dict[str, dict]:
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -300,19 +297,21 @@ async def create_task(payload: dict) -> dict:
         return res.json()
 
 def extract_json_from_text(text: str) -> dict:
-    """
-    Extract first valid JSON object from AI response text.
-    """
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON object found in AI response")
+    
+    try:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            return None
 
-    json_str = match.group(0)
+        json_str = match.group(0)
 
-    # Remove JS-style comments if any
-    json_str = re.sub(r"//.*", "", json_str)
+        # Remove JS-style comments
+        json_str = re.sub(r"//.*", "", json_str)
 
-    return json.loads(json_str)
+        return json.loads(json_str)
+
+    except Exception:
+        return None
 
 async def create_task_via_ai(
     db,
@@ -321,15 +320,15 @@ async def create_task_via_ai(
     assigned_to: str,
     created_by_id: str
 ):
-    # 1️⃣ Load master HRMS prompt
+    # Load master HRMS prompt
     system_prompt = await get_prompt(db, agent_name="hrms_management")
     if not system_prompt:
         raise Exception("HRMS master prompt not found")
 
-    # 2️⃣ Fetch projects (NO AUTH)
+    # Fetch projects (NO AUTH)
     projects = await fetch_projects()
 
-    # 3️⃣ Match project
+    # Match project
     project = next(
         (p for p in projects.values()
          if p["name"].lower() == project_name.lower()),
@@ -339,10 +338,10 @@ async def create_task_via_ai(
     if not project:
         raise Exception(f"Project '{project_name}' not found")
 
-    # 4️⃣ Build project context
+    # Build project context
     project_context = build_project_context(project)
 
-    # 5️⃣ Build final prompt
+    # Build final prompt
     final_prompt = f"""
 {system_prompt}
 
@@ -364,7 +363,7 @@ OUTPUT FORMAT:
 }}
 """.strip()
 
-    # 6️⃣ Call LLM
+    # Call LLM
     raw_response = await call_llm(
         user_message=final_prompt,
         agent_name="hrms_management",
@@ -377,7 +376,7 @@ OUTPUT FORMAT:
     except Exception as e:
         raise Exception(f"AI response JSON parsing failed-{str(e)}")
 
-    # 7️⃣ Build task payload
+    # Build task payload
     today = date.today().isoformat()
 
     task_payload = normalize_task_from_ai(
@@ -387,7 +386,7 @@ OUTPUT FORMAT:
         created_by_id=created_by_id
     )
 
-    # 8️⃣ Create task (NO AUTH)
+    # Create task (NO AUTH)
     return await create_task(task_payload)
 
 
@@ -485,4 +484,97 @@ OUTPUT FORMAT:
     description = enforce_bullets(description)
 
     return description
+
+
+
+async def generate_project_requirements_from_text(
+    db,
+    project_name: str,
+    raw_text: str
+) -> str:
+    
+    system_prompt = await get_prompt(db, agent_name="hrms_management")
+    if not system_prompt:
+        raise Exception("HRMS master prompt not found")
+    
+
+    final_prompt = f"""
+MODE: PROJECT_REQUIREMENTS_EXTRACTION_FOR_TASK_CREATION
+
+ROLE:
+You are a technical requirements extractor.
+You extract system capabilities strictly from the provided source document.
+
+NON-INTERACTIVE RULE:
+- You must NEVER ask questions
+- You must NEVER request missing information
+- If the document is insufficient, produce the best possible extraction from available content
+- Do NOT mention missing or insufficient input
+
+SOURCE AUTHORITY:
+- The source document is the ONLY authority
+- Do NOT rely on prior knowledge or assumptions
+- Do NOT reinterpret the document to fit any domain
+
+CRITICAL OVERRIDES:
+- This is NOT an HRMS
+- Do NOT introduce HR, employee, leave, performance, or generic task-management features
+- Do NOT add calendars, Kanban boards, Gantt charts, or productivity tooling unless explicitly stated
+
+STRICT EXTRACTION RULES:
+- Do NOT add headings, sections, numbering, or labels
+- Do NOT invent functionality
+- Do NOT speak to the user
+
+OUTPUT PURPOSE:
+The output will be used directly for automated task generation.
+
+OUTPUT FORMAT (MANDATORY):
+- Plain text only
+- "-" bullet points only
+- Minimum 50 bullets, maximum 80 bullets
+- One system capability per bullet
+- No text before or after the bullets
+
+PROJECT NAME:
+{project_name}
+
+SOURCE DOCUMENT:
+{raw_text}
+""".strip()
+
+    raw_response = await call_llm(
+        user_message=final_prompt,
+        agent_name="hrms_management",
+        db=db
+    )
+
+    # Try JSON extraction (optional)
+    parsed = extract_json_from_text(raw_response)
+
+    # Prefer structured field if present, otherwise fallback to text
+    if parsed and isinstance(parsed.get("projectRequirements"), str):
+        requirements = parsed["projectRequirements"].strip()
+    else:
+        requirements = raw_response.strip()
+
+    # Log interaction (safe)
+    await log_ai_interaction(
+        db=db,
+        agent_name="hrms_management",
+        mode="PROJECT_REQUIREMENTS_CREATOR",
+        project_name=project_name,
+        input_payload={
+            "project_name": project_name,
+            "raw_text": raw_text
+        },
+        ai_raw_response=raw_response,
+        ai_parsed_response=parsed
+    )
+
+    if not requirements:
+        raise Exception("Empty project requirements generated")
+
+    return requirements
+
 
