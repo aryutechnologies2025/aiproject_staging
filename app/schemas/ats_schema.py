@@ -34,7 +34,5 @@ class ATSSection(BaseModel):
 
 class ATSScanResponse(BaseModel):
     ats_score: int
-    sections: List[Dict[str, ATSSection]]
-    missing_skills: List[str]
     ai_issues: List[str] = []
     recommendations: List[str] = []
