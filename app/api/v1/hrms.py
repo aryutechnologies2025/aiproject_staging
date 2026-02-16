@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query, Depends, Form, Body
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from hrms_ai.engine.manager_ai import HRMSManagerAI
 from ...services.hrms_service import (
     fetch_employees,
     fetch_tasks,
@@ -57,7 +57,7 @@ async def send_alerts(
 
     for emp in employees:
         message = (
-            "⚠️ Pending Task Reminder\n\n"
+            "Pending Task Reminder\n\n"
             "You have tasks pending for more than 3 days.\n"
             "Please reply with reason or expected completion date."
         )
@@ -69,7 +69,7 @@ async def send_alerts(
             message=message
         ))
 
-        # 🔔 Trigger WhatsApp / Email / App notification here
+        # Trigger WhatsApp / Email / App notification here
 
     await db.commit()
     return {"success": True, "alert_id": alert.id}
@@ -157,5 +157,15 @@ async def ai_generate_project_requirements(
             "projectName": project_name,
             "projectRequirements": requirements
         }
+    }
+
+@router.post("/test-task")
+async def test_task_ai(payload: dict, db: AsyncSession = Depends(get_db)):
+    ai = HRMSManagerAI()
+    decision = await ai.process_task(payload, db=db)
+
+    return {
+        "success": True,
+        "decision": decision.dict()
     }
 
