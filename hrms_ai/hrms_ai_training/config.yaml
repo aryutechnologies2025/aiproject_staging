@@ -1,0 +1,34 @@
+model_name: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+
+dataset:
+  train_file: /home/aryu_user/Arun/aiproject_staging/dataset/processed/intelligent_manager_4000.jsonl
+  val_file: /home/aryu_user/Arun/aiproject_staging/dataset/processed/intelligent_manager_4000.jsonl
+
+training:
+  output_dir: outputs/hrms_manager_adapter
+  num_train_epochs: 2                 # match notebook
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 32     # IMPORTANT (was 4)
+  evaluation_strategy: "no"           # disable eval to save RAM
+  save_strategy: "epoch"
+  logging_steps: 20
+  learning_rate: 2e-4
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  lr_scheduler_type: cosine
+  max_grad_norm: 1.0
+  fp16: true
+  bf16: false
+  max_seq_length: 512                 # IMPORTANT (was 1024)
+
+lora:
+  r: 4                                # IMPORTANT (was 16)
+  lora_alpha: 8                       # IMPORTANT (was 32)
+  lora_dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+
