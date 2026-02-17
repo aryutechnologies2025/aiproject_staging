@@ -10,7 +10,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t aiproject-staging:latest .'
+                sh 'docker build -t aryu_api:latest .'
             }
         }
 
