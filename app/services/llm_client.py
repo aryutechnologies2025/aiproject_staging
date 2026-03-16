@@ -57,7 +57,6 @@ async def call_llm(
             temperature=0.7,              # Balanced creativity and consistency
             max_completion_tokens=1024,   # Sufficient for detailed responses
             top_p=0.95,                   # Focused nucleus sampling
-            top_k=40,                     # Reduce low-probability tokens
             stream=False,
         )
 
