@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query, Depends, Form, Body
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from hrms_ai.engine.manager_ai import HRMSManagerAI
-from ...services.hrms_service import (
+from ...services.hrms_services.hrms_service import (
     fetch_employees,
     fetch_tasks,
     calculate_overdue_tasks,

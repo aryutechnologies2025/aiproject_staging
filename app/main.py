@@ -1,9 +1,10 @@
 # main.py
 from fastapi import FastAPI
+from app.api.v1.resume_builder import ats_api, resume_builder
 from app.core.database import Base, engine
 import os
 from fastapi.staticfiles import StaticFiles
-from app.api.v1 import whatsapp, youtube, admin, health, resume_builder, prompt, suggestion_api, hrms, yura_chat_api, ats_api
+from app.api.v1 import whatsapp, youtube, admin, health, prompt, suggestion_api, hrms, yura_chat_api
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
