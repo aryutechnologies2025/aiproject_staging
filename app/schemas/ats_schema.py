@@ -1,3 +1,4 @@
+# /home/aryu_user/Arun/aiproject_staging/app/schemas/ats_schema.py
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 
@@ -24,7 +25,7 @@ class ATSScanRequest(BaseModel):
     font: str
     uses_table: bool
     uses_columns: bool
-    file_type: str  # pdf | docx
+    file_type: str
 
     job_description: Optional[str] = None
 
@@ -36,3 +37,4 @@ class ATSScanResponse(BaseModel):
     ats_score: int
     ai_issues: List[str] = []
     recommendations: List[str] = []
+
