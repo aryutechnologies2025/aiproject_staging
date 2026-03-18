@@ -518,7 +518,6 @@ class ATSScannerService:
 # =====================================================
 # CONVENIENCE FUNCTION
 # =====================================================
-
 async def create_ats_scan(
     resume: Dict,
     job_description: Optional[str] = None,

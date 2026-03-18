@@ -20,11 +20,9 @@ import traceback
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-
 # =====================================================
 # DATA VALIDATION
 # =====================================================
-
 class ATSValidation:
     """Production-grade validation"""
 
