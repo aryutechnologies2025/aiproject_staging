@@ -657,6 +657,7 @@ class DetailedFeedbackGenerator:
 
         return roadmap
 
+
     def _get_status(self, score: int) -> str:
         """Map score to status label"""
 

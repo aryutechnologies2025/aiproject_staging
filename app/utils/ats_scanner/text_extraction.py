@@ -517,7 +517,6 @@ class TextExtractionEngine:
 # =====================================================
 # LEGACY ASYNC FUNCTIONS (backward compatibility)
 # =====================================================
-
 async def extract_text(file: UploadFile) -> str:
     """Extract text from PDF/DOCX — backward compatible wrapper"""
     engine = TextExtractionEngine()

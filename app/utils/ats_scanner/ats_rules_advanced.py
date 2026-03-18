@@ -887,4 +887,5 @@ class ATSRulesEngine:
             keyword_score * 0.30 +
             compliance_score * 0.15
         )
+        
         return int(total)

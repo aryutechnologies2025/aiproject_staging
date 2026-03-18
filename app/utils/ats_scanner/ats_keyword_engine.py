@@ -428,6 +428,7 @@ class KeywordEngine:
                             elif value is not None:
                                 text_parts.append(str(value))
 
+
                         word_count += len(" ".join(text_parts).split())
             else:
                 word_count += len(resume.get(key, "").split())

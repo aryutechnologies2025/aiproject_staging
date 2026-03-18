@@ -42,6 +42,7 @@ def run_ats_rules(resume: dict):
         score -= 15
         add("skills", "Skills section missing")
 
+
     if not experience:
         score -= 20
         add("experience", "Experience section missing")
