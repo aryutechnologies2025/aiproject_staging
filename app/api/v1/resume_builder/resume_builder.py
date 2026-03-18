@@ -490,7 +490,7 @@ async def generate_targeted_cv_from_file(
         
         # Convert to dict and generate targeted CV
         try:
-            from app.services.resume_builder_services.resume_services_production import _convert_parsed_schema_to_dict
+            from app.services.resume_builder_services.resume_services import _convert_parsed_schema_to_dict
             
             resume_data = _convert_parsed_schema_to_dict(parsed_resume)
             

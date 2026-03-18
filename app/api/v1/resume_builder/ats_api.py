@@ -1,410 +1,634 @@
-# /home/aryu_user/Arun/aiproject_staging/app/api/v1/ats_api_v2.py
+# /home/aryu_user/Arun/aiproject_staging/app/api/v1/ats_checker.py
 """
-Production-Grade ATS Scanner API
-Supports:
-- Form-data with file upload (PDF/DOCX)
-- JSON payload (internal resume builder)
-- Comprehensive error handling and validation
-- ATS scoring and detailed feedback
+Production-Grade ATS Scanner API v2
+Features:
+- Better education detection (FIXED)
+- None-safe summary handling (FIXED)
+- Fallback summary extraction for unlabeled resumes (FIXED)
+- Detailed section-by-section feedback
+- Specific suggestions: add/remove/improve
+- Complete resume parsing
+- Enterprise-ready error handling
 """
 
-from fastapi import Request, UploadFile, APIRouter, Depends, HTTPException, File, Form
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi.responses import JSONResponse
 import logging
-from typing import Optional
-import json
+from typing import Optional, Dict
+import traceback
 
-from app.core.database import get_db
-from app.schemas.ats_schema import ATSScanRequest, ATSScanResponse
-from app.services.resume_builder_services.resume_parser_service import parse_resume_to_schema
-from app.utils.ats_scanner.text_extraction import extract_text
-from app.services.llm_client import call_llm
-from app.services.resume_builder_services.ats_scanner_service import ATSScannerService
-
-logger = logging.getLogger(__name__)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # =====================================================
 # DATA VALIDATION
 # =====================================================
 
-class ValidationError(Exception):
-    """Custom validation error"""
-    pass
-
-
 class ATSValidation:
-    """Validation utilities for ATS data"""
-    
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+    """Production-grade validation"""
+
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
     ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc"}
-    MIN_RESUME_WORDS = 50
-    
+    MIN_RESUME_LENGTH = 100
+
     @staticmethod
-    def validate_file(file: UploadFile) -> None:
+    def validate_file(file: UploadFile) -> Dict:
         """Validate uploaded file"""
-        
+
         if not file:
-            raise ValidationError("No file provided")
-        
-        # Check extension
-        filename_lower = file.filename.lower() if file.filename else ""
-        if not any(filename_lower.endswith(ext) for ext in ATSValidation.ALLOWED_EXTENSIONS):
-            raise ValidationError(
-                f"Invalid file type. Allowed: {', '.join(ATSValidation.ALLOWED_EXTENSIONS)}"
+            raise HTTPException(status_code=400, detail="No file provided")
+
+        filename_lower = (file.filename or "").lower()
+        has_valid_ext = any(
+            filename_lower.endswith(ext) for ext in ATSValidation.ALLOWED_EXTENSIONS
+        )
+
+        if not has_valid_ext:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Supported: {', '.join(ATSValidation.ALLOWED_EXTENSIONS)}"
             )
-        
-        # Check size
+
         if file.size and file.size > ATSValidation.MAX_FILE_SIZE:
-            raise ValidationError(f"File too large. Max size: 5 MB")
-    
-    @staticmethod
-    def validate_resume_data(resume: dict) -> None:
-        """Validate parsed resume data"""
-        
-        if not resume:
-            raise ValidationError("Resume data is empty")
-        
-        # Check minimum content
-        total_words = 0
-        
-        for field in ["summary", "skills", "experience", "education"]:
-            if isinstance(resume.get(field), list):
-                total_words += len(resume[field])
-            elif isinstance(resume.get(field), str):
-                total_words += len(resume[field].split())
-            elif isinstance(resume.get(field), dict):
-                text = " ".join(str(v) for v in resume[field].values())
-                total_words += len(text.split())
-        
-        if total_words < ATSValidation.MIN_RESUME_WORDS:
-            raise ValidationError(
-                f"Resume too short. Minimum {ATSValidation.MIN_RESUME_WORDS} words required"
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"File too large. Maximum: 10 MB, "
+                    f"Received: {file.size / 1024 / 1024:.1f} MB"
+                )
             )
-        
-        # Check required sections
-        if not resume.get("experience"):
-            raise ValidationError("Resume must include work experience")
+
+        return {
+            "filename": file.filename,
+            "size": file.size,
+            "content_type": file.content_type,
+            "valid": True
+        }
 
 
 # =====================================================
-# REQUEST/RESPONSE MODELS
-# =====================================================
-
-class ATSScanRequestV2:
-    """Request model for ATS scan (flexible input handling)"""
-    
-    def __init__(self, resume_data: dict, job_description: Optional[str] = None):
-        self.resume_data = resume_data
-        self.job_description = job_description
-
-
-class ATSScanResponseV2:
-    """Response model for ATS scan"""
-    
-    def __init__(self, scan_results: dict):
-        self.ats_score = scan_results.get("ats_score", 0)
-        self.score_status = scan_results.get("score_status")
-        self.critical_issues_count = scan_results.get("critical_issues_count", 0)
-        self.section_analysis = scan_results.get("section_analysis", [])
-        self.keyword_analysis = scan_results.get("keyword_analysis", {})
-        self.recommendations = scan_results.get("recommendations", {})
-        self.issues = scan_results.get("issues", {})
-        self.summary = scan_results.get("summary", {})
-        self.ai_analysis = scan_results.get("ai_analysis")
-        self.score_breakdown = scan_results.get("score_breakdown", {})
-
-
-# =====================================================
-# ENDPOINTS
+# MAIN ENDPOINTS
 # =====================================================
 
 @router.post("/scan")
-async def ats_scan_unified(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def scan_resume(
+    file: UploadFile = File(...),
+    job_description: Optional[str] = Query(None),
+    include_suggestions: bool = Query(True)
+) -> Dict:
     """
-    Unified ATS scan endpoint
-    
-    Supports multiple input methods:
-    1. JSON body with resume data
-    2. Form-data with PDF/DOCX file upload
-    3. Form-data with JSON payload
-    
-    Query Parameters:
-    - include_ai_analysis: bool (default: true) - Enable AI analysis if JD provided
-    
+    Comprehensive ATS scan endpoint v2
+
+    Features:
+    - Fallback summary extraction (no explicit header needed)
+    - Enhanced education detection
+    - Detailed section-by-section analysis
+    - Specific suggestions: what to add/remove/improve
+    - Impact scoring and improvement roadmap
+
+    Args:
+        file: Resume PDF or DOCX
+        job_description: Optional job posting for keyword matching
+        include_suggestions: Include detailed suggestions
+
     Returns:
-        Complete ATS scan results with scores and feedback
+        Complete ATS analysis with scores and feedback
     """
-    
+
     try:
-        content_type = request.headers.get("content-type", "")
-        include_ai = request.query_params.get("include_ai_analysis", "true").lower() == "true"
-        
-        resume_dict = None
-        job_description = None
-        
-        logger.info(f"ATS scan request - Content-Type: {content_type}, Include AI: {include_ai}")
-        
-        # =====================
-        # CASE 1: JSON BODY
-        # =====================
-        if "application/json" in content_type:
-            logger.info("Processing JSON body request")
-            
-            body = await request.json()
-            
-            # Validate JSON structure
-            if "resume" not in body:
-                raise ValidationError("Missing 'resume' field in JSON body")
-            
-            resume_dict = body.get("resume")
-            job_description = body.get("job_description")
-            
-            # Validate data
-            ATSValidation.validate_resume_data(resume_dict)
-        
-        # =====================
-        # CASE 2: FORM-DATA
-        # =====================
-        elif "multipart/form-data" in content_type:
-            logger.info("Processing form-data request")
-            
-            form = await request.form()
-            
-            file: UploadFile = form.get("file")
-            payload_json = form.get("payload")
-            job_description = form.get("job_description")
-            
-            # Sub-case 2a: JSON payload in form
-            if payload_json:
-                logger.info("Parsing JSON from form payload")
-                
-                try:
-                    payload_data = json.loads(payload_json)
-                except json.JSONDecodeError as e:
-                    raise ValidationError(f"Invalid JSON in payload: {str(e)}")
-                
-                resume_dict = payload_data.get("resume", payload_data)
-                ATSValidation.validate_resume_data(resume_dict)
-            
-            # Sub-case 2b: File upload
-            elif file:
-                logger.info(f"Processing file upload: {file.filename}")
-                
-                # Validate file
-                ATSValidation.validate_file(file)
-                
-                # Extract text
-                try:
-                    text = await extract_text(file)
-                except Exception as e:
-                    logger.error(f"Text extraction failed: {str(e)}")
-                    raise ValidationError(f"Failed to extract text from file: {str(e)}")
-                
-                # Parse resume
-                try:
-                    parsed_resume = parse_resume_to_schema(
-                        text=text,
-                        file_type=file.filename.split(".")[-1] if file.filename else "pdf"
-                    )
-                    resume_dict = parsed_resume.dict()
-                except Exception as e:
-                    logger.error(f"Resume parsing failed: {str(e)}")
-                    raise ValidationError(f"Failed to parse resume: {str(e)}")
-                
-                # Add job description if provided
-                if job_description:
-                    resume_dict["job_description"] = job_description
-            
-            else:
-                raise ValidationError("Form-data must include 'payload' or 'file'")
-        
-        else:
-            raise ValidationError(
-                f"Unsupported content type: {content_type}. "
-                "Use 'application/json' or 'multipart/form-data'"
-            )
-        
-        # =====================
-        # VALIDATION
-        # =====================
-        if not resume_dict:
-            raise ValidationError("Could not parse resume data")
-        
-        logger.info("Resume data validated successfully")
-        
-        # =====================
-        # ATS SCAN
-        # =====================
-        logger.info("Starting ATS scan")
-        
-        scanner = ATSScannerService()
-        
-        # Prepare LLM client if needed
-        llm_client = None
-        if include_ai and job_description:
-            llm_client = lambda prompt: call_llm(
-                user_message=prompt,
-                agent_name="ats_evaluator",
-                db=db,
-            )
-        
-        # Run scan
-        scan_results = await scanner.scan(
-            resume=resume_dict,
-            job_description=job_description,
-            llm_client=llm_client,
-            db=db
+        logger.info(f"Starting ATS scan v2 for {file.filename}")
+
+        # ============ VALIDATION ============
+        validation_result = ATSValidation.validate_file(file)
+        logger.info(f"File validation passed: {validation_result}")
+
+        # ============ TEXT EXTRACTION ============
+        logger.info("Extracting text from file...")
+
+        from app.utils.ats_scanner.text_extraction import TextExtractionEngine
+
+        extraction_engine = TextExtractionEngine()
+        extraction_result = await extraction_engine.extract_all(file)
+
+        raw_text = extraction_result["raw_text"]
+        sections = extraction_result["sections"]
+        metadata = extraction_result["metadata"]
+
+        logger.info(
+            f"Extracted {len(raw_text)} characters, sections found: {list(sections.keys())}"
         )
-        
-        logger.info(f"ATS scan completed. Score: {scan_results.get('ats_score')}")
-        
-        # =====================
-        # RESPONSE
-        # =====================
-        response = ATSScanResponseV2(scan_results)
-        
-        return {
+
+        # ============ EDUCATION EXTRACTION ============
+        logger.info("Extracting education entries...")
+
+        education_text = sections.get("education", "")
+        education_entries = extraction_engine.extract_education_entries(education_text)
+
+        logger.info(f"Found {len(education_entries)} education entries")
+
+        # ============ RESUME PARSING ============
+        logger.info("Parsing resume structure...")
+
+        resume_dict = _parse_resume_structure(
+            raw_text=raw_text,
+            sections=sections,
+            education_entries=education_entries,
+            metadata=metadata
+        )
+
+        logger.info(f"Resume parsed. Keys: {list(resume_dict.keys())}")
+        logger.info(f"Summary detected: {bool(resume_dict.get('summary'))}")
+
+        # ============ ATS RULES ANALYSIS ============
+        logger.info("Running ATS rules analysis...")
+
+        from app.utils.ats_scanner.ats_rules_advanced import ATSRulesEngine
+
+        rules_engine = ATSRulesEngine()
+        ors_score = rules_engine.analyze(resume_dict)
+
+        logger.info(
+            f"Rules score: {ors_score.total_score}, "
+            f"Critical issues: {ors_score.critical_issues_count}"
+        )
+
+        # ============ KEYWORD ANALYSIS ============
+        keyword_score = 0
+        keyword_analysis = None
+
+        if job_description:
+            logger.info("Running keyword analysis...")
+
+            from app.utils.ats_scanner.ats_keyword_engine import KeywordEngine
+
+            keyword_engine = KeywordEngine()
+            keyword_analysis = keyword_engine.match_skills(resume_dict, job_description)
+            keyword_score = keyword_engine.calculate_keyword_score(keyword_analysis)
+
+            logger.info(f"Keyword match: {keyword_analysis.match_percentage}%")
+
+        # ============ DETAILED FEEDBACK ============
+        detailed_feedback = None
+        if include_suggestions:
+            logger.info("Generating detailed feedback...")
+
+            from app.utils.ats_scanner.ats_feedback_generator import DetailedFeedbackGenerator
+
+            feedback_gen = DetailedFeedbackGenerator()
+            detailed_feedback = feedback_gen.generate_detailed_feedback(
+                ats_score=ors_score.total_score,
+                section_scores={
+                    "education": ors_score.content_score,
+                    "experience": ors_score.content_score,
+                    "skills": ors_score.content_score,
+                    "summary": ors_score.content_score,
+                },
+                resume=resume_dict,
+                ats_issues=ors_score.all_issues
+            )
+
+        # ============ FINAL SCORE ============
+        final_score = _calculate_final_score(ors_score.total_score, keyword_score)
+
+        # ============ BUILD RESPONSE ============
+        response = {
             "success": True,
-            "data": {
-                "ats_score": response.ats_score,
-                "score_status": response.score_status,
-                "critical_issues_count": response.critical_issues_count,
-                "score_breakdown": response.score_breakdown,
-                "section_analysis": response.section_analysis,
-                "keyword_analysis": response.keyword_analysis,
-                "issues": response.issues,
-                "recommendations": response.recommendations,
-                "summary": response.summary,
-                "ai_analysis": response.ai_analysis
+            "scan_metadata": {
+                "filename": file.filename,
+                "file_type": metadata.get("file_type"),
+                "timestamp": _get_timestamp(),
+                "has_job_description": bool(job_description)
+            },
+
+            "ats_score": final_score,
+            "score_details": {
+                "rules_compliance_score": ors_score.total_score,
+                "keyword_match_score": keyword_score if job_description else None,
+                "overall_status": _get_score_status(final_score),
+                "ready_to_apply": final_score >= 75,
+                "critical_issues_count": ors_score.critical_issues_count
+            },
+
+            "score_breakdown": {
+                "format_compliance": ors_score.format_score,
+                "structure_quality": ors_score.structure_score,
+                "content_quality": ors_score.content_score,
+                "ats_compatibility": ors_score.ats_compliance_score,
+                "keyword_alignment": keyword_score if job_description else 0,
+            },
+
+            "issues": {
+                "critical": [
+                    {
+                        "section": i.section,
+                        "message": i.message,
+                        "suggestion": i.suggestion,
+                        "impact": i.impact_score
+                    }
+                    for i in ors_score.all_issues
+                    if i.severity.value == "critical"
+                ],
+                "high": [
+                    {
+                        "section": i.section,
+                        "message": i.message,
+                        "suggestion": i.suggestion,
+                        "impact": i.impact_score
+                    }
+                    for i in ors_score.all_issues
+                    if i.severity.value == "high"
+                ],
+                "medium": [
+                    {
+                        "section": i.section,
+                        "message": i.message,
+                        "suggestion": i.suggestion,
+                        "impact": i.impact_score
+                    }
+                    for i in ors_score.all_issues
+                    if i.severity.value == "medium"
+                ],
+                "low": [
+                    {
+                        "section": i.section,
+                        "message": i.message,
+                        "suggestion": i.suggestion,
+                        "impact": i.impact_score
+                    }
+                    for i in ors_score.all_issues
+                    if i.severity.value == "low"
+                ],
+                "total_issues": len(ors_score.all_issues)
+            },
+
+            "section_analysis": (
+                {}
+                if not include_suggestions or not detailed_feedback
+                else {
+                    section_name: {
+                        "score": fb.current_score,
+                        "target_score": fb.target_score,
+                        "status": fb.status,
+                        "impact_potential": fb.impact_potential,
+                        "is_present": fb.is_present,
+                        "is_complete": fb.is_complete,
+                        "quality_level": fb.quality_level,
+                        "missing_elements": fb.missing_elements,
+                        "excessive_elements": fb.excessive_elements,
+                        "quality_issues": fb.quality_issues,
+                        "priorities": fb.top_priority_fixes,
+                        "quick_wins": fb.quick_wins,
+                        "suggestions": fb.detailed_suggestions,
+                        "current_example": fb.example_current,
+                        "improved_example": fb.example_improved,
+                        "strengths": fb.strengths
+                    }
+                    for section_name, fb in detailed_feedback.section_feedback.items()
+                }
+            ),
+
+            "keyword_analysis": (
+                None
+                if not keyword_analysis
+                else {
+                    "total_keywords": keyword_analysis.total_jd_keywords,
+                    "matched_keywords": keyword_analysis.matched_keywords,
+                    "match_percentage": keyword_analysis.match_percentage,
+                    "matched_skills": keyword_analysis.found_strengths,
+                    "missing_critical_skills": keyword_analysis.missing_critical_skills,
+                    "keyword_density": keyword_analysis.keyword_density
+                }
+            ),
+
+            "recommendations": (
+                {}
+                if not include_suggestions or not detailed_feedback
+                else {
+                    "top_3_priorities": detailed_feedback.top_3_priorities,
+                    "quick_wins": detailed_feedback.quick_wins_summary,
+                    "improvement_roadmap": detailed_feedback.improvement_roadmap,
+                    "estimated_potential": detailed_feedback.estimated_improvement_potential
+                }
+            ),
+
+            "summary": {
+                "key_findings": _generate_key_findings(ors_score, final_score),
+                "strengths": (
+                    detailed_feedback.strengths_summary
+                    if include_suggestions and detailed_feedback
+                    else []
+                ),
+                "main_issues": [i.message for i in ors_score.all_issues[:3]],
+                "next_steps": _generate_next_steps(final_score, ors_score.critical_issues_count)
             }
         }
-    
-    except ValidationError as e:
-        logger.warning(f"Validation error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    
-    except HTTPException:
+
+        logger.info(f"ATS scan completed successfully. Score: {final_score}")
+        return response
+
+    except HTTPException as e:
+        logger.warning(f"HTTP Exception: {e.detail}")
         raise
-    
+
     except Exception as e:
-        logger.error(f"ATS scan error: {str(e)}", exc_info=True)
+        logger.error(f"ATS scan error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
-            detail="Internal server error during ATS scan"
+            detail=f"Error during ATS scan: {str(e)}"
         )
 
 
 @router.post("/quick-score")
-async def ats_quick_score(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def quick_ats_score(file: UploadFile = File(...)) -> Dict:
     """
-    Quick ATS score without detailed analysis
-    Fast endpoint for real-time feedback
-    
-    Accepts:
-    - JSON body with resume data
-    - Form-data with file
-    
-    Returns:
-        Quick score (0-100) and critical issues only
+    Fast ATS score — no detailed suggestions, just score and critical issues.
     """
-    
+
     try:
-        content_type = request.headers.get("content-type", "")
-        
-        resume_dict = None
-        
-        # Parse input (simplified)
-        if "application/json" in content_type:
-            body = await request.json()
-            resume_dict = body.get("resume", body)
-        
-        elif "multipart/form-data" in content_type:
-            form = await request.form()
-            file = form.get("file")
-            
-            if file:
-                text = await extract_text(file)
-                parsed = parse_resume_to_schema(
-                    text=text,
-                    file_type=file.filename.split(".")[-1]
-                )
-                resume_dict = parsed.dict()
-        
-        if not resume_dict:
-            raise ValidationError("Could not parse input")
-        
-        # Quick score (rules only, no AI)
-        scanner = ATSScannerService()
-        scan_results = await scanner.scan(resume=resume_dict)
-        
+        logger.info(f"Quick score request for {file.filename}")
+
+        ATSValidation.validate_file(file)
+
+        from app.utils.ats_scanner.text_extraction import TextExtractionEngine
+        engine = TextExtractionEngine()
+        result = await engine.extract_all(file)
+
+        education_entries = engine.extract_education_entries(
+            result["sections"].get("education", "")
+        )
+
+        resume = _parse_resume_structure(
+            raw_text=result["raw_text"],
+            sections=result["sections"],
+            education_entries=education_entries,
+            metadata=result["metadata"]
+        )
+
+        from app.utils.ats_scanner.ats_rules_advanced import ATSRulesEngine
+        rules_engine = ATSRulesEngine()
+        score_result = rules_engine.analyze(resume)
+
+        critical_issues = [
+            i for i in score_result.all_issues if i.severity.value == "critical"
+        ]
+
         return {
             "success": True,
-            "ats_score": scan_results.get("ats_score"),
-            "critical_issues": scan_results.get("critical_issues_count"),
-            "ready_to_apply": scan_results.get("summary", {}).get("ready_to_apply"),
-            "main_issues": [
-                issue["message"] 
-                for issue in scan_results.get("issues", {}).get("critical", [])[:3]
-            ]
+            "ats_score": score_result.total_score,
+            "status": _get_score_status(score_result.total_score),
+            "ready_to_apply": score_result.total_score >= 75,
+            "critical_issues_count": len(critical_issues),
+            "top_issues": [i.message for i in critical_issues[:3]]
         }
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Quick score error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/score-guide")
-async def score_guide():
-    """
-    Get explanation of ATS scores
-    
-    Returns:
-        Score ranges and what they mean
-    """
-    
+async def get_score_guide() -> Dict:
+    """Explanation of ATS scores and what they mean"""
+
     return {
         "score_ranges": {
             "85-100": {
-                "status": "Excellent",
-                "meaning": "Ready to apply - resume is highly optimized",
-                "action": "Submit your application"
+                "status": "Excellent - Ready to Apply",
+                "meaning": "Your resume is highly optimized for ATS systems. Submit with confidence!",
+                "recommendation": "You can start applying immediately"
             },
             "70-84": {
-                "status": "Good",
-                "meaning": "Ready to apply with minor improvements",
-                "action": "Consider implementing quick wins"
+                "status": "Good - Ready to Apply with Polish",
+                "meaning": "Your resume passes ATS with room for improvement",
+                "recommendation": "Apply now, but implement quick wins for better results"
             },
             "55-69": {
-                "status": "Needs Improvement",
-                "meaning": "Address major issues before applying",
-                "action": "Follow high-priority recommendations"
+                "status": "Needs Improvement - Address Issues First",
+                "meaning": "Your resume has significant issues that may hurt ATS parsing",
+                "recommendation": "Implement high-priority fixes before applying"
             },
             "0-54": {
-                "status": "Critical Issues",
-                "meaning": "Significant improvements required",
-                "action": "Complete overhaul needed"
+                "status": "Critical Issues - Major Revision Needed",
+                "meaning": "Your resume has serious ATS compatibility problems",
+                "recommendation": "Complete overhaul needed. Follow the roadmap provided"
             }
         },
-        "what_affects_score": {
-            "40%": "ATS rule compliance (format, structure, fonts)",
-            "60%": "Keyword matching and job relevance"
-        }
+        "scoring_methodology": {
+            "Format Compliance": "10% - File type, fonts, layout compatibility",
+            "Structure Quality": "15% - Section presence, organization, completeness",
+            "Content Quality": "30% - Bullet quality, metrics, action verbs",
+            "Keyword Alignment": "30% - Relevance to job description (if provided)",
+            "ATS Compatibility": "15% - Parsing safety, character encoding"
+        },
+        "what_affects_score_most": [
+            "Missing critical sections (Education, Experience, Skills)",
+            "Weak action verbs and lack of metrics in bullets",
+            "Poor keyword alignment with job description",
+            "Formatting issues (tables, columns, unsafe fonts)"
+        ]
     }
 
 
 # =====================================================
-# ERROR HANDLERS
+# HELPER FUNCTIONS
 # =====================================================
 
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "ats_scanner"}
+def _parse_resume_structure(
+    raw_text: str,
+    sections: Dict,
+    education_entries: list,
+    metadata: Dict
+) -> Dict:
+    """
+    Parse extracted text into a structured resume dictionary.
+    Summary fallback: if sections["summary"] is empty, use raw_text heuristic.
+    """
+
+    # Pull summary — use extracted section, fall back to empty string (never None)
+    summary_text = (sections.get("summary") or "").strip()
+
+    resume = {
+        "raw_text": raw_text,
+        "file_type": metadata.get("file_type", "pdf"),
+        "metadata": metadata,
+
+        "summary": summary_text,
+        "skills": _extract_skills(sections.get("skills", "")),
+        "experience": _extract_experience(sections.get("experience", "")),
+        "education": (
+            education_entries
+            if education_entries
+            else _extract_education(sections.get("education", ""))
+        ),
+
+        "uses_table": metadata.get("has_tables", False),
+        "uses_columns": False,
+        "uses_graphics": metadata.get("has_images", False),
+    }
+
+    return resume
+
+
+def _extract_skills(skills_text: str) -> list:
+    """Extract skills as a list"""
+
+    if not skills_text or not skills_text.strip():
+        return []
+
+    for delimiter in ["|", "•", "·", ",", "\n"]:
+        if delimiter in skills_text:
+            skills = [s.strip() for s in skills_text.split(delimiter) if s.strip()]
+            if skills:
+                return skills[:50]
+
+    # Single line — split by whitespace
+    skills = [s.strip() for s in skills_text.split() if s.strip()]
+    return skills[:50]
+
+
+def _extract_experience(exp_text: str) -> list:
+    """Extract experience entries from raw section text"""
+
+    if not exp_text or not exp_text.strip():
+        return []
+
+    import re
+
+    experiences = []
+
+    # Split by company/position patterns
+    blocks = re.split(
+        r'\n(?=[A-Z].*?(?:Inc|Ltd|LLC|Corp|Company|Inc\.|Ltd\.|LLC\.|Corp\.|Co\.|Co))',
+        exp_text
+    )
+
+    for block in blocks:
+        if len(block.strip()) < 10:
+            continue
+
+        lines = block.split("\n")
+
+        experience = {
+            "title": lines[0].strip() if lines else "",
+            "company": lines[1].strip() if len(lines) > 1 else "",
+            "duration": lines[2].strip() if len(lines) > 2 else "",
+            "bullets": [
+                l.strip() for l in lines[3:]
+                if l.strip() and len(l.strip()) > 5
+            ][:6]
+        }
+
+        experiences.append(experience)
+
+    return experiences[:10]
+
+
+def _extract_education(edu_text: str) -> list:
+    """Extract education entries from raw section text (fallback parser)"""
+
+    if not edu_text or not edu_text.strip():
+        return []
+
+    import re
+    entries = []
+    lines = edu_text.split("\n")
+    current: Dict = {}
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        if any(deg in line for deg in ["B.S", "B.A", "M.S", "M.A", "PhD", "MBA", "B.Tech", "B.E"]):
+            if current:
+                entries.append(current)
+            current = {"degree": line, "institution": "", "year": ""}
+
+        elif re.search(r"20\d{2}|19\d{2}", line) and len(line) < 30:
+            if current:
+                current["year"] = line
+            else:
+                current = {"degree": "", "institution": "", "year": line}
+
+        elif len(line) > 5:
+            if current:
+                if not current.get("institution"):
+                    current["institution"] = line
+            else:
+                current = {"degree": "", "institution": line, "year": ""}
+
+    if current:
+        entries.append(current)
+
+    return entries
+
+
+def _calculate_final_score(rules_score: int, keyword_score: int) -> int:
+    """Calculate final weighted score"""
+
+    if keyword_score == 0:
+        return rules_score
+
+    final = (rules_score * 0.4) + (keyword_score * 0.6)
+    return min(int(final), 100)
+
+
+def _get_score_status(score: int) -> str:
+    """Map score to status label"""
+
+    if score >= 85:
+        return "Excellent"
+    elif score >= 70:
+        return "Good"
+    elif score >= 55:
+        return "Needs Improvement"
+    else:
+        return "Critical"
+
+
+def _generate_key_findings(ors_score, final_score: int) -> list:
+    """Generate key findings for summary"""
+
+    findings = []
+
+    if ors_score.critical_issues_count > 0:
+        findings.append(f"Found {ors_score.critical_issues_count} critical ATS issues")
+
+    if final_score >= 75:
+        findings.append("Resume passes basic ATS compatibility checks")
+    else:
+        findings.append("Resume has significant ATS compatibility issues")
+
+    return findings
+
+
+def _generate_next_steps(score: int, critical_count: int) -> list:
+    """Generate actionable next steps"""
+
+    steps = []
+
+    if critical_count > 0:
+        steps.append(f"1. Fix {critical_count} critical issues (listed above)")
+
+    if score < 60:
+        steps.append("2. Review and implement all high-priority suggestions")
+
+    if score < 75:
+        steps.append("3. Focus on quick wins for fast improvements")
+
+    if score >= 75:
+        steps.append(
+            "1. You're ready to apply! Consider implementing remaining suggestions "
+            "for stronger positioning"
+        )
+
+    return steps
+
+
+def _get_timestamp() -> str:
+    """Get ISO UTC timestamp"""
+    from datetime import datetime
+    return datetime.utcnow().isoformat()
