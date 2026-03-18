@@ -1,8 +1,9 @@
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 # Prevent Python cache + improve logs
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
 
 # System deps (minimal)
 RUN apt-get update && apt-get install -y --no-install-recommends \
