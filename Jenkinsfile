@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "aryu_api"
+        IMAGE_NAME = "aiproject-staging"
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
