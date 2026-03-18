@@ -10,7 +10,19 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t aryu_api:latest .'
+                retry(2) {
+                    sh '''
+                    docker build --no-cache -t aryu_api:latest .
+                    '''
+                }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            steps {
+                sh '''
+                docker image prune -af || true
+                '''
             }
         }
 
@@ -19,10 +31,9 @@ pipeline {
                 sh '''
                 cd /var/www/ai-fastapi/aiproject_staging
                 docker-compose down
-                docker-compose up -d
+                docker-compose up -d --build
                 '''
             }
         }
     }
 }
-
