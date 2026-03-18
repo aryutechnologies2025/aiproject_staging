@@ -13,16 +13,16 @@ pipeline {
                 sh '''
                 cd /mnt/storage/projects/ai-fastapi/aiproject_staging
 
-                # Pull latest code
                 git pull origin main
 
-                # Build and start container
+                # STOP old container safely
+                docker-compose down
+
+                # BUILD + START fresh container
                 docker-compose up -d --build
 
-                # Remove unused images (safe cleanup)
+                # CLEAN unused images AFTER new container is running
                 docker image prune -af
-
-                # Remove build cache (important for your case)
                 docker builder prune -af
                 '''
             }
