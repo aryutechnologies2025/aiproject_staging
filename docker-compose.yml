@@ -2,9 +2,12 @@ version: "3.9"
 
 services:
   api:
-    image: aiproject-staging:latest   # ✅ FIXED
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aryu_api:latest
     container_name: aryu_api
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
     ports:
@@ -13,10 +16,6 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - aryu_network
-    deploy:
-      resources:
-        limits:
-          memory: 4g
 
 networks:
   aryu_network:
