@@ -8,21 +8,24 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t aiproject-staging:latest .'
-            }
-        }
-
         stage('Deploy') {
             steps {
                 sh '''
-                cd /var/www/ai-fastapi/aiproject_staging
+                cd /mnt/storage/projects/ai-fastapi/aiproject_staging
+
+                git pull origin main
+
+                # STOP old container safely
                 docker-compose down
-                docker-compose up -d
+
+                # BUILD + START fresh container
+                docker-compose up -d --build
+
+                # CLEAN unused images AFTER new container is running
+                docker image prune -af
+                docker builder prune -af
                 '''
             }
         }
     }
 }
-

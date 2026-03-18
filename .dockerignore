@@ -1,6 +1,7 @@
-venv
-__pycache__
-.git
-.env
-*.log
+
 node_modules
+venv
+.git
+__pycache__
+*.log
+.env
