@@ -31,10 +31,8 @@ pipeline {
         stage('Cleanup Old Images (Safe)') {
             steps {
                 sh '''
-                # Remove dangling images only (safe)
                 docker image prune -f
 
-                # Keep last 3 versions, delete older ones
                 images=$(docker images $IMAGE_NAME --format "{{.Tag}}" | sort -nr | tail -n +4)
 
                 for tag in $images; do
@@ -51,11 +49,9 @@ pipeline {
                 sh '''
                 cd /var/www/ai-fastapi/aiproject_staging
 
-                # Pull latest image tag (optional if using registry)
-                # docker pull $IMAGE_NAME:latest
-
+                # Ensure latest container is recreated
                 docker-compose down
-                docker-compose up -d
+                docker-compose up -d --force-recreate
                 '''
             }
         }
