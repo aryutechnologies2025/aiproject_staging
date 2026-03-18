@@ -8,6 +8,7 @@ pipeline {
             }
         }
 
+
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t aiproject-staging:latest .'
@@ -15,14 +16,19 @@ pipeline {
         }
 
         stage('Deploy') {
+
+        stage('Build & Deploy') {
+ 
             steps {
                 sh '''
-                cd /var/www/ai-fastapi/aiproject_staging
+                cd /mnt/storage/projects/ai-fastapi/aiproject_staging
+                
+                git pull origin main
+                
                 docker-compose down
-                docker-compose up -d
+                docker-compose up -d --build
                 '''
             }
         }
     }
 }
-
