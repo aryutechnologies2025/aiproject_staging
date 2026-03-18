@@ -1,8 +1,11 @@
 # /home/aryu_user/Arun/aiproject_staging/app/services/ats_scanner_service.py
 """
-Production-Grade ATS Scanner Service
-Integrates rule-based analysis, keyword matching, AI evaluation, and feedback generation
-Author: Backend Architecture Team
+Production-Grade ATS Scanner Service v2
+UPDATED: Works with enhanced v2 components
+- Integrates DetailedFeedbackGenerator (v2)
+- Uses enhanced ATSRulesEngine (v2 with fixed education detection)
+- Enhanced keyword matching
+- Detailed section-by-section analysis
 """
 
 import logging
@@ -10,9 +13,10 @@ import json
 from typing import Dict, Optional, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# UPDATED IMPORTS for v2
 from app.utils.ats_scanner.ats_rules_advanced import ATSRulesEngine
 from app.utils.ats_scanner.ats_keyword_engine import KeywordEngine
-from app.utils.ats_scanner.ats_feedback_generator import FeedbackGenerator, ScoreInterpreter
+from app.utils.ats_scanner.ats_feedback_generator import DetailedFeedbackGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -58,42 +62,27 @@ PROVIDE ANALYSIS AS JSON ONLY:
 OUTPUT ONLY VALID JSON, NO MARKDOWN, NO EXPLANATION."""
 
 
-QUICK_AI_EVALUATION_PROMPT = """Analyze this resume for ATS compliance and job fit. Return JSON only.
-
-Resume summary: {summary}
-Skills listed: {skills}
-Experience highlights: {experience_summary}
-Target role: {job_description}
-
-Return ONLY this JSON (no markdown, no explanation):
-{{
-  "ats_safe": true/false,
-  "critical_issues": ["Issue 1"],
-  "keyword_gaps": ["Missing skill 1"],
-  "top_suggestion": "Single most important improvement",
-  "estimated_score_impact": "+X points by fixing main issue"
-}}"""
-
-
 # =====================================================
-# MAIN ATS SCANNER SERVICE
+# MAIN ATS SCANNER SERVICE v2
 # =====================================================
 
 class ATSScannerService:
     """
-    Production-grade resume ATS scanner
+    Production-grade resume ATS scanner v2
     
     Combines:
-    - Rule-based ATS compliance checking
-    - Keyword extraction and semantic matching
+    - Enhanced rule-based ATS compliance checking (v2)
+    - Advanced keyword extraction and semantic matching
     - AI-powered content analysis
-    - Detailed feedback generation
+    - Detailed section-by-section feedback generation (v2 NEW)
+    - Specific improvement suggestions
+    - Improvement roadmap
     """
     
     def __init__(self):
         self.rules_engine = ATSRulesEngine()
         self.keyword_engine = KeywordEngine()
-        self.feedback_generator = FeedbackGenerator()
+        self.feedback_generator = DetailedFeedbackGenerator()  # UPDATED for v2
     
     async def scan(self, resume: Dict, job_description: Optional[str] = None,
                    llm_client: Optional[Callable] = None,
@@ -102,54 +91,116 @@ class ATSScannerService:
         Comprehensive ATS scan with rule-based and AI analysis
         
         Args:
-            resume: Resume data dictionary
-            job_description: Target job posting
-            llm_client: LLM function for AI analysis
-            db: Database session for LLM
+            resume: Resume data dictionary (with education, experience, skills, summary)
+            job_description: Target job posting (optional)
+            llm_client: LLM function for AI analysis (optional)
+            db: Database session for LLM (optional)
         
         Returns:
-            Complete ATS analysis with scores and feedback
+            Complete ATS analysis with scores, feedback, and recommendations
         """
         
         try:
-            logger.info("Starting comprehensive ATS scan")
+            logger.info("Starting comprehensive ATS scan v2")
             
-            # Step 1: Rule-Based Analysis
+            # ============================================================
+            # STEP 1: RULE-BASED ANALYSIS (Enhanced v2)
+            # ============================================================
+            logger.info("Step 1: Running rule-based ATS analysis")
             ors_score = self.rules_engine.analyze(resume)
-            logger.info(f"Rule-based score: {ors_score.total_score}")
+            logger.info(f"  - Format score: {ors_score.format_score}")
+            logger.info(f"  - Structure score: {ors_score.structure_score}")
+            logger.info(f"  - Content score: {ors_score.content_score}")
+            logger.info(f"  - Rule-based total: {ors_score.total_score}")
+            logger.info(f"  - Critical issues: {ors_score.critical_issues_count}")
             
-            # Step 2: Keyword Analysis
-            keyword_analysis = self.keyword_engine.match_skills(
-                resume, job_description or ""
-            )
-            logger.info(f"Keyword match: {keyword_analysis.match_percentage}%")
+            # ============================================================
+            # STEP 2: KEYWORD ANALYSIS
+            # ============================================================
+            keyword_analysis = None
+            keyword_score = 0
             
-            # Step 3: AI Analysis (if available and has JD)
+            if job_description:
+                logger.info("Step 2: Running keyword analysis")
+                keyword_analysis = self.keyword_engine.match_skills(
+                    resume, job_description
+                )
+                keyword_score = self.keyword_engine.calculate_keyword_score(
+                    keyword_analysis
+                )
+                logger.info(f"  - Keyword match: {keyword_analysis.match_percentage}%")
+                logger.info(f"  - Keyword score: {keyword_score}")
+            else:
+                logger.info("Step 2: Skipping keyword analysis (no job description)")
+            
+            # ============================================================
+            # STEP 3: AI ANALYSIS (Optional)
+            # ============================================================
             ai_insights = {}
             if llm_client and db and job_description:
+                logger.info("Step 3: Running AI-powered analysis")
                 try:
                     ai_insights = await self._get_ai_insights(
                         resume, job_description, llm_client, db
                     )
-                    logger.info("AI insights generated successfully")
+                    if ai_insights.get("success"):
+                        logger.info("  - AI analysis completed successfully")
+                    else:
+                        logger.warning("  - AI analysis failed, using rule-based only")
                 except Exception as e:
-                    logger.warning(f"AI analysis failed, continuing with rule-based: {e}")
+                    logger.warning(f"  - AI analysis error (continuing): {e}")
+                    ai_insights = {"success": False}
+            else:
+                logger.info("Step 3: Skipping AI analysis")
             
-            # Step 4: Generate Detailed Feedback
-            feedback = self.feedback_generator.generate_feedback(
-                ors_score, keyword_analysis, resume
+            # ============================================================
+            # STEP 4: GENERATE DETAILED FEEDBACK (NEW v2)
+            # ============================================================
+            logger.info("Step 4: Generating detailed feedback")
+            
+            section_scores = {
+                "education": ors_score.content_score,
+                "experience": ors_score.content_score,
+                "skills": ors_score.content_score,
+                "summary": ors_score.content_score,
+            }
+            
+            detailed_feedback = self.feedback_generator.generate_detailed_feedback(
+                ats_score=ors_score.total_score,
+                section_scores=section_scores,
+                resume=resume,
+                ats_issues=ors_score.all_issues
             )
             
-            # Step 5: Score Interpretation
-            interpretation = ScoreInterpreter.interpret(ors_score.total_score)
+            logger.info(f"  - Overall status: {detailed_feedback.overall_status}")
+            logger.info(f"  - Ready to apply: {detailed_feedback.ready_to_apply}")
+            logger.info(f"  - Improvement potential: {detailed_feedback.estimated_improvement_potential} points")
             
-            # Step 6: Combine Results
-            result = self._combine_results(
-                ors_score, keyword_analysis, feedback,
-                ai_insights, interpretation, resume
+            # ============================================================
+            # STEP 5: CALCULATE FINAL SCORE
+            # ============================================================
+            final_ats_score = self._calculate_final_score(
+                ors_score.total_score,
+                keyword_score
             )
             
-            logger.info(f"ATS scan complete. Final score: {result['ats_score']}")
+            logger.info(f"Step 5: Final score calculated: {final_ats_score}")
+            
+            # ============================================================
+            # STEP 6: BUILD COMPREHENSIVE RESPONSE
+            # ============================================================
+            logger.info("Step 6: Building response")
+            result = self._build_response(
+                ors_score=ors_score,
+                keyword_analysis=keyword_analysis,
+                keyword_score=keyword_score,
+                final_score=final_ats_score,
+                detailed_feedback=detailed_feedback,
+                ai_insights=ai_insights,
+                resume=resume
+            )
+            
+            logger.info(f"ATS scan completed successfully. Final score: {final_ats_score}")
             return result
             
         except Exception as e:
@@ -171,9 +222,14 @@ class ATSScannerService:
                 experience_bullets.extend(exp.get("bullets", [])[:2])
             experience_str = "\n".join(experience_bullets[:6])
             
-            education_str = "; ".join([
-                e.get("degree", "") for e in resume.get("education", [])
-            ])
+            education_list = resume.get("education", [])
+            if isinstance(education_list, list) and len(education_list) > 0:
+                education_str = "; ".join([
+                    f"{e.get('degree', '')} from {e.get('institution', '')}" 
+                    for e in education_list if e.get('degree') or e.get('institution')
+                ])
+            else:
+                education_str = str(education_list)
             
             summary_str = resume.get("summary", "")[:200]
             
@@ -185,6 +241,8 @@ class ATSScannerService:
                 summary=summary_str,
                 job_description=job_description[:1000]
             )
+            
+            logger.debug("Calling LLM for AI analysis")
             
             # Call LLM
             response = await llm_client(prompt)
@@ -211,78 +269,95 @@ class ATSScannerService:
             logger.warning(f"AI analysis error: {e}")
             return {"success": False, "error": str(e)}
     
-    # =========== RESULT COMPILATION ===========
+    # =========== RESPONSE BUILDING ===========
     
-    def _combine_results(self, ors_score, keyword_analysis, feedback,
-                        ai_insights, interpretation, resume) -> Dict:
-        """Combine all analysis results into final output"""
+    def _build_response(self, ors_score, keyword_analysis, keyword_score,
+                       final_score, detailed_feedback, ai_insights, resume) -> Dict:
+        """Build comprehensive response with all analysis results"""
         
-        # Adjust scores based on keyword analysis
-        final_ats_score = self._calculate_final_score(
-            ors_score.total_score,
-            keyword_analysis.match_percentage
-        )
+        # Build section analysis from detailed feedback
+        section_analysis = {}
+        if detailed_feedback.section_feedback:
+            for section_name, feedback in detailed_feedback.section_feedback.items():
+                section_analysis[section_name] = {
+                    "score": feedback.current_score,
+                    "target_score": feedback.target_score,
+                    "status": feedback.status,
+                    "is_present": feedback.is_present,
+                    "is_complete": feedback.is_complete,
+                    "quality_level": feedback.quality_level,
+                    "impact_potential": feedback.impact_potential,
+                    
+                    # Issues and feedback
+                    "missing_elements": feedback.missing_elements,
+                    "incomplete_elements": feedback.incomplete_elements,
+                    "quality_issues": feedback.quality_issues,
+                    "excessive_elements": feedback.excessive_elements,
+                    
+                    # Recommendations
+                    "top_priority_fixes": feedback.top_priority_fixes,
+                    "quick_wins": feedback.quick_wins,
+                    "detailed_suggestions": feedback.detailed_suggestions,
+                    
+                    # Examples
+                    "example_current": feedback.example_current,
+                    "example_improved": feedback.example_improved,
+                    "strengths": feedback.strengths
+                }
         
+        # Build response
         return {
-            # Main Score
-            "ats_score": final_ats_score,
-            "score_status": interpretation.get("message"),
-            "score_interpretation": interpretation,
+            # Main scores
+            "ats_score": final_score,
+            "score_status": detailed_feedback.overall_status,
+            "ready_to_apply": detailed_feedback.ready_to_apply,
             
-            # Score Breakdown
+            # Score breakdown
             "score_breakdown": {
                 "format_compliance": ors_score.format_score,
                 "structure_quality": ors_score.structure_score,
                 "content_quality": ors_score.content_score,
-                "keyword_alignment": keyword_analysis.match_percentage,
-                "ats_compatibility": ors_score.ats_compliance_score
+                "ats_compatibility": ors_score.ats_compliance_score,
+                "keyword_alignment": keyword_score if keyword_analysis else None,
             },
             
-            # Detailed Issues
+            # Issues by severity
             "issues": self._format_issues(ors_score.all_issues),
             "critical_issues_count": ors_score.critical_issues_count,
             
-            # Section Analysis
-            "section_analysis": [
-                {
-                    "section": sf.section,
-                    "score": sf.score,
-                    "status": sf.status,
-                    "issues": sf.issues,
-                    "suggestions": sf.suggestions
-                }
-                for sf in feedback.section_feedback
-            ],
+            # Detailed section analysis (NEW v2)
+            "section_analysis": section_analysis,
             
-            # Keyword Analysis
+            # Keyword analysis
             "keyword_analysis": {
-                "total_required_keywords": keyword_analysis.total_jd_keywords,
-                "matched_keywords": keyword_analysis.matched_keywords,
-                "match_percentage": keyword_analysis.match_percentage,
-                "critical_gaps": keyword_analysis.missing_critical_skills,
-                "strength_keywords": keyword_analysis.found_strengths
-            },
+                "total_required_keywords": keyword_analysis.total_jd_keywords if keyword_analysis else 0,
+                "matched_keywords": keyword_analysis.matched_keywords if keyword_analysis else 0,
+                "match_percentage": keyword_analysis.match_percentage if keyword_analysis else 0,
+                "critical_gaps": keyword_analysis.missing_critical_skills if keyword_analysis else [],
+                "strength_keywords": keyword_analysis.found_strengths if keyword_analysis else []
+            } if keyword_analysis else None,
             
-            # Recommendations
+            # Recommendations (NEW v2)
             "recommendations": {
-                "top_priorities": feedback.top_priorities[:3],
-                "quick_wins": feedback.quick_wins,
-                "improvement_potential": {
-                    "critical_gains": feedback.estimated_improvement_potential["critical_gains"],
-                    "total_potential": feedback.estimated_improvement_potential["total_potential"]
-                }
+                "top_3_priorities": detailed_feedback.top_3_priorities,
+                "quick_wins": detailed_feedback.quick_wins_summary,
+                "improvement_roadmap": detailed_feedback.improvement_roadmap,
+                "estimated_improvement_potential": detailed_feedback.estimated_improvement_potential
             },
             
-            # AI Insights (if available)
+            # AI insights (optional)
             "ai_analysis": ai_insights if ai_insights.get("success") else None,
             
             # Summary
             "summary": {
-                "ready_to_apply": final_ats_score >= 75,
-                "main_strengths": feedback.section_feedback[0].strengths if feedback.section_feedback else [],
-                "main_weaknesses": feedback.top_priorities,
-                "estimated_ats_compatibility": "Good" if final_ats_score >= 75 else
-                                              "Moderate" if final_ats_score >= 60 else
+                "ready_to_apply": final_score >= 75,
+                "main_strengths": detailed_feedback.strengths_summary,
+                "main_weaknesses": detailed_feedback.top_3_priorities,
+                "key_findings": self._generate_key_findings(final_score, ors_score.critical_issues_count),
+                "next_steps": self._generate_next_steps(final_score, ors_score.critical_issues_count),
+                "estimated_ats_compatibility": "Excellent" if final_score >= 85 else
+                                              "Good" if final_score >= 70 else
+                                              "Moderate" if final_score >= 55 else
                                               "Poor"
             }
         }
@@ -297,47 +372,126 @@ class ATSScannerService:
         }
         
         for issue in issues:
-            formatted[issue.severity.value].append({
+            severity = issue.severity.value if hasattr(issue.severity, 'value') else str(issue.severity)
+            
+            issue_dict = {
                 "section": issue.section,
                 "message": issue.message,
                 "suggestion": issue.suggestion,
-                "impact": issue.impact_score
-            })
+                "impact": issue.impact_score,
+            }
+            
+            # Include examples if available
+            if hasattr(issue, 'specific_example') and issue.specific_example:
+                issue_dict["example"] = issue.specific_example
+            
+            if hasattr(issue, 'improvement_example') and issue.improvement_example:
+                issue_dict["improvement"] = issue.improvement_example
+            
+            if severity in formatted:
+                formatted[severity].append(issue_dict)
         
         return formatted
     
-    def _calculate_final_score(self, rule_score: int,
-                              keyword_score: int) -> int:
+    def _calculate_final_score(self, rule_score: int, keyword_score: int) -> int:
         """
         Calculate final ATS score with weighting
         
-        Weighted formula:
+        Formula:
         - Rule compliance: 40%
-        - Keyword matching: 60%
+        - Keyword matching: 60% (if job description provided)
+        - If no job description: rule score is final
         """
+        if keyword_score == 0:
+            return rule_score
+        
         final = (rule_score * 0.40) + (keyword_score * 0.60)
         return min(int(final), 100)
+    
+    def _generate_key_findings(self, final_score: int, critical_count: int) -> list:
+        """Generate key findings for summary"""
+        findings = []
+        
+        if critical_count > 0:
+            findings.append(f"⚠️ {critical_count} critical ATS issues detected")
+        
+        if final_score >= 85:
+            findings.append("✅ Resume is well-optimized for ATS systems")
+        elif final_score >= 70:
+            findings.append("✅ Resume passes ATS with minor room for improvement")
+        elif final_score >= 55:
+            findings.append("⚠️ Resume has significant ATS issues to address")
+        else:
+            findings.append("❌ Resume needs major ATS improvements")
+        
+        return findings
+    
+    def _generate_next_steps(self, final_score: int, critical_count: int) -> list:
+        """Generate actionable next steps"""
+        steps = []
+        
+        if critical_count > 0:
+            steps.append(f"1. Fix {critical_count} critical issue(s) (see Issues section)")
+        
+        if final_score < 75:
+            steps.append("2. Review and implement high-priority recommendations")
+        
+        if final_score < 60:
+            steps.append("3. Follow the improvement roadmap for structured fixes")
+        
+        if final_score >= 75:
+            steps.append("1. ✅ You're ready to apply! Consider implementing remaining suggestions for stronger positioning")
+        
+        return steps
     
     # =========== UTILITY METHODS ===========
     
     def get_score_explanation(self, score: int) -> Dict:
         """Get explanation for a specific score"""
-        return ScoreInterpreter.interpret(score)
+        explanations = {
+            (85, 100): {
+                "status": "Excellent",
+                "message": "Your resume is highly optimized for ATS systems",
+                "recommendation": "You're ready to submit! Consider tailoring for specific roles"
+            },
+            (70, 84): {
+                "status": "Good",
+                "message": "Your resume passes ATS but has improvement opportunities",
+                "recommendation": "Focus on quick wins for even better results"
+            },
+            (55, 69): {
+                "status": "Needs Improvement",
+                "message": "Your resume has ATS issues to address",
+                "recommendation": "Follow high-priority fixes before applying"
+            },
+            (0, 54): {
+                "status": "Critical Issues",
+                "message": "Your resume needs significant improvements",
+                "recommendation": "Complete the improvement roadmap"
+            }
+        }
+        
+        for (low, high), explanation in explanations.items():
+            if low <= score <= high:
+                return explanation
+        
+        return {"status": "Unknown", "message": "", "recommendation": ""}
     
     def estimate_improvement(self, resume: Dict) -> Dict:
         """Estimate potential score improvement by category"""
         
-        # Quick analysis
         ors_score = self.rules_engine.analyze(resume)
         improvements = {}
         
         for issue in ors_score.all_issues:
-            category = issue.category.value
+            category = issue.category.value if hasattr(issue.category, 'value') else str(issue.category)
+            
             if category not in improvements:
                 improvements[category] = {
                     "current_issues": 0,
                     "potential_gain": 0
                 }
+            
             improvements[category]["current_issues"] += 1
             improvements[category]["potential_gain"] += issue.impact_score
         
@@ -355,13 +509,13 @@ async def create_ats_scan(resume: Dict, job_description: Optional[str] = None,
     Convenience function to run ATS scan
     
     Args:
-        resume: Resume data
-        job_description: Optional job posting
-        llm_client: Optional LLM for AI analysis
+        resume: Resume data dictionary
+        job_description: Optional job posting for keyword matching
+        llm_client: Optional LLM client for AI analysis
         db: Optional database session
     
     Returns:
-        Complete ATS scan results
+        Complete ATS scan results with scores and recommendations
     """
     
     scanner = ATSScannerService()
