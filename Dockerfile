@@ -18,7 +18,7 @@ COPY req.txt .
 
 # Upgrade pip and install dependencies
 RUN pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r req.txt
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
