@@ -20,8 +20,7 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir --prefer-binary -r req.txt
 
 # Copy only required code (avoid full copy)
-COPY app/ ./app/
-COPY *.py ./
+COPY . .
 
 EXPOSE 8000
 
