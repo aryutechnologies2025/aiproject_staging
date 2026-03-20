@@ -14,7 +14,7 @@ uvicorn[standard]==0.30.6
 python_docx==1.2.0
 PyYAML==6.0.3
 redis==7.3.0
-scikit_learn==1.8.0
+scikit_learn==1.7.2
 spacy==3.8.11
 SQLAlchemy==2.0.48
 torch==2.5.1
