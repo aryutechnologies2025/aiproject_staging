@@ -1,7 +1,47 @@
-
-node_modules
-venv
+# Git
 .git
-__pycache__
-*.log
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Env
 .env
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Data / models (CRITICAL for AI projects)
+data/
+datasets/
+models/
+*.pt
+*.pkl
+*.bin
+*.h5
+
+# Archives
+*.zip
+*.tar
+*.gz
+
+# Misc
+.cache/
+tmp/
