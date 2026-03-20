@@ -6,23 +6,29 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install ONLY runtime deps (remove build tools)
+# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl-dev \
+    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Install dependencies first (cache layer)
 COPY req.txt .
-
-# Install dependencies (optimized)
-RUN pip install --upgrade pip \
+RUN pip install --upgrade pip setuptools wheel \
     && pip install --no-cache-dir --prefer-binary -r req.txt
 
-# Copy only required code (avoid full copy)
-COPY . .
+# Copy ONLY required folders (your case)
+COPY app ./app
+COPY adapters ./adapters
+COPY inference ./inference
+COPY training ./training
+COPY dataset ./dataset
+COPY hmns_ai ./hmns_ai
+
+# Copy config files if needed
+COPY alembic ./alembic
+COPY alembic.ini .
 
 EXPOSE 8000
 
-# Use better production server
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
