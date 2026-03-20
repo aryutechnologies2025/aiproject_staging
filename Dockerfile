@@ -23,7 +23,7 @@ COPY adapters ./adapters
 COPY inference ./inference
 COPY training ./training
 COPY dataset ./dataset
-COPY hmns_ai ./hmns_ai
+COPY hrms_ai ./hrms_ai
 
 # Copy config files if needed
 COPY alembic ./alembic
