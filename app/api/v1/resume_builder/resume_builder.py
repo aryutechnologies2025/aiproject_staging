@@ -17,7 +17,7 @@ from app.services.resume_builder_services.resume_services import (
     get_prompt
 
 )
-from app.utils.ats_scanner.text_extraction import extract_text
+from app.modules.ats_scanner.utils.text_extraction import extract_text
 from app.services.resume_builder_services.resume_parser_service import parse_resume_to_schema
 from app.services.llm_client import call_llm
 

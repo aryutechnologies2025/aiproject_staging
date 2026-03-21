@@ -1,8 +1,11 @@
-# /home/aryu_user/Arun/aiproject_staging/app/utils/ats_scanner/text_extraction.py
+# /home/aryu_user/Arun/aiproject_staging/app/modules/ats_scanner/utils/text_extraction.py
 """
 Production-Grade Text Extraction v2
 Enhanced PDF/DOCX parsing with better section detection
 Specifically improved education extraction + summary fallback fix
+
+v2.1 — Added UTF-8 sanitisation to handle resumes from Windows/Word
+       that embed Latin-1 or CP-1252 encoded characters (ö, ü, é etc.)
 """
 
 import pdfplumber
@@ -61,6 +64,27 @@ EDUCATION_PATTERNS = {
         r"(?:20\d{2}|19\d{2})",
     ]
 }
+
+
+# =====================================================
+# UTF-8 SANITISATION HELPER
+# =====================================================
+
+def _sanitise(text: str) -> str:
+    """
+    Sanitise extracted text to pure UTF-8.
+
+    PDFs and DOCX files created on Windows often embed characters in
+    CP-1252 / Latin-1 encoding (e.g. ö = 0xf6, ü = 0xfc, é = 0xe9).
+    When pdfplumber or python-docx reads them they may come through as
+    raw byte values that later crash FastAPI's JSON encoder.
+
+    Using errors="replace" turns any un-encodable byte into the Unicode
+    replacement character (U+FFFD) rather than raising an exception.
+    """
+    if not text:
+        return text
+    return text.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
 
 
 # =====================================================
@@ -165,6 +189,11 @@ class TextExtractionEngine:
             logger.error(f"PDF extraction error: {str(e)}")
             raise
 
+        # ── FIX: sanitise before any further processing ──────────────────────
+        # PDFs from Windows / Word may embed Latin-1 or CP-1252 bytes that
+        # crash FastAPI's JSON encoder downstream.
+        raw_text = _sanitise(raw_text)
+
         # Detect sections
         sections = self._detect_sections(raw_text)
 
@@ -238,6 +267,10 @@ class TextExtractionEngine:
         except Exception as e:
             logger.error(f"DOCX extraction error: {str(e)}")
             raise
+
+        # ── FIX: sanitise before any further processing ──────────────────────
+        # DOCX files saved on Windows may contain CP-1252 characters.
+        raw_text = _sanitise(raw_text)
 
         # Detect sections
         sections = self._detect_sections(raw_text)
@@ -517,11 +550,15 @@ class TextExtractionEngine:
 # =====================================================
 # LEGACY ASYNC FUNCTIONS (backward compatibility)
 # =====================================================
+
 async def extract_text(file: UploadFile) -> str:
-    """Extract text from PDF/DOCX — backward compatible wrapper"""
+    """
+    Extract text from PDF/DOCX — backward compatible wrapper.
+    Output is always sanitised UTF-8 (no Latin-1 / CP-1252 bytes).
+    """
     engine = TextExtractionEngine()
     result = await engine.extract_all(file)
-    return result["raw_text"]
+    return result["raw_text"]   # already sanitised inside extract_all
 
 
 async def extract_pdf_text(file: UploadFile) -> str:
