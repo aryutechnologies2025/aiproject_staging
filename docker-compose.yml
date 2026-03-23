@@ -1,11 +1,8 @@
-version: "3.9"
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: aryu_api:latest
+    build: .
+    image: sivaarun10/aryu_api:latest
     container_name: aryu_api
     restart: always
     env_file:
