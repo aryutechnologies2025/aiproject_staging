@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
+SettingsConfigDict(env_file=".env")
 
 class Settings(BaseSettings):
     # =========================

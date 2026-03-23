@@ -8,7 +8,6 @@ __pycache__/
 *.pyo
 
 # Env
-.env
 venv/
 env/
 .venv/

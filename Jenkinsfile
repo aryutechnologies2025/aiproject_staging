@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE = "sivaarun10/aryu_api:latest"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -15,13 +19,14 @@ pipeline {
 
                 git pull origin main
 
-                # STOP old container safely
+                # Pull latest image from Docker Hub
+                docker pull $IMAGE
+
+                # Restart container
                 docker-compose down
+                docker-compose up -d
 
-                # BUILD + START fresh container
-                docker-compose up -d --build
-
-                # CLEAN unused images AFTER new container is running
+                # Cleanup
                 docker image prune -af
                 docker builder prune -af
                 '''
