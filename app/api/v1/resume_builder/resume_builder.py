@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import os
+import tempfile
+from pathlib import Path
+from fastapi.responses import JSONResponse
 import logging
-
+from app.modules.resume_builder.resume_parser_helper import parsing_resume
 from app.core.database import get_db
-from app.services.resume_builder_services.resume_services import (
+from app.modules.resume_builder.service import (
     suggest_experience,
     suggest_summary,
     build_skills_prompt,
@@ -14,11 +18,11 @@ from app.services.resume_builder_services.resume_services import (
     generate_cv_from_parsed_resume,
     generate_professional_cv_production,
     generate_targeted_cv_production,
-    get_prompt
-
+    get_prompt,
 )
+from app.modules.resume_builder.resume_parser_helper import extract_text_from_docx, extract_text_from_pdf
 from app.modules.ats_scanner.utils.text_extraction import extract_text
-from app.services.resume_builder_services.resume_parser_service import parse_resume_to_schema
+from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema
 from app.services.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
@@ -281,14 +285,7 @@ async def generate_cv_from_file(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Generate CV from uploaded resume file (PDF/DOCX).
-    
-    This endpoint:
-    1. Extracts text from file
-    2. Parses resume data
-    3. Generates professional CV
-    """
+
     filename = file.filename.lower()
     
     try:
@@ -298,23 +295,42 @@ async def generate_cv_from_file(
         
         logger.info(f"Processing file upload: {file.filename}")
         
-        # Step 1: Extract text from file
+        # Step 1: Read file ONCE + create temp file + extract text
         try:
-            text = await extract_text(file)
-            
+            file_type = filename.split(".")[-1]
+
+            content = await file.read()
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_type}") as tmp:
+                tmp.write(content)
+                temp_path = tmp.name
+
+            # Extract text using your helper
+            text = extract_text_from_pdf(temp_path) if file_type == "pdf" else extract_text_from_docx(temp_path)
+
             if not text or len(text.strip()) < 50:
-                raise HTTPException(400, "Unable to extract meaningful text from file. Please check file format.")
-            
+                raise HTTPException(400, "Unable to extract meaningful text from file.")
+
             logger.info(f"Text extracted from {file.filename} ({len(text)} characters)")
-        
+
         except Exception as e:
             logger.error(f"Text extraction error: {str(e)}", exc_info=True)
-            raise HTTPException(400, f"Failed to extract text from file: {str(e)}")
+            raise HTTPException(400, f"Failed to extract text: {str(e)}")
         
         # Step 2: Parse resume to schema
         try:
             file_type = filename.split(".")[-1]
-            parsed_resume = parse_resume_to_schema(text, file_type)
+            # Extract structured sections first
+            parsed_data = parsing_resume(temp_path, f".{file_type}")
+
+            sections_dict = {}
+
+            # Convert list → dict
+            for sec in parsed_data["sections"]:
+                key = sec["heading"].lower()
+                sections_dict[key] = sec["content"]
+
+            parsed_resume = parse_resume_to_schema(text, file_type, sections_dict)
             
             logger.info(f"Resume parsed for {parsed_resume.name}")
         
@@ -490,7 +506,7 @@ async def generate_targeted_cv_from_file(
         
         # Convert to dict and generate targeted CV
         try:
-            from app.services.resume_builder_services.resume_services import _convert_parsed_schema_to_dict
+            from app.modules.resume_builder.service import _convert_parsed_schema_to_dict
             
             resume_data = _convert_parsed_schema_to_dict(parsed_resume)
             
@@ -656,4 +672,39 @@ async def parse_resume_only(
         logger.error(f"Parse-only error: {str(e)}", exc_info=True)
         raise HTTPException(500, f"Parsing failed: {str(e)}")
  
+@router.post("/extract", summary="Parse resume (PDF/DOCX) → Structured JSON")
+async def extract_resume(file: UploadFile = File(...)):
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".pdf", ".docx"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF and DOCX files are supported"
+        )
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10 MB limit
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        tmp.write(content)
+        temp_path = tmp.name
+
+    try:
+        result = parsing_resume(temp_path, ext)
+        return JSONResponse(content=result, status_code=200)
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"Failed to parse resume: {str(e)}"}
+        )
+
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
 
