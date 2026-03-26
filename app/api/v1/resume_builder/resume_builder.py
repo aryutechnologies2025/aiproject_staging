@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from __future__ import annotations
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
 import tempfile
@@ -7,6 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 from app.modules.resume_builder.resume_parser_helper import parsing_resume
 from app.core.database import get_db
+from pydantic import BaseModel
 from app.modules.resume_builder.service import (
     suggest_experience,
     suggest_summary,
@@ -18,11 +20,20 @@ from app.modules.resume_builder.service import (
     generate_cv_from_parsed_resume,
     generate_professional_cv_production,
     generate_targeted_cv_production,
-    get_prompt,
+    parse_resume,
+    parse_resume_service
 )
+from app.modules.resume_builder.schemas import ResumeResponse
+from app.modules.resume_builder.linkedin.schemas import (
+    ExtractionRequest,
+    ExtractionStatus,
+    LinkedInResponse,
+)
+from app.modules.resume_builder.linkedin.service import linkedin_service
+from typing import Any, Dict, Annotated, Optional
 from app.modules.resume_builder.resume_parser_helper import extract_text_from_docx, extract_text_from_pdf
 from app.modules.ats_scanner.utils.text_extraction import extract_text
-from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema
+from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema, split_into_sections
 from app.services.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
@@ -201,34 +212,15 @@ async def refine_resume(
         logger.error(f"Refinement error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to refine section")
 
-    
-@router.post("/parse")
-async def parse_resume(file: UploadFile = File(...)):
-    """Parse uploaded resume file (PDF/DOCX) and extract structured data"""
-    
-    if not file.filename.endswith((".pdf", ".docx")):
-        raise HTTPException(400, "Only PDF and DOCX supported")
 
+@router.post("/parse-resume", response_model=ResumeResponse)
+async def parse_resume_endpoint(file: UploadFile = File(...)):
     try:
-        logger.info(f"Parsing resume file: {file.filename}")
-        
-        text = await extract_text(file)
-
-        resume_json = parse_resume_to_schema(
-            text=text,
-            file_type=file.filename.split(".")[-1]
-        )
-
-        logger.info("Resume parsed successfully")
-        
-        return {
-            "status": "success",
-            "resume": resume_json.dict() if hasattr(resume_json, 'dict') else resume_json
-        }
-
+        return await parse_resume_service(file)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Resume parsing failed: {e}", exc_info=True)
-        raise HTTPException(500, f"Resume parsing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # =====================================================
@@ -671,40 +663,153 @@ async def parse_resume_only(
     except Exception as e:
         logger.error(f"Parse-only error: {str(e)}", exc_info=True)
         raise HTTPException(500, f"Parsing failed: {str(e)}")
+    
+
+class LoginStartResponse(BaseModel):
+    message: str
+    success: bool
+    session_active: bool
  
-@router.post("/extract", summary="Parse resume (PDF/DOCX) → Structured JSON")
-async def extract_resume(file: UploadFile = File(...)):
-
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file uploaded")
-
-    ext = Path(file.filename).suffix.lower()
-    if ext not in [".pdf", ".docx"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF and DOCX files are supported"
-        )
-
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:  # 10 MB limit
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-        tmp.write(content)
-        temp_path = tmp.name
-
+ 
+class SessionStatusResponse(BaseModel):
+    session_active: bool
+    message: str
+ 
+ 
+class CacheInvalidateRequest(BaseModel):
+    linkedin_url: str
+ 
+ 
+class LogoutResponse(BaseModel):
+    message: str
+ 
+ 
+# ─────────────────────────── Endpoints ───────────────────────────────────────
+ 
+@router.get(
+    "/session",
+    response_model=SessionStatusResponse,
+    summary="Check if LinkedIn session is active",
+    description=(
+        "Returns whether a saved LinkedIn session exists. "
+        "If false, the frontend should show the consent + login flow."
+    ),
+)
+async def check_session() -> SessionStatusResponse:
+    active = linkedin_service.has_active_session()
+    return SessionStatusResponse(
+        session_active=active,
+        message=(
+            "LinkedIn session is active. You can extract profiles."
+            if active
+            else "No active session. Please connect your LinkedIn account."
+        ),
+    )
+ 
+ 
+@router.post(
+    "/login",
+    response_model=LoginStartResponse,
+    summary="Start LinkedIn consent login flow",
+    description=(
+        "Opens a visible Chrome browser window so the user can log in to LinkedIn. "
+        "The window closes automatically once login is detected. "
+        "This endpoint blocks until login completes or times out (~2 min)."
+    ),
+)
+async def start_login() -> LoginStartResponse:
+    logger.info("[API] Starting LinkedIn login flow")
     try:
-        result = parsing_resume(temp_path, ext)
-        return JSONResponse(content=result, status_code=200)
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": f"Failed to parse resume: {str(e)}"}
+        result = await linkedin_service.start_login_flow()
+        success = result.get("success", False)
+        return LoginStartResponse(
+            message=(
+                "✅ LinkedIn connected successfully! You can now extract your profile."
+                if success
+                else "⏱ Login window timed out. Please try again and complete login within 2 minutes."
+            ),
+            success=success,
+            session_active=linkedin_service.has_active_session(),
         )
-
-    finally:
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-
-
+    except Exception as exc:
+        logger.error(f"[API] Login error: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login flow failed: {str(exc)}",
+        )
+ 
+ 
+@router.post(
+    "/linkedin/import",
+    response_model=LinkedInResponse,
+    summary="Extract LinkedIn profile",
+    description=(
+        "Extracts a LinkedIn profile and returns structured JSON for resume generation. "
+        "Checks cache first, then scrapes if needed. "
+        "Returns LOGIN_NEEDED status if no active session exists."
+    ),
+)
+async def extract_profile(request: ExtractionRequest) -> LinkedInResponse:
+    logger.info(f"[API] Extract request for: {request.linkedin_url}")
+ 
+    try:
+        response = await linkedin_service.extract_profile(request)
+    except Exception as exc:
+        logger.error(f"[API] Extraction error: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Extraction failed: {str(exc)}",
+        )
+ 
+    # Return 401 hint if login is needed (but still return body for frontend to handle)
+    if response.meta.status == ExtractionStatus.LOGIN_NEEDED:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=response.dict(),
+        )
+ 
+    return response
+ 
+ 
+@router.post(
+    "/logout",
+    response_model=LogoutResponse,
+    summary="Disconnect LinkedIn session",
+    description="Clears saved LinkedIn session cookies. The user will need to log in again for the next extraction.",
+)
+async def logout() -> LogoutResponse:
+    linkedin_service.logout()
+    return LogoutResponse(message="LinkedIn session disconnected successfully.")
+ 
+ 
+@router.post(
+    "/cache/invalidate",
+    summary="Invalidate cached profile",
+    description="Force a fresh scrape on the next extraction request for the given LinkedIn URL.",
+)
+async def invalidate_cache(body: CacheInvalidateRequest) -> Dict[str, Any]:
+    removed = linkedin_service.invalidate_cache(body.linkedin_url)
+    return {
+        "success": removed,
+        "message": (
+            "Cache cleared. Next extraction will fetch fresh data."
+            if removed
+            else "No cached data found for this URL."
+        ),
+    }
+ 
+ 
+# ─────────────────────────── Health ──────────────────────────────────────────
+ 
+@router.get(
+    "/health",
+    summary="Module health check",
+    include_in_schema=False,
+)
+async def health() -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "module": "linkedin_extraction",
+        "session_active": linkedin_service.has_active_session(),
+        "cache_stats": linkedin_service.cache.stats(),
+    }

@@ -1,13 +1,18 @@
 # /home/aryu_user/Arun/aiproject_staging/app/modules/resume_builder/service.py
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.llm_client import call_llm
 from app.services.prompt_service import get_prompt
 import os
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException
 from typing import Dict, Any
 import json
+import traceback
+from .extractor import extract_text
+from .parser import parse_resume
+from .schemas import ResumeResponse
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -977,3 +982,72 @@ def _analyze_cv_sections(cv_content: str) -> list:
     return sections if sections else ["Professional Summary", "Professional Experience"]
 
  
+PARSER_VERSION = "2.0.0"
+_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
+_ALLOWED_EXT = {".pdf", ".docx", ".doc"}
+
+async def parse_resume_service(file: UploadFile) -> ResumeResponse:
+    filename = file.filename or "upload"
+    suffix = os.path.splitext(filename)[1].lower()
+
+    # Validate
+    if suffix not in _ALLOWED_EXT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type '{suffix}'. Accepted: {', '.join(sorted(_ALLOWED_EXT))}"
+        )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(raw) > _MAX_BYTES:
+        raise HTTPException(status_code=400, detail=f"File too large (max {_MAX_BYTES:,} bytes).")
+
+    # Extract text
+    try:
+        clean_text, ext_meta = extract_text(raw, filename)
+    except Exception as e:
+        logger.exception("Extraction failed")
+        raise HTTPException(status_code=422, detail=f"Extraction failed: {str(e)}")
+
+    if not clean_text.strip():
+        raise HTTPException(status_code=422, detail="No text could be extracted from the file.")
+
+    # Parse
+    try:
+        parsed = parse_resume(clean_text)
+    except Exception as e:
+        logger.exception("Parsing failed")
+        raise HTTPException(status_code=500, detail=f"Parsing error: {str(e)}")
+
+    # Build meta
+    meta = {
+        **ext_meta,
+        "parser_version": PARSER_VERSION,
+        "char_count": len(clean_text),
+        "sections_detected": list(parsed.get("raw_sections", {}).keys()),
+    }
+
+    return ResumeResponse(
+        personal_info=parsed["personal_info"],
+        summary=parsed["summary"],
+        professional_experience=parsed["professional_experience"],
+        education=parsed["education"],
+        technical_stack=parsed["technical_stack"],
+        projects=parsed["projects"],
+        languages=parsed["languages"],
+        certifications=parsed["certifications"],
+        custom_sections=parsed["custom_sections"],
+        raw_sections=parsed["raw_sections"],
+        meta=meta
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+ 
+def _get_ext(filename: str) -> str:
+    parts = filename.rsplit(".", 1)
+    return f".{parts[1].lower()}" if len(parts) == 2 else ""
+

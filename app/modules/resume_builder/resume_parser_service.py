@@ -138,6 +138,28 @@ def extract_summary(lines: List[str]) -> str:
 
     return " ".join(summary_lines[:3])
 
+def split_into_sections(text: str) -> dict:
+    lines = clean_lines(text)
+    sections = {
+        "experience": "",
+        "education": "",
+        "skills": "",
+        "summary": ""
+    }
+
+    current_section = None
+
+    for line in lines:
+        section = detect_section(line)
+
+        if section:
+            current_section = section
+            continue
+
+        if current_section:
+            sections[current_section] += line + "\n"
+
+    return sections
 
 def parse_resume_to_schema(
     text: str,
