@@ -8,7 +8,7 @@ from app.services.prompt_service import get_prompt
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -20,17 +20,7 @@ async def call_llm(
     db: AsyncSession,
     model: str = "groq",  # Kept for compatibility
 ) -> str:
-    """
-    Call Groq Llama 3.1 8B with optimized prompting for resume and CV generation.
-    
-    Optimizations for Llama 3.1 8B:
-    - Clear system prompts with specific instructions
-    - Structured requests (JSON, bullets, specific format)
-    - Temperature 0.7 for creative but consistent output
-    - Token limit 1024 for detailed responses
-    - Top_p=0.95 for focused responses
-    """
-    
+
     try:
         # Load system prompt
         system_prompt = await get_prompt(db, agent_name)
@@ -55,7 +45,7 @@ async def call_llm(
                 },
             ],
             temperature=0.7,              # Balanced creativity and consistency
-            max_completion_tokens=1024,   # Sufficient for detailed responses
+            max_completion_tokens=4096,
             top_p=0.95,                   # Focused nucleus sampling
             stream=False,
         )

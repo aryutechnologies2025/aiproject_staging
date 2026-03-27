@@ -19,18 +19,16 @@ from app.modules.resume_builder.service import (
     generate_cv_and_cover_letter_production,
     generate_cv_from_parsed_resume,
     generate_professional_cv_production,
-    generate_targeted_cv_production,
-    parse_resume,
-    parse_resume_service
+    generate_targeted_cv_production
 )
-from app.modules.resume_builder.schemas import ResumeResponse
+from app.modules.resume_builder.service import process_resume
 from app.modules.resume_builder.linkedin.schemas import (
     ExtractionRequest,
     ExtractionStatus,
     LinkedInResponse,
 )
 from app.modules.resume_builder.linkedin.service import linkedin_service
-from typing import Any, Dict, Annotated, Optional
+from typing import Any, Dict
 from app.modules.resume_builder.resume_parser_helper import extract_text_from_docx, extract_text_from_pdf
 from app.modules.ats_scanner.utils.text_extraction import extract_text
 from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema, split_into_sections
@@ -213,15 +211,11 @@ async def refine_resume(
         raise HTTPException(status_code=500, detail="Failed to refine section")
 
 
-@router.post("/parse-resume", response_model=ResumeResponse)
-async def parse_resume_endpoint(file: UploadFile = File(...)):
-    try:
-        return await parse_resume_service(file)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
+
+@router.post("/parse-resume")
+async def parse_resume(file: UploadFile = File(...)):
+    return await process_resume(file)
 
 # =====================================================
 # NEW CV GENERATION ENDPOINTS - PRODUCTION GRADE
