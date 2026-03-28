@@ -31,12 +31,20 @@ SECTION_PATTERNS = {
         r"(?:^|\n)\s*(?:Senior|Junior|Lead|Principal|Manager|Engineer|Developer|Analyst|Specialist)\s+",
     ],
     "skills": [
-        r"(?:^|\n)\s*(?:SKILLS|TECHNICAL SKILLS|CORE COMPETENCIES|EXPERTISE|TECHNOLOGIES)\s*(?:$|\n)",
+        r"(?:^|\n)\s*(?:SKILLS|TECHNICAL SKILLS|TECHNICAL STACK|CORE COMPETENCIES|EXPERTISE|TECHNOLOGIES)\s*(?:$|\n)",
         r"(?:^|\n)\s*(?:Languages?|Frameworks?|Tools?|Platforms?|Databases?|Software)\s*:",
     ],
     "summary": [
         r"(?:^|\n)\s*(?:SUMMARY|OBJECTIVE|PROFESSIONAL SUMMARY|PROFILE|ABOUT ME|OVERVIEW|INTRODUCTION)\s*(?:$|\n)",
-    ]
+    ],
+    "projects": [
+        r"(?:^|\n)\s*(?:PROJECTS|PROJECT EXPERIENCE|PERSONAL PROJECTS|ACADEMIC PROJECTS|KEY PROJECTS|SIDE PROJECTS)\s*(?:$|\n)",
+        r"(?:^|\n)\s*(?:Built|Developed|Created|Implemented|Designed)\s+",
+    ],
+}
+
+SECTION_KEYWORDS = {
+    "projects": ["project", "built", "developed", "created", "application"]
 }
 
 # Patterns that indicate a line is NOT summary content (contact info, section headers, etc.)

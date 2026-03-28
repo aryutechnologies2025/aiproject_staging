@@ -1,46 +1,4 @@
 # /home/aryu_user/Arun/aiproject_staging/app/modules/ats_scanner/service.py
-"""
-Production ATS Scanner Service v3.1  —  ALL BUGS FIXED
-═══════════════════════════════════════════════════════════════════════════════
-
-BUG 1 — Grade/Status contradiction  (score=52 but grade="A+", status="excellent")
-─────────────────────────────────────────────────────────────────────────────────
-Root cause: generate_detailed_feedback() was called with ats_score=rules_score
-            .total_score (97) because final_score had not been computed yet.
-            Every grade/status label was derived from 97, not the real 52.
-Fix:        Compute final_score FIRST (Stage 3.5), then pass it to Stage 4.
-
-BUG 2 — Contact section always score=0 / status="missing"
-──────────────────────────────────────────────────────────
-Root cause: The old ATSRulesEngine only analyses summary/skills/experience/
-            education. Contact fields (name, email, phone) sit at the top-level
-            of the resume dict, not inside a "contact" key, so they were never
-            seen by the feedback generator.
-Fix:        _build_contact_from_resume() assembles a contact dict from all
-            possible locations (top-level, nested, raw_text). We inject the
-            result as a _DictProxy into section_issues["contact"] BEFORE the
-            feedback generator runs.
-
-BUG 3 — Education "missing" even though resume has it
-──────────────────────────────────────────────────────
-Root cause: Canva two-column PDFs produce scrambled text order. pdfplumber
-            reads right-column text first, so degree/institution end up
-            scattered. The parser returns an empty list for resume["education"].
-Fix:        _recover_education_from_text() scans raw_text for degree + institution
-            + year patterns and reconstructs the education list when the
-            structured parser returns nothing.
-
-BUG 4 — parsed_name = "Agile Delivery" (subtitle extracted as name)
-────────────────────────────────────────────────────────────────────
-Root cause: Canva PDFs embed the subtitle ("Full Stack Software Engineer |
-            MERN Stack | Agile Delivery | Performance Optimization") before
-            the actual name in reading order.
-Fix:        _clean_name() rejects strings containing subtitle tokens or "|".
-            _extract_name_from_raw_text() finds the first short, title-cased,
-            non-digit line that cannot be a subtitle.
-
-═══════════════════════════════════════════════════════════════════════════════
-"""
 from __future__ import annotations
 
 import json

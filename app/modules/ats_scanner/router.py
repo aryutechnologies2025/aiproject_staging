@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.modules.ats_scanner.service import ATSScannerService, create_ats_scan
 from app.modules.ats_scanner.utils.text_extraction import extract_text
-from app.services.resume_builder_services.resume_parser_service import parse_resume_to_schema
+from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

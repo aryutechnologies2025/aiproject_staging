@@ -1,4 +1,4 @@
-# /home/aryu_user/Arun/aiproject_staging/app/services/resume_builder_services/resume_parser_service.py
+# /home/aryu_user/Arun/aiproject_staging/app/modules/resume_builder/resume_parser_service.py
 import re
 import spacy
 from typing import List, Dict
@@ -6,12 +6,6 @@ from app.schemas.ats_schema import Experience, Education, ATSScanRequest
 
 nlp = spacy.load("en_core_web_sm")
 
-
-COMMON_SKILLS = {
-    "python","django","fastapi","flask","react","node","docker",
-    "kubernetes","postgresql","mysql","mongodb","aws","gcp","azure",
-    "redis","graphql","pandas","numpy","linux","git","kafka"
-}
 
 
 EMAIL_REGEX = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
@@ -42,14 +36,22 @@ def extract_name(text: str) -> str:
 
 
 def extract_skills(text: str) -> List[str]:
-    text_lower = text.lower()
+    import re
+
     skills = []
 
-    for skill in COMMON_SKILLS:
-        if skill in text_lower:
-            skills.append(skill)
+    # Capture "Tech: ..." lines
+    matches = re.findall(
+        r"(?:Tech|Skills|Stack|Technologies)\s*[:\-]\s*(.+)",
+        text,
+        re.IGNORECASE
+    )
 
-    return sorted(list(set(skills)))
+    for match in matches:
+        parts = re.split(r",|\||/", match)
+        skills.extend([p.strip() for p in parts if len(p.strip()) > 1])
+
+    return list(set(skills))
 
 
 def detect_section(line: str):
@@ -72,14 +74,13 @@ def detect_section(line: str):
 
 
 def extract_experience(lines: List[str]) -> List[Experience]:
-
     experiences = []
     current = None
 
     for line in lines:
 
-        if re.search(r"(20\d{2}|19\d{2})", line):
-
+        # Detect job title (strong signal)
+        if re.search(r"(developer|engineer|intern|manager|analyst)", line.lower()):
             if current:
                 experiences.append(current)
 
@@ -88,25 +89,23 @@ def extract_experience(lines: List[str]) -> List[Experience]:
                 "company": "",
                 "bullets": []
             }
-
             continue
 
-        if line.startswith(("•","-")) and current:
-            current["bullets"].append(line[1:].strip())
-
-        elif current and len(line.split()) < 8 and not current["company"]:
+        # Detect company
+        if current and not current["company"] and len(line.split()) <= 6:
             current["company"] = line
+            continue
+
+        # Bullets
+        if line.startswith(("•", "-", "*")) and current:
+            current["bullets"].append(line[1:].strip())
 
     if current:
         experiences.append(current)
 
     return [
-        Experience(
-            title=e["title"],
-            company=e["company"],
-            bullets=e["bullets"]
-        )
-        for e in experiences
+        Experience(**e)
+        for e in experiences if e["title"]
     ]
 
 
@@ -139,25 +138,54 @@ def extract_summary(lines: List[str]) -> str:
 
     return " ".join(summary_lines[:3])
 
+def split_into_sections(text: str) -> dict:
+    lines = clean_lines(text)
+    sections = {
+        "experience": "",
+        "education": "",
+        "skills": "",
+        "summary": ""
+    }
+
+    current_section = None
+
+    for line in lines:
+        section = detect_section(line)
+
+        if section:
+            current_section = section
+            continue
+
+        if current_section:
+            sections[current_section] += line + "\n"
+
+    return sections
 
 def parse_resume_to_schema(
     text: str,
-    file_type: str
+    file_type: str,
+    sections: dict
 ) -> ATSScanRequest:
 
-    lines = clean_lines(text)
+    experience = extract_experience(
+        clean_lines(sections.get("experience", ""))
+    )
 
+    education = extract_education(
+        clean_lines(sections.get("education", ""))
+    )
+
+    summary = sections.get("summary") or extract_summary(clean_lines(text))
+    
     name = extract_name(text)
     email = extract_email(text)
     phone = extract_phone(text)
 
     skills = extract_skills(text)
 
-    experience = extract_experience(lines)
+    
 
-    education = extract_education(lines)
-
-    summary = extract_summary(lines)
+    summary = sections.get("summary") or extract_summary(clean_lines(text))
 
     return ATSScanRequest(
         name=name,

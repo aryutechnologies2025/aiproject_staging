@@ -1,0 +1,109 @@
+Collecting llama-cloud
+  Using cached llama_cloud-1.6.0-py3-none-any.whl.metadata (7.1 kB)
+Collecting anyio<5,>=3.5.0 (from llama-cloud)
+  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+Collecting distro<2,>=1.7.0 (from llama-cloud)
+  Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+Collecting httpx<1,>=0.23.0 (from llama-cloud)
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting pydantic<3,>=1.9.0 (from llama-cloud)
+  Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+Collecting sniffio (from llama-cloud)
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting typing-extensions<5,>=4.10 (from llama-cloud)
+  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting exceptiongroup>=1.0.2 (from anyio<5,>=3.5.0->llama-cloud)
+  Downloading exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)
+Collecting idna>=2.8 (from anyio<5,>=3.5.0->llama-cloud)
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting certifi (from httpx<1,>=0.23.0->llama-cloud)
+  Using cached certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->llama-cloud)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->llama-cloud)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3,>=1.9.0->llama-cloud)
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.41.5 (from pydantic<3,>=1.9.0->llama-cloud)
+  Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+Collecting typing-inspection>=0.4.2 (from pydantic<3,>=1.9.0->llama-cloud)
+  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Using cached llama_cloud-1.6.0-py3-none-any.whl (394 kB)
+Downloading anyio-4.13.0-py3-none-any.whl (114 kB)
+Downloading distro-1.9.0-py3-none-any.whl (20 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
+Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 11.1 MB/s  0:00:00
+Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading idna-3.11-py3-none-any.whl (71 kB)
+Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Using cached certifi-2026.2.25-py3-none-any.whl (153 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Installing collected packages: typing-extensions, sniffio, idna, h11, distro, certifi, annotated-types, typing-inspection, pydantic-core, httpcore, exceptiongroup, pydantic, anyio, httpx, llama-cloud
+  Attempting uninstall: typing-extensions
+    Found existing installation: typing_extensions 4.15.0
+    Uninstalling typing_extensions-4.15.0:
+      Successfully uninstalled typing_extensions-4.15.0
+  Attempting uninstall: sniffio
+    Found existing installation: sniffio 1.3.1
+    Uninstalling sniffio-1.3.1:
+      Successfully uninstalled sniffio-1.3.1
+  Attempting uninstall: idna
+    Found existing installation: idna 3.11
+    Uninstalling idna-3.11:
+      Successfully uninstalled idna-3.11
+  Attempting uninstall: h11
+    Found existing installation: h11 0.16.0
+    Uninstalling h11-0.16.0:
+      Successfully uninstalled h11-0.16.0
+  Attempting uninstall: distro
+    Found existing installation: distro 1.9.0
+    Uninstalling distro-1.9.0:
+      Successfully uninstalled distro-1.9.0
+  Attempting uninstall: certifi
+    Found existing installation: certifi 2026.2.25
+    Uninstalling certifi-2026.2.25:
+      Successfully uninstalled certifi-2026.2.25
+  Attempting uninstall: annotated-types
+    Found existing installation: annotated-types 0.7.0
+    Uninstalling annotated-types-0.7.0:
+      Successfully uninstalled annotated-types-0.7.0
+  Attempting uninstall: typing-inspection
+    Found existing installation: typing-inspection 0.4.2
+    Uninstalling typing-inspection-0.4.2:
+      Successfully uninstalled typing-inspection-0.4.2
+  Attempting uninstall: pydantic-core
+    Found existing installation: pydantic_core 2.41.5
+    Uninstalling pydantic_core-2.41.5:
+      Successfully uninstalled pydantic_core-2.41.5
+  Attempting uninstall: httpcore
+    Found existing installation: httpcore 1.0.9
+    Uninstalling httpcore-1.0.9:
+      Successfully uninstalled httpcore-1.0.9
+  Attempting uninstall: exceptiongroup
+    Found existing installation: exceptiongroup 1.3.1
+    Uninstalling exceptiongroup-1.3.1:
+      Successfully uninstalled exceptiongroup-1.3.1
+  Attempting uninstall: pydantic
+    Found existing installation: pydantic 2.12.5
+    Uninstalling pydantic-2.12.5:
+      Successfully uninstalled pydantic-2.12.5
+  Attempting uninstall: anyio
+    Found existing installation: anyio 4.12.0
+    Uninstalling anyio-4.12.0:
+      Successfully uninstalled anyio-4.12.0
+  Attempting uninstall: httpx
+    Found existing installation: httpx 0.28.1
+    Uninstalling httpx-0.28.1:
+      Successfully uninstalled httpx-0.28.1
+  Attempting uninstall: llama-cloud
+    Found existing installation: llama_cloud 1.6.0
+    Uninstalling llama_cloud-1.6.0:
+      Successfully uninstalled llama_cloud-1.6.0
+
+Successfully installed annotated-types-0.7.0 anyio-4.13.0 certifi-2026.2.25 distro-1.9.0 exceptiongroup-1.3.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.11 llama-cloud-1.6.0 pydantic-2.12.5 pydantic-core-2.41.5 sniffio-1.3.1 typing-extensions-4.15.0 typing-inspection-0.4.2
