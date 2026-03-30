@@ -27,6 +27,9 @@ from app.modules.resume_builder.linkedin.schemas import (
     ExtractionStatus,
     LinkedInResponse,
 )
+from app.modules.resume_builder.linkedin.router import (
+    router as linkedin_router,
+)
 from app.modules.resume_builder.linkedin.service import linkedin_service
 from typing import Any, Dict
 from app.modules.resume_builder.resume_parser_helper import extract_text_from_docx, extract_text_from_pdf
@@ -37,7 +40,7 @@ from app.services.llm_client import call_llm
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
+router.include_router(linkedin_router)
 # =====================================================
 # EXISTING ENDPOINTS (Keep as-is)
 # =====================================================
@@ -524,7 +527,42 @@ async def generate_targeted_cv_from_file(
         logger.error(f"File-based targeted CV error: {str(e)}", exc_info=True)
         raise HTTPException(500, f"Processing failed: {str(e)}")
  
+
+@router.post("/cv/generate-from-linkedin")
+async def generate_cv_from_linkedin(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate CV directly from LinkedIn session data.
  
+    Body: { "session_id": "...", "job_title": "optional", "job_description": "optional" }
+    """
+    from app.modules.resume_builder.linkedin.service import linkedin_service
+ 
+    session_id      = payload.get("session_id")
+    job_title       = payload.get("job_title")
+    job_description = payload.get("job_description")
+ 
+    if not session_id:
+        raise HTTPException(400, "session_id is required")
+ 
+    # Fetch resume data from LinkedIn session
+    linkedin_result = linkedin_service.get_resume_data(session_id)
+    if not linkedin_result.get("success"):
+        raise HTTPException(
+            400,
+            f"LinkedIn data not ready: {linkedin_result.get('error', 'unknown')}. "
+            "Status: " + linkedin_result.get("status", "?"),
+        )
+ 
+    resume_data = linkedin_result["resume_data"]
+ 
+    if job_title and job_description:
+        return await generate_targeted_cv_production(resume_data, job_title, job_description, db)
+    return await generate_professional_cv_production(resume_data, db)
+
+
 # =====================================================
 # UTILITY ENDPOINTS
 # =====================================================
