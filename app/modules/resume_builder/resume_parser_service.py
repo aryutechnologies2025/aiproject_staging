@@ -164,8 +164,10 @@ def split_into_sections(text: str) -> dict:
 def parse_resume_to_schema(
     text: str,
     file_type: str,
-    sections: dict
+    sections: dict = None
 ) -> ATSScanRequest:
+    
+    sections = sections or {}
 
     experience = extract_experience(
         clean_lines(sections.get("experience", ""))
@@ -200,3 +202,4 @@ def parse_resume_to_schema(
         uses_columns=False,
         file_type=file_type
     )
+
