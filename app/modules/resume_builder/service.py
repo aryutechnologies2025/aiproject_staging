@@ -6,7 +6,8 @@ from app.services.prompt_service import get_prompt
 from typing import Dict, Any
 import json
 from .extractor import extract_with_llamaparse
-from app.modules.resume_builder.markdown_to_json_parser import markdown_to_structured_json
+from app.modules.resume_builder.markdown_to_json_parser import markdown_to_blocks
+from app.modules.resume_builder.semantic_parser import parse_resume
 import logging
 
 
@@ -1001,7 +1002,8 @@ async def process_resume(file: UploadFile):
             raise Exception("Markdown extraction failed or empty response")
 
         # 🔹 Step 2: Convert markdown → structured JSON
-        parsed_json = markdown_to_structured_json(markdown_text)
+        blocks = markdown_to_blocks(markdown_text)
+        parsed_json = parse_resume(blocks)
 
         return {
             "success": True,

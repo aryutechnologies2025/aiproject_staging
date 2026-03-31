@@ -1,94 +1,48 @@
-import re
+from markdown_it import MarkdownIt
+
+md = MarkdownIt()
 
 
-def clean(text):
-    return re.sub(r"\s+", " ", str(text)).strip()
+def markdown_to_blocks(markdown: str):
+    tokens = md.parse(markdown)
 
+    blocks = []
+    i = 0
 
-def is_bold_line(line: str):
-    return line.strip().startswith("**") and line.strip().endswith("**")
+    while i < len(tokens):
+        t = tokens[i]
 
+        # HEADINGS
+        if t.type == "heading_open":
+            level = int(t.tag[1])
+            content = tokens[i + 1].content
 
-def strip_bold(line: str):
-    return clean(line.replace("**", ""))
+            blocks.append({
+                "type": "heading",
+                "level": level,
+                "value": content.strip()
+            })
+            i += 2
 
+        # INLINE TEXT
+        elif t.type == "inline" and t.content.strip():
+            text = t.content.strip()
 
-def markdown_to_structured_json(markdown: str):
+            blocks.append({
+                "type": "text",
+                "value": text
+            })
 
-    lines = markdown.split("\n")
+        # BULLETS
+        elif t.type == "list_item_open":
+            content = tokens[i + 2].content
 
-    root = {}
-    stack = [(0, root)]
+            blocks.append({
+                "type": "bullet",
+                "value": content.strip()
+            })
+            i += 4
 
-    for line in lines:
-        raw = line
-        line = line.rstrip()
+        i += 1
 
-        if not line.strip():
-            continue
-
-        # =====================================================
-        # 1. HEADINGS (# only, ignore ### as section)
-        # =====================================================
-        if line.startswith("## "):   # ONLY major sections
-
-            level = 2
-            key = clean(line.replace("##", ""))
-
-            node = {}
-
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-
-            parent = stack[-1][1]
-            parent[key] = node
-
-            stack.append((level, node))
-
-        # =====================================================
-        # 2. SUB-HEADINGS (### → store as title, not section)
-        # =====================================================
-        elif line.startswith("###"):
-
-            parent = stack[-1][1]
-
-            parent["__subsection__"] = clean(line.replace("###", ""))
-
-        # =====================================================
-        # 3. BOLD BLOCKS (**...**) → IMPORTANT FIX
-        # =====================================================
-        elif is_bold_line(line):
-
-            parent = stack[-1][1]
-            value = strip_bold(line)
-
-            if "__titles__" not in parent:
-                parent["__titles__"] = []
-
-            parent["__titles__"].append(value)
-
-        # =====================================================
-        # 4. BULLETS
-        # =====================================================
-        elif line.strip().startswith(("*", "-", "•")):
-
-            parent = stack[-1][1]
-
-            if "__list__" not in parent:
-                parent["__list__"] = []
-
-            parent["__list__"].append(clean(line.lstrip("*-• ")))
-
-        # =====================================================
-        # 5. NORMAL TEXT
-        # =====================================================
-        else:
-
-            parent = stack[-1][1]
-
-            if "__text__" not in parent:
-                parent["__text__"] = []
-
-            parent["__text__"].append(clean(raw))
-
-    return root
+    return blocks
