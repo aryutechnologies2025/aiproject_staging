@@ -6,8 +6,6 @@ from app.services.prompt_service import get_prompt
 from typing import Dict, Any
 import json
 from .extractor import extract_with_llamaparse
-from app.modules.resume_builder.markdown_to_json_parser import markdown_to_blocks
-from app.modules.resume_builder.semantic_parser import parse_resume
 import logging
 
 
@@ -978,43 +976,4 @@ def _analyze_cv_sections(cv_content: str) -> list:
     
     return sections if sections else ["Professional Summary", "Professional Experience"]
 
-
-async def process_resume(file: UploadFile):
-    """
-    Main pipeline:
-    Upload → LlamaParse → Markdown → JSON
-    """
-
-    try:
-        file_bytes = await file.read()
-
-        # 🔹 Step 1: Extract using LlamaParse
-        llama_output = await extract_with_llamaparse(
-            file_bytes=file_bytes,
-            filename=file.filename,
-            content_type=file.content_type,
-        )
-
-        # FIX: extract markdown text
-        markdown_text = llama_output.get("markdown", "")
-
-        if not markdown_text:
-            raise Exception("Markdown extraction failed or empty response")
-
-        # 🔹 Step 2: Convert markdown → structured JSON
-        blocks = markdown_to_blocks(markdown_text)
-        parsed_json = parse_resume(blocks)
-
-        return {
-            "success": True,
-            "markdown": markdown_text,   # optional (debug)
-            "parsed": parsed_json
-        }
-
-    except Exception as e:
-        logger.error(f"Resume processing failed: {repr(e)}")
-        return {
-            "error": "Failed to process resume",
-            "details": str(e)
-        }
 
