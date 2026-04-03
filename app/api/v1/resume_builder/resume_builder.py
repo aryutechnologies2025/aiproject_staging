@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import os
 import tempfile
 from pathlib import Path
+from app.modules.resume_builder.extractor import extract_with_llamaparse
+from app.modules.resume_builder.parser_service import parse_resume_with_ai
 from fastapi.responses import JSONResponse
 import logging
 from app.modules.resume_builder.resume_parser_helper import parsing_resume
@@ -21,7 +23,6 @@ from app.modules.resume_builder.service import (
     generate_professional_cv_production,
     generate_targeted_cv_production
 )
-from app.modules.resume_builder.service import process_resume
 from app.modules.resume_builder.linkedin.schemas import (
     ExtractionRequest,
     ExtractionStatus,
@@ -218,7 +219,38 @@ async def refine_resume(
 
 @router.post("/parse-resume")
 async def parse_resume(file: UploadFile = File(...)):
-    return await process_resume(file)
+    try:
+        # STEP 1: Read file
+        file_bytes = await file.read()
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Empty file")
+
+        # STEP 2: Extract (MANDATORY)
+        extractor_output = await extract_with_llamaparse(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            content_type=file.content_type or "application/pdf",
+        )
+        print(f"Extractor output: {extractor_output}")
+        if not extractor_output or not extractor_output.get("raw_items"):
+            raise HTTPException(status_code=400, detail="Extraction failed")
+
+        # STEP 3: AI Parsing (NEW SERVICE)
+        ai_result = await parse_resume_with_ai(extractor_output)
+
+        if not ai_result.get("success"):
+            raise HTTPException(status_code=500, detail=ai_result.get("message"))
+
+        return {
+            "success": True,
+            "file_name": file.filename,
+            "parsed": ai_result.get("parsed")
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # =====================================================
 # NEW CV GENERATION ENDPOINTS - PRODUCTION GRADE
