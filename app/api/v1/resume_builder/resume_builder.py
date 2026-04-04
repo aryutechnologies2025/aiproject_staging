@@ -73,10 +73,8 @@ async def generate_summary(
 ):
     """Generate 2-4 line professional summary with value proposition"""
     try:
-        if not data.get("job_title"):
-            raise HTTPException(status_code=400, detail="job_title is required")
         
-        logger.info(f"Generating summary for {data.get('job_title')}")
+        logger.info(f"Generating summary for")
         return await suggest_summary(data, db)
     
     except HTTPException:
