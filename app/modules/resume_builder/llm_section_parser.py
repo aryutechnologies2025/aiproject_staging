@@ -13,11 +13,12 @@ class LLMSectionParser:
     """
     Parse each section independently with structured output.
     Uses LLM to understand context and extract data intelligently.
+    Optimized for token usage and deduplication.
     """
     
     @staticmethod
     async def parse_sections(sections: Dict[str, str]) -> Dict[str, Any]:
-        """Parse all sections in parallel"""
+        """Parse all sections in parallel with deduplication"""
         
         tasks = []
         section_names = []
@@ -29,13 +30,16 @@ class LLMSectionParser:
         for section_name in priority:
             section_text = sections.get(section_name, "").strip()
             if section_text:
-                tasks.append(LLMSectionParser.parse_section(section_name, section_text))
+                # Optimize section text before parsing
+                optimized_text = LLMSectionParser._optimize_section_text(section_name, section_text)
+                tasks.append(LLMSectionParser.parse_section(section_name, optimized_text))
                 section_names.append(section_name)
         
         # Parse other sections
         for section_name, section_text in sections.items():
             if section_name not in priority and section_text.strip():
-                tasks.append(LLMSectionParser.parse_section(section_name, section_text))
+                optimized_text = LLMSectionParser._optimize_section_text(section_name, section_text)
+                tasks.append(LLMSectionParser.parse_section(section_name, optimized_text))
                 section_names.append(section_name)
         
         if not tasks:
@@ -52,7 +56,8 @@ class LLMSectionParser:
                     logger.warning(f"⚠ Failed to parse {section_name}: {str(result)[:100]}")
                     parsed_sections[section_name] = LLMSectionParser._empty_section(section_name)
                 else:
-                    parsed_sections[section_name] = result
+                    # Deduplicate result
+                    parsed_sections[section_name] = LLMSectionParser._deduplicate_result(section_name, result)
                     logger.info(f"✓ Parsed {section_name}")
             
             # Fill missing sections
@@ -78,23 +83,26 @@ class LLMSectionParser:
             logger.warning(f"No prompt for section: {section_name}")
             return LLMSectionParser._empty_section(section_name)
         
+        # Preprocess education to handle duplicates
         if section_name == "education":
             section_text = LLMSectionParser._preprocess_education_content(section_text)
 
-        prompt_with_content = prompt.format(content=section_text[:5000])
+        # Reduce input size (optimize tokens)
+        prompt_with_content = prompt.format(content=section_text[:3500])
         
+        # Optimized token limits (reduced by 40-50%)
         token_limits = {
-            "experience": 3000,
-            "projects": 3000,
-            "education": 2000,
-            "skills": 1500,
-            "summary": 1500,
-            "certifications": 1500,
-            "languages": 1000,
-            "header": 1000,
+            "experience": 1500,      # Reduced from 3000
+            "projects": 1500,        # Reduced from 3000
+            "education": 800,        # Reduced from 2000
+            "skills": 600,           # Reduced from 1500
+            "summary": 800,          # Reduced from 1500
+            "certifications": 700,   # Reduced from 1500
+            "languages": 500,        # Reduced from 1000
+            "header": 600,           # Reduced from 1000
         }
         
-        max_tokens = token_limits.get(section_name, 1500)
+        max_tokens = token_limits.get(section_name, 800)
         
         for attempt in range(2):
             try:
@@ -135,150 +143,374 @@ class LLMSectionParser:
         return LLMSectionParser._empty_section(section_name)
     
     @staticmethod
+    def _optimize_section_text(section_name: str, section_text: str) -> str:
+        """
+        Optimize section text before LLM processing
+        Reduces token usage by removing noise while preserving content
+        """
+        
+        if section_name == "education":
+            return LLMSectionParser._optimize_education(section_text)
+        elif section_name == "experience":
+            return LLMSectionParser._optimize_experience(section_text)
+        elif section_name == "projects":
+            return LLMSectionParser._optimize_projects(section_text)
+        elif section_name == "skills":
+            return LLMSectionParser._optimize_skills(section_text)
+        elif section_name == "summary":
+            return LLMSectionParser._optimize_summary(section_text)
+        else:
+            return section_text[:3500]
+    
+    @staticmethod
+    def _optimize_education(section_text: str) -> str:
+        """Optimize education section - keep only relevant content"""
+        lines = section_text.split("\n")
+        optimized = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line or (line.startswith("|") and "---" in line):
+                continue
+            
+            keywords = ["degree", "bachelor", "master", "phd", "diploma", 
+                       "university", "college", "institute", "school", "gpa", "cgpa"]
+            
+            if any(kw in line.lower() for kw in keywords):
+                optimized.append(line)
+            elif any(year in line for year in ["20" + str(i) for i in range(10, 30)]):
+                if line not in optimized:
+                    optimized.append(line)
+        
+        return "\n".join(optimized)
+    
+    @staticmethod
+    def _optimize_experience(section_text: str) -> str:
+        """Optimize experience section"""
+        lines = section_text.split("\n")
+        optimized = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line or (line.startswith("|") and "---" in line):
+                continue
+            
+            # Keep bullets, job titles, dates
+            if line.startswith("•") or line.startswith("*") or line.startswith("-"):
+                optimized.append(line)
+            elif any(year in line for year in ["20" + str(i) for i in range(10, 30)]):
+                optimized.append(line)
+            elif len(line) > 10 and line[0].isupper() and any(c.isupper() for c in line[1:]):
+                optimized.append(line)
+        
+        return "\n".join(optimized)
+    
+    @staticmethod
+    def _optimize_projects(section_text: str) -> str:
+        """Optimize projects section"""
+        lines = section_text.split("\n")
+        optimized = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line or (line.startswith("|") and "---" in line):
+                continue
+            
+            # Keep project titles and achievements
+            if any(kw in line.lower() for kw in ["platform", "system", "app", "website", "application"]):
+                optimized.append(line)
+            elif line.startswith("•") or line.startswith("*") or line.startswith("-"):
+                optimized.append(line)
+            elif "," in line and any(tech in line.lower() for tech in 
+                                    ["react", "node", "python", "java", "javascript"]):
+                optimized.append(line)
+        
+        return "\n".join(optimized)
+    
+    @staticmethod
+    def _optimize_skills(section_text: str) -> str:
+        """Optimize skills section - remove redundancy"""
+        lines = section_text.split("\n")
+        skills = []
+        seen = set()
+        
+        for line in lines:
+            line = line.strip()
+            if not line or (line.startswith("|") and "---" in line):
+                continue
+            
+            line = line.lstrip("•*- ").strip()
+            
+            if "," in line:
+                for skill in line.split(","):
+                    skill = skill.strip().lower()
+                    if skill and len(skill) > 2 and skill not in seen:
+                        seen.add(skill)
+                        skills.append(skill)
+            else:
+                skill = line.lower()
+                if line and len(line) > 2 and skill not in seen:
+                    seen.add(skill)
+                    skills.append(line)
+        
+        return "\n".join(skills)
+    
+    @staticmethod
+    def _optimize_summary(section_text: str) -> str:
+        """Optimize summary - remove duplicates and preserve content"""
+        lines = section_text.split("\n")
+        unique_lines = []
+        seen = set()
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            line = line.lstrip("•*- ").strip()
+            
+            if line not in seen:
+                seen.add(line)
+                unique_lines.append(line)
+        
+        return " ".join(unique_lines)
+    
+    @staticmethod
+    def _deduplicate_result(section_name: str, parsed: Any) -> Any:
+        """
+        Deduplicate parsed results to prevent duplicates
+        Fixes education and other sections with duplicate entries
+        """
+        
+        if section_name == "education" and isinstance(parsed, list):
+            return LLMSectionParser._deduplicate_education(parsed)
+        
+        elif section_name == "experience" and isinstance(parsed, list):
+            return LLMSectionParser._deduplicate_experience(parsed)
+        
+        elif section_name == "projects" and isinstance(parsed, list):
+            return LLMSectionParser._deduplicate_projects(parsed)
+        
+        elif section_name == "skills" and isinstance(parsed, list):
+            return LLMSectionParser._deduplicate_skills(parsed)
+        
+        return parsed
+    
+    @staticmethod
+    def _deduplicate_education(education_list: List[Dict]) -> List[Dict]:
+        """Remove duplicate education entries"""
+        if not education_list:
+            return []
+        
+        unique = []
+        seen = set()
+        
+        for edu in education_list:
+            # Create key from normalized fields
+            key = (
+                (edu.get("degree") or "").lower().strip(),
+                (edu.get("institution") or "").lower().strip(),
+                (edu.get("fromYear") or "").strip(),
+                (edu.get("toYear") or "").strip(),
+            )
+            
+            if key not in seen and key[0]:  # Ensure degree exists
+                seen.add(key)
+                unique.append(edu)
+        
+        if len(education_list) != len(unique):
+            logger.info(f"✓ Removed {len(education_list) - len(unique)} duplicate education entries")
+        
+        return unique
+    
+    @staticmethod
+    def _deduplicate_experience(experience_list: List[Dict]) -> List[Dict]:
+        """Remove duplicate experience entries"""
+        if not experience_list:
+            return []
+        
+        unique = []
+        seen = set()
+        
+        for exp in experience_list:
+            key = (
+                (exp.get("position") or "").lower().strip(),
+                (exp.get("company") or "").lower().strip(),
+                (exp.get("fromYear") or "").strip(),
+                (exp.get("toYear") or "").strip(),
+            )
+            
+            if key not in seen and key[1]:  # Ensure company exists
+                seen.add(key)
+                unique.append(exp)
+        
+        if len(experience_list) != len(unique):
+            logger.info(f"✓ Removed {len(experience_list) - len(unique)} duplicate experience entries")
+        
+        return unique
+    
+    @staticmethod
+    def _deduplicate_projects(projects_list: List[Dict]) -> List[Dict]:
+        """Remove duplicate project entries"""
+        if not projects_list:
+            return []
+        
+        unique = []
+        seen = set()
+        
+        for proj in projects_list:
+            key = (proj.get("title") or "").lower().strip()
+            
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(proj)
+        
+        if len(projects_list) != len(unique):
+            logger.info(f"✓ Removed {len(projects_list) - len(unique)} duplicate projects")
+        
+        return unique
+    
+    @staticmethod
+    def _deduplicate_skills(skills_list: List[str]) -> List[str]:
+        """Remove duplicate skills (case-insensitive)"""
+        if not skills_list:
+            return []
+        
+        unique = []
+        seen = set()
+        
+        for skill in skills_list:
+            normalized = skill.lower().strip()
+            # Handle variations like React.js vs ReactJS
+            normalized = normalized.replace(".js", "").replace(".py", "")
+            
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                unique.append(skill)
+        
+        if len(skills_list) != len(unique):
+            logger.info(f"✓ Removed {len(skills_list) - len(unique)} duplicate skills")
+        
+        return unique
+    
+    @staticmethod
     def _build_prompts() -> Dict[str, str]:
-        """Build specialized prompts for each section"""
+        """Build optimized prompts (shorter, focused)"""
         
         return {
-            "header": """Extract personal/header information from:
+            "header": """Extract name, title, location from:
 {content}
 
 Return JSON:
-{{"name": "full name", "title": "job title/profession", "location": "city, country", "email": "", "phone": "", "link": "portfolio/linkedin url"}}
+{{"name": "", "title": "", "location": "", "email": "", "phone": "", "link": ""}}
 
-Rules:
-- Extract exact name as written
-- Extract professional title/role
-- Extract location (city, state/country)
-- Leave email, phone, link empty here (will be extracted separately)
-- Return only the JSON structure""",
+Rules: Extract only present data. Empty strings for missing fields.""",
             
-            "summary": """Extract professional summary/objective from:
+            "summary": """Extract professional summary from:
 {content}
 
 Return JSON:
-{{"summary": "complete summary text as single paragraph"}}
+{{"summary": "complete summary as single paragraph"}}
 
-Rules:
-- Extract COMPLETE summary text
-- Join all bullet points into ONE paragraph
-- Include ALL information
-- Keep exact wording
-- Result should be full text, not truncated""",
+Rules: Join all bullets into ONE paragraph. Include all information.""",
             
-            "experience": """Extract ALL work experience/jobs from:
+            "experience": """Extract ALL jobs from:
 {content}
 
-Return JSON array (INCLUDE EVERY JOB):
-[{{"position": "job title", "company": "company name", "location": "location", "fromYear": "YYYY", "toYear": "YYYY or Present", "isOngoing": true/false, "description": ["one sentence summary"], "bullets": ["achievement 1", "achievement 2"]}}]
+Return JSON array:
+[{{"position": "", "company": "", "location": "", "fromYear": "", "toYear": "", "isOngoing": false, "description": [], "bullets": []}}]
 
 Rules:
-- Extract EVERY job mentioned - DO NOT skip any
-- Include full job title
-- Include company name exactly as written
-- Extract years only (e.g. "2024", not full dates)
-- isOngoing: true only if "Present" or "Currently"
-- bullets: Array of ALL achievements/points listed
-- DO NOT merge jobs
-- Include internships, part-time, contract work""",
+- Extract EVERY job
+- isOngoing: true if "Present"
+- bullets: array of ALL achievements
+- Return valid JSON array""",
             
             "education": """Extract ALL education from:
 {content}
 
-Return JSON array (INCLUDE EVERY ENTRY):
-[{{"degree": "degree name", "institution": "school/university name", "location": "city, state/country", "fromYear": "YYYY", "toYear": "YYYY"}}]
+Return JSON array:
+[{{"degree": "", "institution": "", "location": "", "fromYear": "", "toYear": ""}}]
 
 Rules:
-- Extract EVERY degree/qualification/certification mentioned
-- If no clear structure, parse carefully: look for patterns like "Degree Name — University Name — Location — Years"
-- degree: Full name of degree (e.g., "Bachelor of Science in Computer Science")
-- institution: Name of school/university/college exactly as written
-- location: City and state/country (e.g., "Chennai, Tamil Nadu, India")
-- fromYear: Start year as 4 digits (e.g., "2021")
-- toYear: End/graduation year as 4 digits (e.g., "2024")
-- Include all types: bachelors, masters, diplomas, certifications
-- If year format is "09/2021 – 04/2024", extract as fromYear: "2021", toYear: "2024"
-- Empty string "" for missing fields
-- Return as valid JSON array even if single entry""",
+- Extract EVERY entry (no duplicates)
+- degree, institution, location, years (YYYY)
+- Empty strings for missing
+- Return valid JSON array""",
             
-            "skills": """Extract ALL skills from:
+            "skills": """Extract ALL unique skills from:
 {content}
 
 Return JSON array:
-["skill1", "skill2", "skill3", "skill4", "skill5"]
+["skill1", "skill2", "skill3"]
 
 Rules:
-- Extract ALL skills mentioned: languages, frameworks, tools, databases, libraries
-- Extract from all subsections
-- Return as flat array of strings
-- Remove exact duplicates but keep all unique skills
-- Include everything mentioned""",
+- Extract ALL unique skills (no duplicates)
+- Return flat array
+- Include all mentioned""",
             
             "projects": """Extract ALL projects from:
 {content}
 
-Return JSON array (INCLUDE EVERY PROJECT):
-[{{"title": "project name/title", "description": "1-2 sentence description", "technologies": ["tech1", "tech2"], "fromYear": "YYYY", "toYear": "YYYY", "bullets": ["achievement 1", "achievement 2"]}}]
+Return JSON array:
+[{{"title": "", "description": "", "technologies": [], "bullets": []}}]
 
 Rules:
-- Extract EVERY project mentioned - DO NOT skip any
-- Include full project title
-- Extract technologies as array
-- Include all bullet points/achievements for each project
-- Extract years if available
-- DO NOT merge projects
-- Include portfolio, case studies, work examples""",
+- Extract EVERY project
+- technologies as array
+- bullets: ALL achievements
+- Return valid JSON array""",
             
             "certifications": """Extract ALL certifications from:
 {content}
 
-Return JSON array (INCLUDE EVERY CERTIFICATION):
-[{{"title": "certification name", "issuer": "issuing organization"}}]
+Return JSON array:
+[{{"title": "", "issuer": ""}}]
 
-Rules:
-- Extract EVERY certification/license/award mentioned
-- Include exact title
-- Include issuing organization
-- Extract all entries""",
+Rules: Extract EVERY certification. title, issuer. Return valid JSON array.""",
             
             "languages": """Extract ALL languages from:
 {content}
 
 Return JSON array:
-["language1", "language2", "language3"]
+["language1", "language2"]
 
-Rules:
-- Extract all languages mentioned
-- Include proficiency level in the language if mentioned
-- Return as array of strings""",
+Rules: Extract ALL languages mentioned. Return valid JSON array.""",
         }
     
     @staticmethod
     def _preprocess_education_content(section_text: str) -> str:
-        """Preprocess education section to improve parsing"""
+        """Preprocess education section to improve parsing and prevent duplicates"""
         # Clean up common education section formats
         
         # Handle table format education
         if "|" in section_text and "degree" in section_text.lower():
-            # Convert table to readable format
             lines = section_text.split("\n")
             cleaned_lines = []
             for line in lines:
                 if "|" in line and "---" not in line:
-                    # Remove table separators, keep content
                     parts = [p.strip() for p in line.split("|")]
                     cleaned_lines.append(" ".join([p for p in parts if p]))
             section_text = "\n".join(cleaned_lines)
         
         # Normalize date formats
-        # "09/2021 – 04/2024" -> clearly mark years
         section_text = re.sub(r'(\d{2})/(\d{4})\s*–\s*(\d{2})/(\d{4})', 
                              r'\2 to \4', section_text)
         section_text = re.sub(r'(\d{4})\s*–\s*(\d{4})', r'\1 to \2', section_text)
         
-        # Normalize separators (—, -, to, at)
+        # Normalize separators
         section_text = re.sub(r'\s*[-–—]\s*', ' | ', section_text)
         
-        return section_text
+        # Remove duplicate lines (common in some resumes)
+        lines = section_text.split("\n")
+        unique_lines = []
+        seen = set()
+        for line in lines:
+            if line.strip() and line.strip() not in seen:
+                unique_lines.append(line)
+                seen.add(line.strip())
+        
+        return "\n".join(unique_lines)
     
     @staticmethod
     def _is_valid_parsed(section_name: str, parsed: Any) -> bool:
@@ -292,9 +524,8 @@ Rules:
             summary = parsed.get("summary", "") if isinstance(parsed, dict) else str(parsed)
             return isinstance(summary, str) and len(summary.strip()) > 20
         elif section_name == "education":
-            # Education can be empty or array
             if isinstance(parsed, list):
-                return len(parsed) >= 0  # Accept even empty array
+                return len(parsed) >= 0
             return isinstance(parsed, dict)
         elif section_name in ["skills", "languages"]:
             return isinstance(parsed, list) and len(parsed) > 0

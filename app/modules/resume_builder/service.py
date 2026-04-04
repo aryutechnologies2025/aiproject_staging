@@ -67,26 +67,72 @@ OUTPUT EXACTLY 15-20 BULLETS. NO INTRO, NO EXPLANATION. ONLY BULLETS."""
 async def suggest_summary(data: dict, db: AsyncSession) -> dict:
     """
     Generate compelling 2-4 line professional summary.
-    Focuses on unique value proposition and differentiators.
+    Handles structured payload (experiences, education, skills).
     """
-    
+
     system_prompt = await get_prompt(db, "resume_builder")
     if not system_prompt:
         system_prompt = "You are a professional resume writer for students and professionals."
 
-    job_title = data.get("job_title", "")
-    experience = data.get("experience", "")
+    # ---- FIX: Handle experiences list ----
+    experiences = data.get("experiences", [])
+    experience_text = ""
+
+    if isinstance(experiences, list) and experiences:
+        exp_parts = []
+        for exp in experiences:
+            title = exp.get("job_title", "")
+            company = exp.get("company", "")
+            start = exp.get("start_date", "")[:4] if exp.get("start_date") else ""
+            end = exp.get("end_date", "")[:4] if exp.get("end_date") else "Present"
+
+            exp_parts.append(f"{title} at {company} ({start}-{end})")
+
+        experience_text = "; ".join(exp_parts)
+
+    # ---- FIX: Handle education list ----
+    education_list = data.get("education", [])
+    education_text = ""
+
+    if isinstance(education_list, list) and education_list:
+        edu_parts = []
+        for edu in education_list:
+            degree = edu.get("degree", "")
+            institution = edu.get("institution", "")
+            edu_parts.append(f"{degree} from {institution}")
+
+        education_text = "; ".join(edu_parts)
+
+    # ---- Skills handling (already list) ----
     skills = data.get("skills", [])
-    education = data.get("education", "")
+    skills_text = ", ".join(skills[:5]) if isinstance(skills, list) else str(skills)
+
     tone = data.get("tone", "modern professional")
+
+    # ---- Better experience estimation (optional improvement) ----
+    years_experience = ""
+    if experiences:
+        try:
+            start_years = [
+                int(exp.get("start_date", "")[:4])
+                for exp in experiences
+                if exp.get("start_date")
+            ]
+            if start_years:
+                min_year = min(start_years)
+                from datetime import datetime
+                current_year = datetime.now().year
+                years_experience = f"{current_year - min_year}+ years"
+        except:
+            years_experience = ""
 
     user_prompt = f"""Create a powerful professional summary that gets recruiter attention.
 
 CANDIDATE PROFILE:
-Position: {job_title}
-Background: {experience[:150]}
-Key Skills: {', '.join(skills[:5]) if isinstance(skills, list) else skills}
-Education: {education[:100]}
+Background: {experience_text[:200]}
+Key Skills: {skills_text}
+Education: {education_text[:150]}
+Estimated Experience: {years_experience}
 Tone: {tone}
 
 YOUR TASK:
