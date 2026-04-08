@@ -1,88 +1,171 @@
-import json
-import logging
 import re
-from typing import Dict, List, Any, Tuple
+import logging
+from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
 
 class UniversalExtractor:
     """
-    Universal content extractor that works without assumptions about resume structure.
-    Extracts raw content blocks and identifies section boundaries through intelligent analysis.
+    Universal content extractor — layout-aware, domain-agnostic.
+    Preserves block type hints so the section identifier LLM gets structured context.
     """
-    
-    @staticmethod
-    def extract_all_content(raw_items: List[Dict[str, Any]]) -> str:
-        """
-        Extract all content preserving structure but without format assumptions.
-        Handles: markdown, plain text, multi-column, any layout, any font
-        """
-        if not raw_items:
-            return ""
-        
-        # Preserve raw text exactly as provided
-        content_blocks = []
-        
-        for item in raw_items:
-            text = item.get("text", "").strip()
-            block_type = item.get("type", "text")
-            
-            if not text:
-                continue
-            
-            # Preserve all text with type markers for later analysis
-            content_blocks.append({
-                "text": text,
-                "type": block_type,
-                "items": item.get("items", [])
-            })
-        
-        # Build raw content without any filtering
-        raw_content = "\n".join([b["text"] for b in content_blocks])
-        
-        return raw_content
-    
+
+    # ------------------------------------------------------------------ #
+    #  Public: full structured text for LLM section identification         #
+    # ------------------------------------------------------------------ #
+
     @staticmethod
     def get_all_items_flat(raw_items: List[Dict[str, Any]]) -> List[str]:
-        """Get all text items as flat list for LLM analysis"""
-        items = []
-        
+        """
+        Return text lines annotated with block type so the LLM can detect
+        headings, body text, and list items without guessing layout.
+
+        Format injected:  [HEADING] …  /  [LIST] …  /  [TEXT] …
+        The LLM strips these tags internally — they are structural hints only.
+        """
+        items: List[str] = []
+
+        for item in raw_items:
+            text = item.get("text", "").strip()
+            block_type = item.get("type", "text").lower()
+
+            if not text:
+                continue
+
+            # Map LlamaParse block types to readable tags
+            if block_type in ("heading", "h1", "h2", "h3", "title"):
+                tag = "[HEADING]"
+            elif block_type in ("list", "bullet", "li"):
+                tag = "[LIST]"
+            elif block_type in ("link", "url"):
+                tag = "[LINK]"
+            else:
+                tag = "[TEXT]"
+
+            items.append(f"{tag} {text}")
+
+            # Expand nested list items
+            for nested in item.get("items", []):
+                val = nested.strip() if isinstance(nested, str) else ""
+                if val:
+                    items.append(f"[LIST] {val}")
+
+        return items
+
+    # ------------------------------------------------------------------ #
+    #  Public: plain content dump (used by other utilities)               #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def extract_all_content(raw_items: List[Dict[str, Any]]) -> str:
+        """Plain concatenated text — no type tags."""
+        parts = []
         for item in raw_items:
             text = item.get("text", "").strip()
             if text:
-                items.append(text)
-            
-            # Also include nested items from lists
-            nested = item.get("items", [])
-            if nested:
-                for nested_item in nested:
-                    if isinstance(nested_item, str) and nested_item.strip():
-                        items.append(nested_item.strip())
-        
-        return items
-    
+                parts.append(text)
+            for nested in item.get("items", []):
+                val = nested.strip() if isinstance(nested, str) else ""
+                if val:
+                    parts.append(val)
+        return "\n".join(parts)
+
+    # ------------------------------------------------------------------ #
+    #  Public: regex-based contact extraction (LLM-free fallback)         #
+    # ------------------------------------------------------------------ #
+
     @staticmethod
     def extract_contact_info_raw(raw_items: List[Dict[str, Any]]) -> Dict[str, str]:
-        """Extract contact info without LLM - regex based fallback"""
-        all_text = "\n".join([item.get("text", "") for item in raw_items])
-        
-        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-        phone_pattern = r"(?:\+?(?:91|1|44|86|81|33|39|34|49|31|46|45|47|358|41|43|43))?[\s.-]?(?:\(?\d{1,5}\)?[\s.-]?\d{1,5}[\s.-]?\d{1,5})"
-        linkedin_pattern = r"linkedin\.com/in/[\w-]+"
-        github_pattern = r"github\.com/[\w-]+"
-        portfolio_pattern = r"[\w-]+\.(?:com|net|io|app|netlify|vercel|github\.io)"
-        
-        email_match = re.search(email_pattern, all_text)
-        phone_matches = re.findall(phone_pattern, all_text)
-        linkedin_match = re.search(linkedin_pattern, all_text, re.IGNORECASE)
-        github_match = re.search(github_pattern, all_text, re.IGNORECASE)
-        portfolio_match = re.search(portfolio_pattern, all_text)
-        
+        """
+        Extract all contact fields deterministically via regex.
+        Works for any domain, any resume format.
+        """
+        all_text = "\n".join(item.get("text", "") for item in raw_items)
+
+        email = re.search(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", all_text)
+
+        # Broad international phone — captures +91, +1, bare 10-digit, etc.
+        phone = re.search(
+            r"(?:\+?\d{1,3}[\s.\-]?)?(?:\(?\d{2,5}\)?[\s.\-]?)?\d{3,5}[\s.\-]?\d{3,5}[\s.\-]?\d{0,5}",
+            all_text,
+        )
+
+        linkedin = re.search(r"linkedin\.com/in/[\w\-]+", all_text, re.IGNORECASE)
+        github = re.search(r"github\.com/[\w\-]+", all_text, re.IGNORECASE)
+
+        # Portfolio: anything that looks like a personal domain / hosted URL
+        portfolio = re.search(
+            r"(?:https?://)?(?:www\.)?[\w\-]+\.(?:netlify\.app|vercel\.app|github\.io|me|dev|io|app|co|net|com)"
+            r"(?:/[\w\-./]*)?",
+            all_text,
+            re.IGNORECASE,
+        )
+
+        # Name heuristic: first [HEADING] or first [TEXT] line before any known contact field
+        name = UniversalExtractor._extract_name_heuristic(raw_items)
+
+        # Location heuristic: look for city/state/country patterns
+        location = UniversalExtractor._extract_location_heuristic(all_text)
+
         return {
-            "email": email_match.group(0) if email_match else "",
-            "phone": phone_matches[0] if phone_matches else "",
-            "linkedin": linkedin_match.group(0) if linkedin_match else "",
-            "github": github_match.group(0) if github_match else "",
-            "portfolio": portfolio_match.group(0) if portfolio_match else "",
+            "name": name,
+            "email": email.group(0).strip() if email else "",
+            "phone": UniversalExtractor._clean_phone(phone.group(0)) if phone else "",
+            "linkedin": linkedin.group(0).strip() if linkedin else "",
+            "github": github.group(0).strip() if github else "",
+            "portfolio": portfolio.group(0).strip() if portfolio else "",
+            "location": location,
         }
+
+    # ------------------------------------------------------------------ #
+    #  Private helpers                                                     #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _extract_name_heuristic(raw_items: List[Dict[str, Any]]) -> str:
+        """
+        The resume name is almost always the very first heading or the first
+        short (<= 6 words) text block on page 1 before any contact detail.
+        """
+        contact_signals = re.compile(
+            r"@|linkedin|github|http|www\.|\.com|\.io|\.net|\+\d|\d{5,}|"
+            r"resume|curriculum|vitae|objective|summary|profile|experience|"
+            r"education|skill|project|certification|language",
+            re.IGNORECASE,
+        )
+
+        for item in raw_items:
+            if item.get("page", 1) > 1:
+                break
+            text = item.get("text", "").strip()
+            block_type = item.get("type", "text").lower()
+            if not text or contact_signals.search(text):
+                continue
+            words = text.split()
+            # Headings or short text lines with 1–6 words → likely the name
+            if block_type in ("heading", "h1", "h2", "title") or (1 <= len(words) <= 6):
+                # Must look like a name: mostly alphabetic + spaces/hyphens
+                if re.match(r"^[A-Za-z][A-Za-z\s\-'.]{1,50}$", text):
+                    return text
+        return ""
+
+    @staticmethod
+    def _extract_location_heuristic(text: str) -> str:
+        """
+        Match common location patterns:
+        'City, State'  /  'City, Country'  /  'City, ST 12345'
+        """
+        match = re.search(
+            r"\b([A-Z][a-zA-Z\s]+),\s*([A-Z][a-zA-Z\s]{2,}(?:\s+\d{5,6})?)\b",
+            text,
+        )
+        return match.group(0).strip() if match else ""
+
+    @staticmethod
+    def _clean_phone(raw: str) -> str:
+        """Strip leading/trailing noise; keep digits, +, spaces, dashes, parens."""
+        cleaned = re.sub(r"[^\d\+\-\(\)\s]", "", raw).strip()
+        # Reject if fewer than 7 digits remain
+        digits = re.sub(r"\D", "", cleaned)
+        return cleaned if len(digits) >= 7 else ""
