@@ -24,7 +24,7 @@ SECTION_OUTPUT_TOKENS = {
     "projects": 1100,
     "skills": 400,
     "education": 600,
-    "header": 500,
+    "header": 550,
     "summary": 400,
     "certifications": 400,
     "languages": 200,

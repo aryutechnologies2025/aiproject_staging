@@ -1,0 +1,44 @@
+{
+  "steps": [
+    {
+      "id": 0,
+      "state": "greeting",
+      "question": "வணக்கம் {name} அவர்களா? நான் [Academy Name] இல் இருந்து பேசுகிறேன். படிப்பு மற்றும் career பற்றி பேசலாமா?",
+      "fallback": "வணக்கம், நான் [Academy Name] இல் இருந்து பேசுகிறேன். இப்போது நேரம் இருக்கிறதா?"
+    },
+    {
+      "id": 1,
+      "state": "qualifying",
+      "question": "நீங்கள் தற்போது என்ன படிக்கிறீர்கள் அல்லது படிப்பு முடித்தீர்களா?",
+      "fallback": "உங்கள் தற்போதைய படிப்பு நிலை என்ன?"
+    },
+    {
+      "id": 2,
+      "state": "qualifying",
+      "question": "IT அல்லது Software துறையில் career செய்ய விரும்புகிறீர்களா?",
+      "fallback": "எந்த துறையில் career செய்ய விரும்புகிறீர்கள்?"
+    },
+    {
+      "id": 3,
+      "state": "qualifying",
+      "question": "Programming அல்லது தொழில்நுட்பம் பற்றி ஏதாவது அடிப்படை அறிவு இருக்கிறதா?",
+      "fallback": "தொழில்நுட்பத்தில் உங்கள் அனுபவம் என்ன?"
+    },
+    {
+      "id": 4,
+      "state": "scheduling",
+      "question": "நாங்கள் Job Guarantee Program வழங்குகிறோம். Demo class பார்க்க இந்த வாரம் நேரம் ஒதுக்க முடியுமா?",
+      "fallback": "Demo class க்கு எப்போது வர முடியும்?"
+    }
+  ],
+  "objection_responses": {
+    "busy": "புரிகிறது. படிப்பு பற்றி பேச வேண்டும் என்றால் பிறகு அழைக்கட்டுமா?",
+    "not_interested": "சரி. ஆனால் Job Guarantee கொண்ட இந்த course பற்றி ஒரு நிமிடம் கேளுங்கள்.",
+    "call_later": "நிச்சயமாக. எந்த நேரம் வசதியாக இருக்கும்?",
+    "no_answer": "சரி, பிறகு தொடர்பு கொள்கிறோம்."
+  },
+  "closing_hot": "மிகவும் நன்றி {name}! Demo class உறுதி செய்யப்பட்டது. SMS மூலம் link அனுப்புகிறோம்.",
+  "closing_warm": "நன்றி {name}. உங்கள் விவரங்கள் பதிவு செய்தோம். விரைவில் தொடர்பு கொள்கிறோம்.",
+  "closing_cold": "நன்றி {name}. எப்போது வேண்டுமானாலும் எங்களை தொடர்பு கொள்ளலாம்.",
+  "system_prompt_extra": "Academy பற்றிய கேள்விகள்: நாங்கள் Software Development, Data Science, Digital Marketing courses வழங்குகிறோம். 6 மாத course, Job Guarantee. Course fees பற்றி demo class ல் விவரிக்கிறோம்."
+}

@@ -1,72 +1,90 @@
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
-from datetime import datetime, timezone
+import asyncio
 import logging
+from datetime import datetime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
-# 1. Import your REAL session and models
-from app.core.database import AsyncSessionLocal  # Ensure this is your actual async_sessionmaker
-from app.modules.voice_agent.models import Lead, CallStatusEnum
-from app.modules.voice_agent.services import trigger_outbound_call
+from app.modules.voice_agent import config
+from app.modules.voice_agent import database as db
+from app.modules.voice_agent.models import LeadData, LeadStatus
+from app.modules.voice_agent.services import vobiz_initiate_call
 
-logger = logging.getLogger(__name__)
-scheduler = AsyncIOScheduler()
+logger = logging.getLogger("scheduler")
+scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
-async def process_pending_recalls():
-    """
-    Polls the database for leads that are pending recall.
-    """
-    logger.info("Checking for pending recalls...")
-    
-    # 2. Use 'async with' for your AsyncSession
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            now = datetime.now(timezone.utc)
-            
-            # 3. Use SQLAlchemy 2.0 select syntax for Async
-            stmt = select(Lead).where(
-                Lead.status == CallStatusEnum.PENDING_RECALL,
-                Lead.recall_timestamp <= now
-            )
-            
-            result = await session.execute(stmt)
-            leads_to_recall = result.scalars().all()
+_active_calls: dict = {}
+MAX_CONCURRENT_CALLS = int(getattr(config, "MAX_CONCURRENT_CALLS", 5))
 
-            if not leads_to_recall:
-                logger.info("No recalls pending at this time.")
-                return
 
-            for lead in leads_to_recall:
-                logger.info(f"Triggering scheduled recall for {lead.phone_number}")
-                
-                # 4. Trigger the outbound call
-                success = await trigger_outbound_call(lead.phone_number)
-                
-                if success:
-                    lead.status = CallStatusEnum.RECALLED
-                else:
-                    # You might want to implement a retry count here
-                    lead.status = CallStatusEnum.FAILED
-            
-            # Commit changes to the database
-            await session.commit()
+async def _place_single_call(lead: LeadData) -> None:
+    if lead.id in _active_calls:
+        return
+    if len(_active_calls) >= MAX_CONCURRENT_CALLS:
+        return
 
-def start_scheduler():
-    """Starts the APScheduler background tasks."""
-    # We use 'cron' or 'interval'. 5 minutes is good for production.
+    try:
+        _active_calls[lead.id] = True
+        await db.update_lead(lead.id, {"status": LeadStatus.CALLING})
+
+        stream_url = f"https://telophasic-aliza-numerous.ngrok-free.dev/api/v1/ws/call"
+        call_id = await vobiz_initiate_call(lead, stream_url)
+        logger.info(f"[{lead.company_id}] Call initiated: {call_id} -> {lead.phone} ({lead.name})")
+    except Exception as e:
+        logger.error(f"Failed to call {lead.phone}: {e}")
+        await db.update_lead(lead.id, {"status": LeadStatus.FAILED})
+    finally:
+        _active_calls.pop(lead.id, None)
+
+
+async def run_call_batch_for_company(company_id: str) -> None:
+    if len(_active_calls) >= MAX_CONCURRENT_CALLS:
+        return
+    slots = MAX_CONCURRENT_CALLS - len(_active_calls)
+    leads = await db.get_pending_leads(company_id=company_id, limit=slots)
+    if not leads:
+        return
+    logger.info(f"[{company_id}] Batch: {len(leads)} calls")
+    await asyncio.gather(*[_place_single_call(lead) for lead in leads], return_exceptions=True)
+
+
+async def run_all_companies_batch() -> None:
+    companies = await db.list_companies()
+    for company in companies:
+        await run_call_batch_for_company(company.id)
+
+
+async def run_recall_check() -> None:
+    companies = await db.list_companies()
+    now = datetime.utcnow()
+    for company in companies:
+        leads = await db.get_pending_leads(company_id=company.id, limit=10)
+        for lead in leads:
+            if lead.status == LeadStatus.RECALL:
+                if lead.next_call_at and lead.next_call_at <= now:
+                    await _place_single_call(lead)
+
+
+def setup_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
-        process_pending_recalls, 
-        'interval', 
-        minutes=5, 
-        id="recall_job", 
-        replace_existing=True
+        run_all_companies_batch,
+        CronTrigger(hour="9-18", minute="*/15", timezone="Asia/Kolkata"),
+        id="call_batch",
+        replace_existing=True,
+        max_instances=1,
     )
-    if not scheduler.running:
-        scheduler.start()
-        logger.info("--- Voice Bot Scheduler Started ---")
+    scheduler.add_job(
+        run_recall_check,
+        IntervalTrigger(minutes=10),
+        id="recall_check",
+        replace_existing=True,
+        max_instances=1,
+    )
+    return scheduler
 
-def stop_scheduler():
-    """Gracefully shuts down the scheduler."""
-    if scheduler.running:
-        scheduler.shutdown()
-        logger.info("--- Voice Bot Scheduler Stopped ---")
-        
+
+async def trigger_immediate_call(lead: LeadData) -> bool:
+    if len(_active_calls) >= MAX_CONCURRENT_CALLS:
+        return False
+    asyncio.create_task(_place_single_call(lead))
+    return True
