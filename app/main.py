@@ -4,13 +4,15 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.modules.voice_agent.router import router as voice_agent_router
-from app.modules.voice_agent.scheduler import start_scheduler, stop_scheduler
 from app.api.v1.resume_builder import resume_builder
 from app.modules.ats_scanner import router as ats_routes
+from app.modules.voice_agent.router import router as voice_agent_router
+from app.modules.voice_agent.scheduler import setup_scheduler
+from app.modules.voice_agent import database as db
 from app.core.database import Base, engine
 from app.api.v1 import (
     whatsapp, youtube, admin, health,
@@ -110,6 +112,16 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
         },
     )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init_db()
+ 
+    scheduler = setup_scheduler()
+    scheduler.start()
+ 
+    yield
+ 
+    scheduler.shutdown(wait=False)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STARTUP
@@ -117,16 +129,8 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
 
 @app.on_event("startup")
 async def startup():
-    # Your existing DB init
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # START THE VOICE SCHEDULER HERE
-    start_scheduler()
-
-@app.on_event("shutdown")
-async def shutdown():
-    stop_scheduler()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ROUTERS
@@ -138,8 +142,8 @@ app.include_router(admin.router,          prefix="/api/v1/admin",     tags=["Adm
 app.include_router(health.router,         prefix="/api/v1/health",    tags=["Health"])
 app.include_router(prompt.router,         prefix="/api/v1/prompts",   tags=["Prompts"])
 app.include_router(resume_builder.router, prefix="/api/v1/resume",    tags=["Resume Builder"])
+app.include_router(voice_agent_router,   prefix="/api/v1/voice",     tags=["Voice Agent"])
 app.include_router(suggestion_api.router, prefix="/api/v1/suggest",   tags=["Suggestions AI"])
-app.include_router(voice_agent_router, prefix="/api/v1/voice", tags=["Voice Agent"])
 app.include_router(hrms.router)
 app.include_router(yura_chat_api.router)
 app.include_router(ats_routes.router,     prefix="/api/v1/ats",       tags=["ATS"])
