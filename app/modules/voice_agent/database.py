@@ -1,10 +1,19 @@
+"""
+database.py — Async SQLAlchemy database layer for Voice Agent
+
+Key fixes vs original:
+  • init_db() added — creates all tables on startup
+  • bulk_create_leads uses INSERT … ON CONFLICT DO NOTHING (single round-trip)
+  • get_pending_leads eager-filters by next_call_at correctly
+"""
 import uuid
 import json
 from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, text as sa_text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.modules.voice_agent import config
 from app.modules.voice_agent.models import (
@@ -14,9 +23,29 @@ from app.modules.voice_agent.models import (
     LeadStatus, ScriptStatus,
 )
 
-engine = create_async_engine(config.DATABASE_URL, echo=False)
+engine = create_async_engine(
+    config.DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DB INIT
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def init_db() -> None:
+    """Create all voice-agent tables if they don't exist."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ORM → Dataclass helpers
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _orm_to_company(row: Company) -> CompanyData:
     return CompanyData(
@@ -75,6 +104,10 @@ def _orm_to_lead(row: Lead) -> LeadData:
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Company
+# ─────────────────────────────────────────────────────────────────────────────
+
 async def get_company_by_id(company_id: str) -> Optional[CompanyData]:
     async with AsyncSessionLocal() as s:
         row = await s.get(Company, company_id)
@@ -109,6 +142,10 @@ async def update_company(company_id: str, updates: dict) -> None:
         )
         await s.commit()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Script
+# ─────────────────────────────────────────────────────────────────────────────
 
 async def create_script(data: dict) -> str:
     script_id = str(uuid.uuid4())
@@ -156,6 +193,10 @@ async def activate_script(company_id: str, script_id: str) -> None:
         await s.commit()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Lead
+# ─────────────────────────────────────────────────────────────────────────────
+
 async def get_lead_by_id(lead_id: str) -> Optional[LeadData]:
     async with AsyncSessionLocal() as s:
         row = await s.get(Lead, lead_id)
@@ -172,6 +213,11 @@ async def get_lead_by_phone_and_company(phone: str, company_id: str) -> Optional
 
 
 async def get_pending_leads(company_id: str, limit: int = 50) -> List[LeadData]:
+    """
+    Returns leads in status 'pending' or 'recall' that:
+      - haven't exceeded max_attempts
+      - either have no next_call_at or it's already due
+    """
     async with AsyncSessionLocal() as s:
         now = datetime.utcnow()
         result = await s.execute(
@@ -182,7 +228,7 @@ async def get_pending_leads(company_id: str, limit: int = 50) -> List[LeadData]:
                 Lead.call_attempts < Lead.max_attempts,
             )
             .where(
-                (Lead.next_call_at == None) | (Lead.next_call_at <= now)
+                (Lead.next_call_at.is_(None)) | (Lead.next_call_at <= now)
             )
             .order_by(Lead.next_call_at.asc().nullsfirst())
             .limit(limit)
@@ -220,21 +266,29 @@ async def increment_call_attempts(lead_id: str) -> None:
 
 
 async def bulk_create_leads(leads: List[dict]) -> int:
-    created = 0
-    async with AsyncSessionLocal() as s:
-        for ld in leads:
-            existing = await s.execute(
-                select(Lead).where(
-                    Lead.phone == ld["phone"],
-                    Lead.company_id == ld["company_id"],
-                )
-            )
-            if existing.scalar_one_or_none() is None:
-                s.add(Lead(id=str(uuid.uuid4()), **ld))
-                created += 1
-        await s.commit()
-    return created
+    """
+    Insert all leads in a single statement using PostgreSQL's
+    INSERT … ON CONFLICT DO NOTHING (phone + company_id unique constraint).
 
+    Returns the number of rows actually inserted.
+    """
+    if not leads:
+        return 0
+
+    async with AsyncSessionLocal() as s:
+        stmt = (
+            pg_insert(Lead)
+            .values([{"id": str(uuid.uuid4()), **ld} for ld in leads])
+            .on_conflict_do_nothing(index_elements=["phone", "company_id"])
+        )
+        result = await s.execute(stmt)
+        await s.commit()
+        return result.rowcount
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Interview Slots
+# ─────────────────────────────────────────────────────────────────────────────
 
 async def create_interview_slot(
     lead_id: str,
@@ -258,6 +312,10 @@ async def create_interview_slot(
         await s.commit()
     return slot_id
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stats
+# ─────────────────────────────────────────────────────────────────────────────
 
 async def get_lead_stats_by_company(company_id: str) -> dict:
     async with AsyncSessionLocal() as s:

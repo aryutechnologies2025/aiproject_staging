@@ -3,8 +3,8 @@ import uuid
 import json
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, WebSocket, UploadFile, File, HTTPException, Query, Form
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, WebSocket, UploadFile, File, HTTPException, Query, Form, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.modules.voice_agent import config
 from app.modules.voice_agent import database as db
@@ -12,6 +12,9 @@ from app.modules.voice_agent.schemas import (
     CompanyCreate, CompanyResponse,
     ScriptCreateManual, ScriptResponse,
     LeadCreate, LeadUpdate, LeadResponse,
+)
+from app.modules.voice_agent.services import (
+    send_sms, build_recall_sms, build_stream_xml
 )
 from app.modules.voice_agent.csv_handler import process_csv_upload
 from app.modules.voice_agent.call_handler import CallHandler
@@ -292,20 +295,102 @@ async def update_lead(lead_id: str, data: LeadUpdate):
     await db.update_lead(lead_id, data.model_dump(exclude_none=True))
     return {"message": "Lead updated"}
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUTE 1: Answer URL — called by Vobiz when lead picks up
+# Vobiz fetches this via POST, we return VoiceXML with <Stream> directive
+# ─────────────────────────────────────────────────────────────────────────────
+ 
+@router.post(
+    "/answer",
+    response_class=PlainTextResponse,
+    include_in_schema=False,
+)
+async def vobiz_answer(
+    lead_id: str = Query(...),
+    stream_url: Optional[str] = Query(None),
+):
+    """
+    Vobiz fetches this when the outbound call is answered.
+    We return VoiceXML instructing Vobiz to open a WebSocket stream to our server.
+ 
+    The stream_url was embedded by vobiz_initiate_call() as a query param.
+    If missing, we build it from lead_id and PUBLIC_BASE_URL.
+    """
+    if not stream_url:
+        # Fallback: build WSS URL from config
+        # Convert https:// → wss://  (or keep wss:// if already set)
+        base = config.PUBLIC_BASE_URL.replace("https://", "wss://").replace("http://", "ws://")
+        stream_url = f"{base}/api/v1/voice/ws/call?lead_id={lead_id}"
+ 
+    xml = build_stream_xml(stream_url)
+    return PlainTextResponse(content=xml, media_type="application/xml")
+ 
+ 
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUTE 2: Status callback — Vobiz POSTs call lifecycle events here
+# ─────────────────────────────────────────────────────────────────────────────
+ 
+@router.post("/call-status", include_in_schema=False)
+async def vobiz_call_status(request: Request):
+    """
+    Vobiz posts call lifecycle events:
+      Ring → StartApp → Hangup
+ 
+    Use this to detect unanswered / failed calls and update lead status.
+    """
+    form = await request.form()
+    event      = form.get("Event", "")
+    call_uuid  = form.get("CallUUID", "")
+    status     = form.get("Status", "")
+    duration   = form.get("Duration", "0")
+    to_number  = form.get("To", "")
+ 
+    import logging
+    logger = logging.getLogger("voice_agent.status")
+    logger.info(
+        f"[vobiz-status] Event={event} CallUUID={call_uuid} "
+        f"Status={status} Duration={duration}s To={to_number}"
+    )
+ 
+    # If call was never answered, mark lead as failed / recall
+    if event == "Hangup" and status in ("no-answer", "failed", "busy", "canceled"):
+        lead = await db.get_lead_by_phone_and_company(
+            phone=to_number,
+            company_id="",  # can't filter by company here without extra state
+        ) if to_number else None
+ 
+        # Use CallUUID to look up lead via Redis session if needed
+        # For now just log — _post_call_actions handles most cleanup
+        logger.warning(
+            f"[vobiz-status] Call {call_uuid} ended without answer: {status}"
+        )
+ 
+    return JSONResponse({"status": "received"})
+
 
 @router.post("/leads/{lead_id}/call-now", response_model=dict)
 async def call_lead_now(lead_id: str):
+    """
+    Trigger an immediate outbound call to a lead.
+    Uses the corrected Vobiz API endpoint.
+    """
     lead = await db.get_lead_by_id(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    if lead.status == "calling":
+    if lead.status.value == "calling":
         raise HTTPException(status_code=409, detail="Lead is already being called")
+ 
     script = await db.get_active_script_for_company(lead.company_id)
     if not script:
-        raise HTTPException(status_code=422, detail="No active script for this company. Upload and activate a script first.")
+        raise HTTPException(
+            status_code=422,
+            detail="No active script for this company. Upload and activate a script first."
+        )
+ 
     queued = await trigger_immediate_call(lead)
     if not queued:
         raise HTTPException(status_code=429, detail="Max concurrent calls reached")
+ 
     return {"message": "Call queued", "lead_id": lead_id}
 
 
