@@ -8,7 +8,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.modules.voice_agent import config
 from app.modules.voice_agent import database as db
 from app.modules.voice_agent.models import LeadData, LeadStatus
-from app.modules.voice_agent.services import vobiz_initiate_call
+from app.modules.voice_agent.services import vobiz_initiate_call, simulate_call
 
 logger = logging.getLogger("scheduler")
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
@@ -27,8 +27,15 @@ async def _place_single_call(lead: LeadData) -> None:
         _active_calls[lead.id] = True
         await db.update_lead(lead.id, {"status": LeadStatus.CALLING})
 
-        stream_url = f"https://telophasic-aliza-numerous.ngrok-free.dev/api/v1/ws/call"
-        call_id = await vobiz_initiate_call(lead, stream_url)
+        stream_url = f"{config.PUBLIC_BASE_URL}/api/v1/voice/ws/call"
+
+        if getattr(config, "SIMULATION_MODE", False):
+            from app.modules.voice_agent.services import simulate_call
+            call_id = await simulate_call(lead, stream_url)
+        else:
+            from app.modules.voice_agent.services import vobiz_initiate_call
+            call_id = await vobiz_initiate_call(lead, stream_url)
+
         logger.info(f"[{lead.company_id}] Call initiated: {call_id} -> {lead.phone} ({lead.name})")
     except Exception as e:
         logger.error(f"Failed to call {lead.phone}: {e}")

@@ -8,7 +8,7 @@ from app.services.prompt_service import get_prompt
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 

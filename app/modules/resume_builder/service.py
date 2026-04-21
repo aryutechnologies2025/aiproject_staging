@@ -11,12 +11,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def suggest_experience(data: dict, db: AsyncSession) -> dict:
-    """
-    Generate ATS-optimized resume experience bullet points with impact metrics.
-    Produces Claude-like thoughtful, detailed reasoning.
-    """
+def _strip_leading_symbol(text: str) -> str:
+    """Remove leading bullet symbols, dashes, asterisks, dots from a line."""
+    if not text:
+        return text
+    import re
+    return re.sub(r'^[\s]*[•\-\*\.\u2022\u2023\u25E6\u2043\u2219►▶→]+[\s]*', '', text.strip()).strip()
 
+
+def _clean_bullets(response: str) -> list:
+    """Split response into lines and strip all leading symbols."""
+    lines = []
+    for line in response.split('\n'):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        cleaned = _strip_leading_symbol(stripped)
+        if cleaned:
+            lines.append(cleaned)
+    return lines
+
+
+async def suggest_experience(data: dict, db: AsyncSession) -> dict:
     job_title = data.get("job_title", "")
     company = data.get("company", "")
     duration = data.get("duration", "")
@@ -43,11 +59,16 @@ Generate 15-20 impact-focused experience bullets that:
 5. Follow format: [Verb] [what] [impact/metric]
 
 EXAMPLES OF STRONG BULLETS:
-• Developed microservices architecture handling 1M+ daily transactions, reducing latency by 40%
-• Led cross-functional team of 6 to deliver Q4 roadmap 2 weeks early, exceeding targets by 15%
-• Optimized database queries improving application performance by 60%, enhancing user experience
+Developed microservices architecture handling 1M+ daily transactions, reducing latency by 40%
+Led cross-functional team of 6 to deliver Q4 roadmap 2 weeks early, exceeding targets by 15%
+Optimized database queries improving application performance by 60%, enhancing user experience
 
-OUTPUT EXACTLY 15-20 BULLETS. NO INTRO, NO EXPLANATION. ONLY BULLETS."""
+OUTPUT RULES:
+- Output EXACTLY 15-20 lines
+- ONE bullet per line
+- NO symbols, NO dots, NO dashes, NO asterisks, NO bullet characters at the start
+- NO intro text, NO explanation, NO numbering
+- Plain text only"""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -55,26 +76,20 @@ OUTPUT EXACTLY 15-20 BULLETS. NO INTRO, NO EXPLANATION. ONLY BULLETS."""
         db=db,
     )
 
-    bullets = [line.strip().lstrip("•").strip() for line in response.split('\n') if line.strip()]
-    
+    bullets = _clean_bullets(response)
+
     return {
-        "experience_bullets": "\n".join(f"• {b}" for b in bullets if b),
+        "experience_bullets": "\n".join(bullets),
         "count": len(bullets),
         "quality_notes": "Each bullet emphasizes measurable impact and business outcomes"
     }
 
 
 async def suggest_summary(data: dict, db: AsyncSession) -> dict:
-    """
-    Generate compelling 2-4 line professional summary.
-    Handles structured payload (experiences, education, skills).
-    """
-
     system_prompt = await get_prompt(db, "resume_builder")
     if not system_prompt:
         system_prompt = "You are a professional resume writer for students and professionals."
 
-    # ---- FIX: Handle experiences list ----
     experiences = data.get("experiences", [])
     experience_text = ""
 
@@ -85,12 +100,9 @@ async def suggest_summary(data: dict, db: AsyncSession) -> dict:
             company = exp.get("company", "")
             start = exp.get("start_date", "")[:4] if exp.get("start_date") else ""
             end = exp.get("end_date", "")[:4] if exp.get("end_date") else "Present"
-
             exp_parts.append(f"{title} at {company} ({start}-{end})")
-
         experience_text = "; ".join(exp_parts)
 
-    # ---- FIX: Handle education list ----
     education_list = data.get("education", [])
     education_text = ""
 
@@ -100,16 +112,13 @@ async def suggest_summary(data: dict, db: AsyncSession) -> dict:
             degree = edu.get("degree", "")
             institution = edu.get("institution", "")
             edu_parts.append(f"{degree} from {institution}")
-
         education_text = "; ".join(edu_parts)
 
-    # ---- Skills handling (already list) ----
     skills = data.get("skills", [])
     skills_text = ", ".join(skills[:5]) if isinstance(skills, list) else str(skills)
 
     tone = data.get("tone", "modern professional")
 
-    # ---- Better experience estimation (optional improvement) ----
     years_experience = ""
     if experiences:
         try:
@@ -150,7 +159,11 @@ Line 1: [Title] professional with [X years] expertise in [specialization]
 Line 2: Proven track record in [2-3 key skills]. Delivered [specific achievement/metric].
 Line 3 (optional): [Additional competitive advantage or forward-looking statement]
 
-OUTPUT ONLY THE SUMMARY. NO EXPLANATION."""
+OUTPUT RULES:
+- Output ONLY the summary text
+- NO symbols, NO bullet points, NO dashes at line starts
+- NO intro text, NO explanation
+- Plain text paragraph(s) only"""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -169,8 +182,6 @@ OUTPUT ONLY THE SUMMARY. NO EXPLANATION."""
 
 
 def build_skills_prompt(job_titles: list[str], career_level: str = "experienced") -> str:
-    """Build optimized skills generation prompt"""
-    
     roles = ", ".join(job_titles) if job_titles else "Entry-level professional"
 
     return f"""Generate the most valuable technical skills for these roles.
@@ -178,25 +189,25 @@ def build_skills_prompt(job_titles: list[str], career_level: str = "experienced"
 TARGET ROLES: {roles}
 CAREER LEVEL: {career_level}
 
-OUTPUT EXACTLY 5-8 SKILLS:
+OUTPUT RULES:
+- Output EXACTLY 5-8 skills
 - ONLY hard technical/domain skills (no soft skills)
 - Tools, frameworks, platforms actually used in these roles
 - Currently in-demand and market-relevant
-- One skill per line
-- No descriptions, explanations, or formatting
-- No numbers or versions
+- ONE skill per line
+- NO descriptions, NO explanations, NO formatting
+- NO numbers, NO versions, NO symbols, NO dashes, NO dots at line starts
+- Plain text only
 
-EXAMPLES OF GOOD SKILLS:
-Python, React, AWS, Docker, PostgreSQL, Kubernetes, GraphQL, TensorFlow
-
-OUTPUT: ONE SKILL PER LINE. NOTHING ELSE."""
+EXAMPLES OF GOOD OUTPUT:
+Python
+React
+AWS
+Docker
+PostgreSQL"""
 
 
 async def suggest_education(data: dict, db: AsyncSession) -> dict:
-    """
-    Generate education section with achievement focus.
-    """
-
     education_list = data.get("education", [])
 
     if not isinstance(education_list, list):
@@ -211,14 +222,13 @@ Your task: Create 3-5 achievement-focused bullets covering:
 - Self-taught skills or demonstrated competencies
 - Professional development or continuous learning
 
-RULES:
-- No invented institutions or programs
-- Generic, ATS-safe language
-- Achievement-focused (what was learned/accomplished, not just attended)
-- Format: [Program/Area] - [Key Competency/Outcome]
-- 3-5 bullets maximum
-
-OUTPUT ONLY BULLETS. NO EXPLANATION."""
+OUTPUT RULES:
+- Output ONLY the bullet lines
+- ONE item per line
+- NO symbols, NO dots, NO dashes, NO asterisks at line starts
+- NO intro text, NO explanation
+- Plain text only
+- 3-5 lines maximum"""
     else:
         formatted_entries = ""
         for i, edu in enumerate(education_list, 1):
@@ -242,15 +252,14 @@ Your task: Create 2-3 bullets per education entry that highlight:
 3. Scholarships, awards, or achievements
 4. Leadership or involvement if applicable
 
-RULES:
-- 2-3 bullets per education entry
+OUTPUT RULES:
+- Output ONLY the bullet lines
+- ONE item per line
+- NO symbols, NO dots, NO dashes, NO asterisks at line starts
+- NO intro text, NO explanation, NO section headers
 - Only include provided information (NO invention)
-- Achievement-focused language
-- Format: [Degree], [Institution] | [Key Achievement]
-- Skip empty/missing fields
-- ATS-optimized wording
-
-OUTPUT ONLY BULLETS. NO EXPLANATION."""
+- Plain text only
+- 2-3 lines per education entry"""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -258,13 +267,14 @@ OUTPUT ONLY BULLETS. NO EXPLANATION."""
         db=db,
     )
 
-    bullets = [line.strip().lstrip("•").strip() for line in response.split('\n') if line.strip()]
+    bullets = _clean_bullets(response)
 
     return {
-        "education_bullets": "\n".join(f"• {b}" for b in bullets if b),
+        "education_bullets": "\n".join(bullets),
         "count": len(bullets),
         "quality_notes": "Education section emphasizes academic achievements and relevant learning"
     }
+
 
 
 def build_ats_resume_json_prompt(
