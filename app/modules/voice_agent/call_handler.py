@@ -4,7 +4,7 @@ import uuid
 import base64
 from typing import Optional
 from fastapi import WebSocket, WebSocketDisconnect
-
+import logging
 from app.modules.voice_agent import config
 from app.modules.voice_agent import database as db
 from app.modules.voice_agent.models import (
@@ -18,7 +18,7 @@ from app.modules.voice_agent.services import (
     send_sms, get_calendar_slots, create_calendar_event,
     score_to_status, build_interview_sms, build_recall_sms,
 )
-
+logger = logging.getLogger("call_handler")
 _DG_LISTEN_URL = "wss://api.deepgram.com/v1/listen"
 
 
@@ -49,6 +49,7 @@ class CallHandler:
         self.tts_queue: asyncio.Queue = asyncio.Queue()
         self.call_ended = False
         self.stream_sid: Optional[str] = None
+        self.simulation_mode = getattr(config, "SIMULATION_MODE", False)
 
     async def start(self):
         await self.ws.accept()
@@ -68,25 +69,34 @@ class CallHandler:
                     await self._on_call_start()
                 elif event == "media":
                     payload = msg.get("media", {}).get("payload", "")
-                    if payload and self.dg_ws:
+                    # In simulation, skip forwarding to deepgram (it's not connected)
+                    if payload and self.dg_ws and not self.simulation_mode:
                         await self.dg_ws.send(base64.b64decode(payload))
                 elif event == "stop":
                     await self._end_call()
         except WebSocketDisconnect:
             await self._end_call()
-        except Exception:
+        except Exception as e:
+            logger.error(f"[call_handler] _vobiz_listener error: {e}")
             await self._end_call()
 
     async def _on_call_start(self):
-        await self._start_deepgram()
+        print("[DEBUG] _on_call_start entered")
+        if not self.simulation_mode:
+            await self._start_deepgram()
+        else:
+            # Real mic audio is coming, start Deepgram normally
+            await self._start_deepgram()
+            # No fake utterance needed — user will speak via mic
+        
         greeting = self.script.steps[0]["question"].replace("{name}", self.lead.name)
         await self._speak(greeting)
+        print("[DEBUG] Greeting sent")
 
     def _build_dg_url(self) -> str:
-        lang = self.company.language or "ta"
         params = (
-            f"model=nova-2"
-            f"&language={lang}"
+            f"model=nova-3"
+            f"&language=ta"
             f"&punctuate=true"
             f"&interim_results=true"
             f"&endpointing={config.DEEPGRAM_ENDPOINTING_MS}"
@@ -235,12 +245,16 @@ class CallHandler:
     async def _speak(self, text: str):
         if not text:
             return
+        print(f"[DEBUG] _speak called: {text[:40]}")
         self.session.tts_playing = True
         await session_save(self.session)
         try:
+            print("[DEBUG] calling sarvam TTS...")
             audio_bytes = await sarvam_tts(text)
+            print(f"[DEBUG] TTS returned {len(audio_bytes)} bytes")
             await self.tts_queue.put(audio_bytes)
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] TTS failed: {repr(e)}")
             self.session.tts_playing = False
             await session_save(self.session)
 
@@ -274,7 +288,7 @@ class CallHandler:
         if self.call_ended:
             return
         self.call_ended = True
-        if self.dg_ws:
+        if self.dg_ws and not self.simulation_mode:
             try:
                 await self.dg_ws.send(json.dumps({"type": "CloseStream"}))
                 await self.dg_ws.close()

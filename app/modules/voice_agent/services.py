@@ -1,14 +1,15 @@
 import asyncio
 import json
 import base64
+import traceback
 import httpx
 import redis.asyncio as aioredis
 from datetime import datetime, timedelta
 from typing import Optional, List
-
+import uuid
 import groq
 import google.generativeai as genai
-
+import logging
 from app.modules.voice_agent import config
 from app.modules.voice_agent.models import (
     CallSessionData, CallState, LeadStatus,
@@ -18,7 +19,7 @@ from app.modules.voice_agent.schemas import CallSessionRedis
 from app.modules.voice_agent.script import build_system_prompt
 from app.modules.voice_agent.tamil_normalizer import normalize
 
-
+logger = logging.getLogger("scheduler")
 _redis: Optional[aioredis.Redis] = None
 
 
@@ -149,7 +150,7 @@ async def sarvam_tts(text: str) -> bytes:
             json={
                 "inputs": [normalized],
                 "target_language_code": "ta-IN",
-                "speaker": "pavithra",
+                "speaker": "manisha",
                 "model": "bulbul:v2",
                 "enable_preprocessing": True,
                 "speech_sample_rate": 8000,
@@ -162,21 +163,38 @@ async def sarvam_tts(text: str) -> bytes:
 
 
 async def vobiz_initiate_call(lead: LeadData, stream_url: str) -> str:
+    print(f"[DEBUG] VOBIZ_API_URL = {config.VOBIZ_API_URL}")
+    print(f"[DEBUG] stream_url = {stream_url}")
+    print(f"[DEBUG] to = {lead.phone}")
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            f"{config.VOBIZ_API_URL}/calls/outbound",
-            headers={"Authorization": f"Bearer {config.VOBIZ_API_KEY}"},
-            json={
-                "from": config.VOBIZ_CALLER_ID,
-                "to": lead.phone,
-                "stream_url": stream_url,
-                "stream_events": ["start", "media", "stop"],
-                "timeout": config.CALL_TIMEOUT_SECONDS,
-                "custom_parameters": {"lead_id": lead.id, "company_id": lead.company_id},
-            },
-        )
-        resp.raise_for_status()
-        return resp.json()["call_id"]
+        try:
+            resp = await client.post(
+                f"{config.VOBIZ_API_URL}/calls/outbound",
+                headers={"Authorization": f"Bearer {config.VOBIZ_API_KEY}"},
+                json={
+                    "from": config.VOBIZ_CALLER_ID,
+                    "to": lead.phone,
+                    "stream_url": stream_url,
+                    "stream_events": ["start", "media", "stop"],
+                    "timeout": config.CALL_TIMEOUT_SECONDS,
+                    "custom_parameters": {"lead_id": lead.id, "company_id": lead.company_id},
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["call_id"]
+        except Exception as e:
+            print(f"[DEBUG] Full exception type: {type(e).__name__}")
+            print(f"[DEBUG] Full exception: {repr(e)}")
+            raise
+
+async def simulate_call(lead: LeadData, stream_url: str) -> str:
+    """Browser simulator handles the actual call. This just returns a call_id."""
+    call_id = str(uuid.uuid4())
+    log_msg = f"[SIMULATION] Browser call ready for lead {lead.name} ({lead.phone})"
+    print(log_msg)
+    print(f"[SIMULATION] Open call_simulator.html in your browser")
+    print(f"[SIMULATION] Lead ID: {lead.id}")
+    return call_id
 
 
 async def vobiz_hangup(call_id: str) -> None:

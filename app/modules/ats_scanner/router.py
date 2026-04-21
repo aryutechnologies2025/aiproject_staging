@@ -1,15 +1,5 @@
 """
-ATS Scanner Router v3
-─────────────────────────────────────────────────────────────────────────────
-FastAPI router for all ATS scanning endpoints.
-
-Endpoints:
-  POST /ats/scan            Full AI-powered ATS scan (JSON resume + optional JD)
-  POST /ats/scan-file       Upload PDF/DOCX + scan (with optional JD)
-  POST /ats/scan-quick      Rules-only scan (no AI, fast)
-  GET  /ats/score/:score    Explain a specific ATS score
-  GET  /ats/help            API documentation
-─────────────────────────────────────────────────────────────────────────────
+ATS Scanner Router v4.0 — LlamaParse markdown pipeline for file scanning.
 """
 
 from __future__ import annotations
@@ -23,13 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.modules.ats_scanner.service import ATSScannerService, create_ats_scan
-from app.modules.ats_scanner.utils.text_extraction import extract_text
-from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema
+from app.modules.ats_scanner.utils.ats_extractor import extract_resume_markdown
+from app.modules.ats_scanner.utils.ats_markdown_parser import parse_resume_markdown
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_scanner = ATSScannerService()   # singleton — avoids rebuilding skill DB per request
+_scanner = ATSScannerService()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -37,12 +27,6 @@ _scanner = ATSScannerService()   # singleton — avoids rebuilding skill DB per 
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ATSScanRequest(BaseModel):
-    """
-    Typed request model for /scan and /scan-quick.
-    Using a Pydantic model instead of raw dict gives us:
-      1. Clear 422 errors when the body is wrong (not a crash)
-      2. A place to sanitise text fields before they hit the engine
-    """
     resume_data:     Dict[str, Any]
     job_description: Optional[str] = None
     include_ai:      bool = True
@@ -73,14 +57,6 @@ class ATSScanRequest(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _sanitise_text(text: Optional[str]) -> Optional[str]:
-    """
-    Safely normalise any string that may contain non-UTF-8 bytes.
-    Handles resumes/JDs pasted from Microsoft Word, Outlook, or
-    non-English sources (e.g. ö, ü, é in Latin-1 encoding).
-
-    Uses errors="replace" so nothing can crash the handler —
-    unrecognised bytes become the Unicode replacement character (U+FFFD).
-    """
     if not text:
         return text
     if isinstance(text, bytes):
@@ -88,17 +64,7 @@ def _sanitise_text(text: Optional[str]) -> Optional[str]:
     return text.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
 
 
-def _parsed_resume_to_dict(parsed) -> dict:
-    """Convert parsed resume schema object to plain dict for the scanner."""
-    if hasattr(parsed, "dict"):
-        return parsed.dict()
-    if hasattr(parsed, "__dict__"):
-        return parsed.__dict__
-    return dict(parsed)
-
-
-def _validate_resume(data: dict) -> None:
-    """Basic validation — at least one meaningful section must be present."""
+def _validate_resume_dict(data: dict) -> None:
     has_content = any([
         data.get("name"), data.get("summary"),
         data.get("experience"), data.get("skills"),
@@ -107,70 +73,32 @@ def _validate_resume(data: dict) -> None:
     if not has_content:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "resume_data appears empty. Please provide at least: "
-                "name, summary, experience, skills, or education."
-            ),
+            detail="resume_data appears empty. Provide name, summary, experience, skills, or education.",
         )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ENDPOINT 1: Full AI-Powered Scan (JSON)
+# ENDPOINT 1: Full AI-Powered Scan (JSON payload)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.post("/scan")
 async def ats_scan(
-    payload: ATSScanRequest,          # ← typed model; gives clean 422 on bad input
+    payload: ATSScanRequest,
     db:      AsyncSession = Depends(get_db),
 ):
-    """
-    Full AI-powered ATS scan with Groq AI + rule-based analysis.
-
-    Request body:
-    {
-        "resume_data": {
-            "name":         "Jane Smith",
-            "email":        "jane@example.com",
-            "phone":        "+1 555-123-4567",
-            "location":     "Boston, MA",
-            "summary":      "...",
-            "experience":   [{"title": "...", "company": "...", "bullets": ["..."]}],
-            "education":    [{"degree": "...", "institution": "...", "year": "2020"}],
-            "skills":       ["Python", "SQL", "Tableau"],
-            "projects":     [...],
-            "certifications": [...],
-            "languages":    [...],
-            "volunteer":    [...],
-            "awards":       [...],
-            "publications": [...],
-            "hobbies":      [...]
-        },
-        "job_description": "Optional: paste the full job posting here",
-        "include_ai": true
-    }
-
-    Returns:
-        Comprehensive ATS analysis with score, section feedback,
-        keyword gaps, AI rewrites, and improvement roadmap.
-    """
-    resume_data     = payload.resume_data
-    job_description = payload.job_description     # already sanitised by validator
-    include_ai      = payload.include_ai
-
+    """Full AI-powered ATS scan — accepts pre-parsed JSON resume."""
     logger.info(
-        f"ATS scan request — name={resume_data.get('name', 'Unknown')}, "
-        f"has_jd={bool(job_description)}, include_ai={include_ai}"
+        f"ATS scan — name={payload.resume_data.get('name', 'Unknown')}, "
+        f"has_jd={bool(payload.job_description)}"
     )
-
     try:
         result = await _scanner.scan(
-            resume=resume_data,
-            job_description=job_description or None,
+            resume=payload.resume_data,
+            job_description=payload.job_description or None,
             db=db,
-            include_ai=bool(include_ai),
+            include_ai=bool(payload.include_ai),
         )
         return result
-
     except HTTPException:
         raise
     except Exception as e:
@@ -179,7 +107,7 @@ async def ats_scan(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ENDPOINT 2: File Upload Scan (PDF / DOCX)
+# ENDPOINT 2: File Upload Scan — LlamaParse → Markdown → ATS
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.post("/scan-file")
@@ -190,32 +118,24 @@ async def ats_scan_from_file(
     db:              AsyncSession   = Depends(get_db),
 ):
     """
-    Upload a PDF or DOCX resume and run a full ATS scan.
-
-    Form fields:
-      • file            — PDF or DOCX resume file
-      • job_description — Optional: paste job posting text
-      • include_ai      — Whether to run Groq AI analysis (default true)
-
-    Returns: Same response format as POST /scan
+    Upload PDF or DOCX → LlamaParse extracts markdown →
+    regex parser builds ATS dict → full ATS scan.
     """
     filename = (file.filename or "").lower()
 
     if not filename.endswith((".pdf", ".docx")):
         raise HTTPException(
             status_code=400,
-            detail="Only PDF and DOCX files are supported. Please convert your resume.",
+            detail="Only PDF and DOCX files are supported.",
         )
 
-    # Sanitise job description — may contain Latin-1 bytes from Word / Outlook
     job_description = _sanitise_text(job_description)
+    logger.info(f"ATS file scan start: {file.filename}, has_jd={bool(job_description)}")
 
-    logger.info(f"ATS file scan: {file.filename}, has_jd={bool(job_description)}")
-
-    # Step 1: Extract text
+    # ── Step 1: Extract markdown via LlamaParse (or local fallback) ──────────
     try:
-        text = await extract_text(file)
-        if not text or len(text.strip()) < 50:
+        markdown = await extract_resume_markdown(file)
+        if not markdown or len(markdown.strip()) < 50:
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -223,35 +143,44 @@ async def ats_scan_from_file(
                     "Ensure the resume is not a scanned image-only PDF."
                 ),
             )
-        # Sanitise extracted text — PDFs from Windows may use Latin-1
-        text = _sanitise_text(text)
-        logger.info(f"Text extracted: {len(text)} characters")
+        logger.info(f"Markdown extracted: {len(markdown)} chars")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Text extraction error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+        logger.error(f"Markdown extraction error: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to extract file content: {str(e)}")
 
-    # Step 2: Parse resume to schema
+    # ── Step 2: Parse markdown → ATS-ready dict ──────────────────────────────
     try:
-        file_type     = filename.split(".")[-1]
-        parsed_resume = parse_resume_to_schema(text=text, file_type=file_type)
-        resume_dict   = _parsed_resume_to_dict(parsed_resume)
+        resume_dict = parse_resume_markdown(markdown)
 
-        # ─── ADD THIS LINE ────────────────────────────────────────────────────
-        # raw_text must be passed so _enrich_resume() in service.py can run
-        # _recover_education_from_text() on Canva / two-column PDF resumes
-        # where the structured parser returns education: []
-        resume_dict["raw_text"] = text
-        # ─────────────────────────────────────────────────────────────────────
+        logger.info(
+            f"Markdown parsed — name='{resume_dict.get('name')}' | "
+            f"exp={len(resume_dict.get('experience') or [])} | "
+            f"edu={len(resume_dict.get('education') or [])} | "
+            f"skills={len(resume_dict.get('skills') or [])}"
+        )
 
-        logger.info(f"Resume parsed: name='{resume_dict.get('name')}' | "
-                    f"education_entries={len(resume_dict.get('education') or [])}")
+        # Guard: reject if nothing useful was parsed
+        if not any([
+            resume_dict.get("name"),
+            resume_dict.get("experience"),
+            resume_dict.get("education"),
+            resume_dict.get("skills"),
+            resume_dict.get("summary"),
+        ]):
+            raise HTTPException(
+                status_code=400,
+                detail="Resume content could not be parsed. Please check the file format.",
+            )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Resume parsing error: {e}", exc_info=True)
+        logger.error(f"Markdown parse error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to parse resume: {str(e)}")
 
-    # Step 3: Run ATS scan
+    # ── Step 3: ATS Scan ─────────────────────────────────────────────────────
     try:
         result = await _scanner.scan(
             resume=resume_dict,
@@ -260,11 +189,17 @@ async def ats_scan_from_file(
             include_ai=include_ai,
         )
         result["meta"] = {
-            "source":      "file_upload",
-            "source_file": file.filename,
-            "parsed_name": resume_dict.get("name"),
+            "source":       "file_upload",
+            "source_file":  file.filename,
+            "pipeline":     "llamaparse_markdown",
+            "parsed_name":  resume_dict.get("name"),
+            "markdown_len": len(markdown),
+            "exp_count":    len(resume_dict.get("experience") or []),
+            "edu_count":    len(resume_dict.get("education") or []),
+            "skills_count": len(resume_dict.get("skills") or []),
         }
         return result
+
     except HTTPException:
         raise
     except Exception as e:
@@ -278,15 +213,10 @@ async def ats_scan_from_file(
 
 @router.post("/scan-quick")
 async def ats_scan_quick(
-    payload: ATSScanRequest,          # ← same typed model, include_ai ignored
+    payload: ATSScanRequest,
     db:      AsyncSession = Depends(get_db),
 ):
-    """
-    Fast rules-only ATS scan — no AI call, responds in <1 second.
-    Ideal for: real-time feedback while users edit their resume.
-
-    Same request format as /scan, but include_ai is always false.
-    """
+    """Fast rules-only ATS scan — no AI call."""
     try:
         result = await _scanner.scan(
             resume=payload.resume_data,
@@ -309,162 +239,63 @@ async def ats_scan_quick(
 
 @router.get("/score/{score}")
 async def explain_score(score: int):
-    """
-    Get a plain-language explanation of an ATS score.
-
-    Example: GET /ats/score/68
-    """
     if not 0 <= score <= 100:
         raise HTTPException(status_code=400, detail="Score must be between 0 and 100")
 
     if score >= 90:
-        status = "Excellent"
-        message = "Your resume is highly optimised for ATS systems."
+        status, message, colour = "Excellent", "Your resume is highly optimised for ATS systems.", "green"
         verdict = "Apply with confidence. Focus on tailoring keywords per role."
-        colour  = "green"
     elif score >= 80:
-        status = "Very Good"
-        message = "Your resume will pass most ATS systems with strong results."
+        status, message, colour = "Very Good", "Your resume will pass most ATS systems with strong results.", "green"
         verdict = "You're competitive. Minor refinements will push you into the top tier."
-        colour  = "green"
     elif score >= 72:
-        status = "Good"
-        message = "Your resume passes ATS screening."
+        status, message, colour = "Good", "Your resume passes ATS screening.", "yellow"
         verdict = "Solid foundation. Address remaining issues to strengthen your position."
-        colour  = "yellow"
     elif score >= 60:
-        status = "Needs Improvement"
-        message = "Your resume has ATS weaknesses that may cause it to be filtered out."
+        status, message, colour = "Needs Improvement", "Your resume has ATS weaknesses that may cause filtering.", "orange"
         verdict = "Fix high-priority issues before applying to competitive roles."
-        colour  = "orange"
     elif score >= 45:
-        status = "Poor"
-        message = "Your resume is likely to fail ATS screening for most roles."
+        status, message, colour = "Poor", "Your resume is likely to fail ATS screening for most roles.", "red"
         verdict = "Significant revision required. Follow the improvement roadmap."
-        colour  = "red"
     else:
-        status = "Critical"
-        message = "Your resume will be rejected by most ATS systems."
+        status, message, colour = "Critical", "Your resume will be rejected by most ATS systems.", "red"
         verdict = "Start with the Critical issues immediately before applying anywhere."
-        colour  = "red"
 
     return {
-        "score":       score,
-        "status":      status,
-        "colour":      colour,
-        "message":     message,
-        "verdict":     verdict,
-        "grade":       _score_to_grade(score),
-        "percentile":  _score_to_percentile(score),
+        "score": score, "status": status, "colour": colour,
+        "message": message, "verdict": verdict,
+        "grade": _score_to_grade(score),
+        "percentile": _score_to_percentile(score),
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ENDPOINT 5: Help / API Docs
+# ENDPOINT 5: Help
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/help")
 async def ats_help():
-    """Full API documentation for the ATS scanner."""
     return {
-        "service":  "Universal ATS Scanner v3",
-        "version":  "3.0.0",
-        "powered_by": "Rule-based engine + Groq AI (llama-3.1-8b-instant)",
-
+        "service": "Universal ATS Scanner v4.0",
+        "version": "4.0.0",
+        "powered_by": "LlamaParse (markdown) + Rule-based engine + Groq AI",
+        "pipeline": "PDF/DOCX → LlamaParse Markdown → Regex Parser → ATS Engine",
         "endpoints": {
-            "POST /ats/scan": {
-                "description": "Full AI-powered ATS scan (JSON resume + optional JD)",
-                "ai_powered":  True,
-                "response_time": "2-5 seconds",
-            },
-            "POST /ats/scan-file": {
-                "description": "Upload PDF or DOCX resume for ATS scan",
-                "accepts":     "multipart/form-data",
-                "formats":     ["PDF", "DOCX"],
-                "ai_powered":  True,
-            },
-            "POST /ats/scan-quick": {
-                "description": "Fast rules-only scan (no AI, <1 second)",
-                "ai_powered":  False,
-                "response_time": "< 500ms",
-                "use_case": "Real-time feedback while user is editing",
-            },
-            "GET /ats/score/{score}": {
-                "description": "Explain a specific ATS score in plain language",
-            },
+            "POST /ats/scan":       "Full AI-powered ATS scan (JSON resume + optional JD)",
+            "POST /ats/scan-file":  "Upload PDF/DOCX — LlamaParse markdown pipeline",
+            "POST /ats/scan-quick": "Fast rules-only scan (no AI, <1 second)",
+            "GET  /ats/score/{n}":  "Explain a specific ATS score",
         },
-
-        "industries_supported": [
-            "Technology & Software",
-            "Healthcare & Nursing",
-            "Finance & Accounting",
-            "Marketing & Digital",
-            "Sales",
-            "Human Resources",
-            "Legal",
-            "Education & Teaching",
-            "Design & Creative",
-            "Engineering (all disciplines)",
-            "Project Management",
-            "Supply Chain & Logistics",
-            "Construction & Trades",
-            "Hospitality & Tourism",
-            "Science & Research",
-            "Government & Non-profit",
-            "Customer Service",
-            "And all other professions",
-        ],
-
-        "sections_analysed": [
-            "Contact Information",
-            "Professional Summary",
-            "Work Experience",
-            "Education",
-            "Skills",
-            "Projects",
-            "Certifications & Licenses",
-            "Languages (spoken)",
-            "Volunteer Work",
-            "Publications & Research",
-            "Awards & Achievements",
-            "Hobbies & Interests",
-            "References",
-        ],
-
-        "score_dimensions": {
-            "format_compliance":  "10% — file type, fonts, layout",
-            "structure_quality":  "20% — all required sections present",
-            "content_quality":    "30% — bullets, metrics, action verbs",
-            "keyword_alignment":  "25% — JD keyword matching (if JD provided)",
-            "ats_compliance":     "15% — parsing safety, section headings",
-        },
-
-        "ai_features": [
-            "Industry auto-detection",
-            "Section-by-section AI scoring and verdict",
-            "Before/after bullet rewrite examples",
-            "Summary rewrite suggestions",
-            "Keyword gap analysis with placement advice",
-            "Top 5 ATS-passing tactics specific to this resume",
-            "Priority action plan with estimated score gains",
-        ],
-
-        "response_fields": {
-            "ats_score":          "Final weighted score 0-100",
-            "grade":              "Letter grade A+ to F",
-            "score_breakdown":    "Scores per dimension",
-            "section_analysis":   "Detailed per-section analysis (all 13 sections)",
-            "keyword_analysis":   "JD keyword matching (if JD provided)",
-            "ai_analysis":        "Groq AI insights and rewrites",
-            "recommendations":    "Roadmap, quick wins, ATS tactics",
-            "issues":             "All issues sorted by severity",
-            "summary":            "Executive summary with next steps",
-        },
+        "why_markdown_pipeline": (
+            "LlamaParse markdown preserves section structure (headings, bullets, tables) "
+            "far better than raw text extraction, giving the regex parser reliable signals "
+            "for education, experience, and skills detection."
+        ),
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HELPERS
+# SCORE HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _score_to_grade(score: int) -> str:

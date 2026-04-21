@@ -5,13 +5,14 @@ load_dotenv()
 
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "llama-3.3-70b-versatile")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-VOBIZ_API_KEY = os.getenv("VOBIZ_API_KEY", "")
+VOBIZ_API_KEY = os.getenv("VOBIZ_API_KEY", "vKvmHsM8gfHuO3ZRqdINpsZX5RV6OnGUE68F1qBWjzsQ36mybjInVaJzweGJzfUV")
 VOBIZ_API_URL = os.getenv("VOBIZ_API_URL", "https://api.vobiz.com/v1")
-VOBIZ_CALLER_ID = os.getenv("VOBIZ_CALLER_ID", "")
+VOBIZ_CALLER_ID = os.getenv("VOBIZ_CALLER_ID", "+911171366938")
 VOBIZ_WEBSOCKET_URL = os.getenv("VOBIZ_WEBSOCKET_URL", "wss://media.vobiz.com/ws")
+SIMULATION_MODE = os.getenv("SIMULATION_MODE", "false").lower() == "true"
 
 REDIS_URL = os.getenv("REDIS_URL")
 DATABASE_URL = os.getenv("POSTGRES_URL")
@@ -37,3 +38,4 @@ INTERVIEW_SLOTS_LOOKAHEAD_DAYS = int(os.getenv("INTERVIEW_SLOTS_LOOKAHEAD_DAYS",
 INTERVIEW_DURATION_MINUTES = int(os.getenv("INTERVIEW_DURATION_MINUTES", "30"))
 
 UPLOADS_DIR = os.getenv("UPLOADS_DIR", "./uploads")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://telophasic-aliza-numerous.ngrok-free.dev")
