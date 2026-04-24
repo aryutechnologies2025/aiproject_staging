@@ -41,7 +41,7 @@ GEMINI_MODEL          = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── Telephony (Vobiz) ─────────────────────────────────────────────────────────
 VOBIZ_API_KEY         = os.getenv("VOBIZ_API_KEY", "")
-VOBIZ_AUTH_ID         = os.getenv("VOBIZ_AUTH_ID", "SA_1CQLY4CU")
+VOBIZ_AUTH_ID         = os.getenv("VOBIZ_AUTH_ID", "MA_GDOLU3IR")
 VOBIZ_API_URL         = os.getenv("VOBIZ_API_URL", "https://api.vobiz.ai/api/v1")
 VOBIZ_AUTH_TOKEN      = os.getenv("VOBIZ_AUTH_TOKEN", "")
 VOBIZ_CALLER_ID       = os.getenv("VOBIZ_CALLER_ID", "")

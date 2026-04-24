@@ -61,12 +61,17 @@ def _orm_to_company(row: Company) -> CompanyData:
 
 
 def _orm_to_script(row: CompanyScript) -> CompanyScriptData:
-    steps = row.steps if isinstance(row.steps, list) else json.loads(row.steps)
-    objections = (
-        row.objection_responses
-        if isinstance(row.objection_responses, dict)
-        else json.loads(row.objection_responses)
-    )
+    # FIX: handle JSON column properly
+    if isinstance(row.steps, (dict, list)):
+        steps = row.steps
+    else:
+        steps = json.loads(row.steps)
+
+    if isinstance(row.objection_responses, dict):
+        objections = row.objection_responses
+    else:
+        objections = json.loads(row.objection_responses)
+
     return CompanyScriptData(
         id=row.id,
         company_id=row.company_id,
