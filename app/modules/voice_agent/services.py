@@ -277,11 +277,16 @@ async def vobiz_initiate_call(lead: LeadData, stream_url: str) -> str:
     """
     Initiate outbound call via Vobiz.
     Correct endpoint: POST /Account/{auth_id}/Call/
+
+    IMPORTANT: answer_url only carries lead_id — do NOT embed stream_url
+    as a query param. stream_url contains '?' and '&' characters which
+    corrupt the outer query string, causing FastAPI to parse it wrongly.
+    The /answer endpoint builds the WSS URL itself from PUBLIC_BASE_URL.
     """
+    # Only pass lead_id — /answer builds the WSS URL itself
     answer_url = (
         f"{config.PUBLIC_BASE_URL}/api/v1/voice/answer"
         f"?lead_id={lead.id}"
-        f"&stream_url={stream_url}"
     )
     status_url = f"{config.PUBLIC_BASE_URL}/api/v1/voice/call-status"
 
@@ -333,10 +338,27 @@ async def simulate_call(lead: LeadData, stream_url: str) -> str:
 
 
 def build_stream_xml(stream_wss_url: str) -> str:
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Stream url="{stream_wss_url}" />
-</Response>"""
+    """
+    Build VoiceXML for Vobiz bidirectional audio streaming.
+
+    CRITICAL RULES:
+      1. Must use <Connect><Stream .../></Connect> — bare <Stream> is rejected
+         by Vobiz with "Invalid serviceUrl, Ignoring element"
+      2. URL must be wss:// — https:// is rejected as invalid serviceUrl
+      3. Never pass this string through json.dumps() — forward slashes must
+         NOT be escaped as \/ in XML attributes
+      4. Use a plain f-string, not xml.etree (which escapes &, ?, =)
+    """
+    # Safety: ensure URL is always wss:// not https://
+    wss_url = stream_wss_url.replace("https://", "wss://").replace("http://", "ws://")
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Response>\n'
+        '    <Connect>\n'
+        f'        <Stream url="{wss_url}" />\n'
+        '    </Connect>\n'
+        '</Response>'
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

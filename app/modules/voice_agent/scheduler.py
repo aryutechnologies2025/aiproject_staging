@@ -34,8 +34,10 @@ async def _place_single_call(lead: LeadData) -> None:
         await db.update_lead(lead.id, {"status": LeadStatus.CALLING})
 
         # Build the WSS stream URL that Vobiz will connect to
+        # stream_url is for logging only — /answer endpoint builds it for Vobiz
         base = config.PUBLIC_BASE_URL.rstrip("/")
-        stream_url = f"{base}/api/v1/voice/ws/call?lead_id={lead.id}"
+        wss_base = base.replace("https://", "wss://").replace("http://", "ws://")
+        stream_url = f"{wss_base}/api/v1/voice/ws/call?lead_id={lead.id}"
 
         if config.SIMULATION_MODE:
             from app.modules.voice_agent.services import simulate_call

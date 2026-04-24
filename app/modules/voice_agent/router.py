@@ -69,34 +69,59 @@ async def call_websocket(websocket: WebSocket, lead_id: Optional[str] = Query(No
 # ANSWER URL — Vobiz fetches this when lead picks up, we return VoiceXML
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.post("/answer", response_class=PlainTextResponse, include_in_schema=False)
-@router.get("/answer", response_class=PlainTextResponse, include_in_schema=False)
+@router.post("/answer", include_in_schema=False)
+@router.get("/answer", include_in_schema=False)
 async def vobiz_answer(
     request: Request,
     lead_id: Optional[str] = Query(None),
-    stream_url: Optional[str] = Query(None),
 ):
     """
     Vobiz calls this (GET or POST) when the outbound call is answered.
-    We return VoiceXML with a <Stream> directive pointing to our WS endpoint.
+    Returns VoiceXML with <Connect><Stream url="wss://..."/> telling
+    Vobiz to open a WebSocket to our /ws/call endpoint.
+
+    RULES that prevent "Invalid serviceUrl":
+      1. ALWAYS build the WSS URL here from PUBLIC_BASE_URL — never
+         trust an incoming stream_url query param (it arrives corrupted
+         because '?' and '&' inside it break the outer query string)
+      2. Use wss:// not https://
+      3. Return raw bytes with explicit Content-Type — do NOT let
+         FastAPI touch the response body (it would escape the slashes)
     """
-    # Some Vobiz setups send lead_id in POST body form fields
+    # Vobiz POSTs form data on hangup — lead_id may be in the form body
     if not lead_id:
         try:
             form = await request.form()
-            lead_id = form.get("lead_id") or form.get("CallSID") or ""
+            lead_id = form.get("lead_id") or ""
         except Exception:
             pass
 
-    logger.info(f"[answer] lead_id={lead_id} stream_url={stream_url}")
-
+    # Build the WSS URL cleanly — this is the ONLY place it's constructed
     base = config.PUBLIC_BASE_URL.rstrip("/")
-    base_wss = base.replace("https://", "wss://").replace("http://", "ws://")
-    stream_url = f"{base_wss}/api/v1/voice/ws/call?lead_id={lead_id}"
+    wss_base = base.replace("https://", "wss://").replace("http://", "ws://")
+    ws_url = f"{wss_base}/api/v1/voice/ws/call?lead_id={lead_id}"
 
-    xml = build_stream_xml(stream_url)
-    logger.info(f"[answer] Returning XML:\n{xml}")
-    return PlainTextResponse(content=xml, media_type="application/xml")
+    # Build XML using string concatenation — f-string multiline with triple
+    # quotes can introduce whitespace that some XML parsers reject
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Response>'
+        '<Connect>'
+        f'<Stream url="{ws_url}" />'
+        '</Connect>'
+        '</Response>'
+    )
+
+    logger.info(f"[answer] lead_id={lead_id} → WSS={ws_url}")
+    logger.info(f"[answer] XML: {xml}")
+
+    # Return as raw bytes with explicit content-type
+    # This bypasses any FastAPI response serialization that could escape /
+    from starlette.responses import Response
+    return Response(
+        content=xml.encode("utf-8"),
+        media_type="application/xml; charset=utf-8",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
