@@ -349,12 +349,17 @@ def build_stream_xml(stream_wss_url: str) -> str:
       - Must be wss:// not https://
     """
     wss_url = stream_wss_url.replace("https://", "wss://").replace("http://", "ws://")
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<Response>'
-        f'<Stream>{wss_url}</Stream>'
-        '</Response>'
-    )
+
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+    <Response>
+    <Stream 
+        bidirectional="true"
+        contentType="audio/x-l16;rate=16000"
+        keepCallAlive="true"
+    >
+        {wss_url}
+    </Stream>
+    </Response>'''
 
 
 # ─────────────────────────────────────────────────────────────────────────────
