@@ -21,6 +21,16 @@ from app.api.v1 import (
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ],
+    force=True
+)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Aryu Academy AI Bot", version="1.0.0")
@@ -40,7 +50,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://airesumebuilder.aryuacademy.com",
+        "https://passats.aryuacademy.com",
         "https://ai.aryuacademy.com",
     ],
     allow_credentials=True,

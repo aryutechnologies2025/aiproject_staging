@@ -15,8 +15,8 @@ SARVAM_STT_WS_URL     = os.getenv(
     "wss://api.sarvam.ai/speech-to-text-streaming"
 )
 # Sarvam STT REST endpoint (for short utterance fallback)
-SARVAM_STT_REST_URL   = os.getenv(
-    "SARVAM_STT_REST_URL",
+sarvam_stt_ws_URL   = os.getenv(
+    "sarvam_stt_ws_URL",
     "https://api.sarvam.ai/speech-to-text"
 )
 STT_LANGUAGE_CODE     = os.getenv("STT_LANGUAGE_CODE", "ta-IN")

@@ -227,16 +227,59 @@ async def sarvam_tts(text: str) -> bytes:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STT config frame — sent to Sarvam STT WS on connect
+# STT — Sarvam AI streaming WebSocket
+#
+# From docs.sarvam.ai (confirmed):
+#   • Connection params go as URL QUERY PARAMS, not in a JSON frame
+#   • input_audio_codec supports: wav, pcm_s16le, pcm_l16, pcm_raw — NOT mulaw
+#   • Vobiz sends mulaw audio → must convert to pcm_s16le before sending to Sarvam
+#   • Recommended model: saaras:v3 with mode=transcribe
+#   • sample_rate=8000 must be set (matches Vobiz's 8kHz mulaw stream)
+#
+# WebSocket URL format:
+#   wss://api.sarvam.ai/speech-to-text-streaming
+#     ?model=saaras:v3
+#     &language_code=ta-IN
+#     &mode=transcribe
+#     &sample_rate=8000
+#     &input_audio_codec=pcm_s16le
+#     &high_vad_sensitivity=true
+#
+# Audio flow:
+#   Vobiz → mulaw 8kHz → audioop.ulaw2lin() → pcm_s16le → Sarvam STT WS
 # ─────────────────────────────────────────────────────────────────────────────
 
-SARVAM_STT_CONFIG_FRAME = {
-    "language_code": "ta-IN",
-    "model": "saarika:v2",
-    "encoding": "mulaw",          # Vobiz sends mulaw audio to us
-    "sample_rate": 8000,
-    "endpointing_silence_ms": 600,
-}
+def build_sarvam_stt_url() -> str:
+    """Build the Sarvam STT WebSocket URL with all connection params as query params."""
+    from urllib.parse import urlencode
+    params = urlencode({
+        "model":             "saaras:v3",
+        "language_code":     "ta-IN",
+        "mode":              "transcribe",
+        "sample_rate":       "8000",
+        "input_audio_codec": "pcm_s16le",   # Sarvam does NOT support mulaw
+        "high_vad_sensitivity": "true",
+        "api_subscription_key": config.SARVAM_API_KEY,
+    })
+    return f"{config.SARVAM_STT_WS_URL}?{params}"
+
+
+def mulaw_to_pcm16(mulaw_bytes: bytes) -> bytes:
+    """
+    Convert G.711 µ-law bytes (from Vobiz) to LINEAR16 PCM (for Sarvam STT).
+    Sarvam STT only accepts PCM codecs — mulaw is NOT supported as input_audio_codec.
+    """
+    import audioop
+    return audioop.ulaw2lin(mulaw_bytes, 2)  # 2 = output 16-bit samples
+
+
+# Response event keys from Sarvam STT saaras:v3:
+#   {"type": "transcript", "text": "..."}   — final utterance
+#   {"type": "speech_start"}                — VAD detected speech
+#   {"type": "speech_end"}                  — VAD silence detected
+# (legacy saarika:v2 used "final"/"partial" — saaras:v3 uses "transcript")
+SARVAM_STT_TRANSCRIPT_TYPES = {"transcript", "final"}  # handle both model versions
+SARVAM_STT_PARTIAL_TYPES    = {"partial", "speech_start"}
 
 
 async def sarvam_stt_rest(audio_bytes: bytes, sample_rate: int = 8000) -> str:
@@ -352,13 +395,13 @@ def build_stream_xml(stream_wss_url: str) -> str:
 
     return f'''<?xml version="1.0" encoding="UTF-8"?>
     <Response>
-    <Stream 
-        bidirectional="true"
-        contentType="audio/x-l16;rate=16000"
-        keepCallAlive="true"
-    >
-        {wss_url}
-    </Stream>
+        <Stream 
+            bidirectional="true"
+            keepCallAlive="true"
+            contentType="audio/x-mulaw;rate=8000"
+        >
+            {wss_url}
+        </Stream>
     </Response>'''
 
 

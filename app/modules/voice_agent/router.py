@@ -103,14 +103,7 @@ async def vobiz_answer(
 
     # Build XML using string concatenation — f-string multiline with triple
     # quotes can introduce whitespace that some XML parsers reject
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<Response>'
-        '<Connect>'
-        f'<Stream url="{ws_url}" />'
-        '</Connect>'
-        '</Response>'
-    )
+    xml = build_stream_xml(ws_url)
 
     logger.info(f"[answer] lead_id={lead_id} → WSS={ws_url}")
     logger.info(f"[answer] XML: {xml}")
