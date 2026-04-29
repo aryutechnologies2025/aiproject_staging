@@ -1,16 +1,40 @@
 # /home/aryu_user/Arun/aiproject_staging/app/services/llm_client.py
 import os
 import logging
-from groq import Groq
+import httpx
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.prompt_service import get_prompt
 
 logger = logging.getLogger(__name__)
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+# OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+OLLAMA_HOST = "http://127.0.0.1:11434"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
+OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "120"))  # seconds
 
-groq_client = Groq(api_key=GROQ_API_KEY)
+_OLLAMA_CHAT_URL = f"{OLLAMA_HOST}/api/chat"
+
+
+def _build_payload(
+    system_prompt: str,
+    user_message: str,
+    temperature: float,
+    max_tokens: int,
+) -> dict:
+    return {
+        "model": OLLAMA_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_message},
+        ],
+        "stream": False,
+        "options": {
+            "temperature": temperature,
+            "top_p": 0.95,
+            "num_predict": max_tokens,
+        },
+    }
 
 
 async def call_llm(
@@ -18,7 +42,7 @@ async def call_llm(
     user_message: str,
     agent_name: str,
     db: AsyncSession,
-    model: str = "groq",  # Kept for compatibility
+    model: str = "ollama",  # Kept for compatibility
 ) -> str:
 
     try:
@@ -28,34 +52,27 @@ async def call_llm(
             system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises. Provide clear, professional responses."
 
         # Optimize for token limits
-        system_safe = system_prompt[:3500]  # System prompt limit
-        user_safe = user_message[:2000]     # User message limit for better quality
+        system_safe = system_prompt[:3500]   # System prompt limit
+        user_safe   = user_message[:2000]    # User message limit for better quality
 
-        # Call Groq API with optimized parameters for Llama 3.1 8B
-        completion = groq_client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_safe
-                },
-                {
-                    "role": "user",
-                    "content": user_safe
-                },
-            ],
-            temperature=0.7,              # Balanced creativity and consistency
-            max_completion_tokens=4096,
-            top_p=0.95,                   # Focused nucleus sampling
-            stream=False,
+        payload = _build_payload(
+            system_prompt=system_safe,
+            user_message=user_safe,
+            temperature=0.7,    # Balanced creativity and consistency
+            max_tokens=4096,
         )
 
-        response = completion.choices[0].message.content.strip()
-        
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+            resp = await client.post(_OLLAMA_CHAT_URL, json=payload)
+            resp.raise_for_status()
+
+        data = resp.json()
+        response = data["message"]["content"].strip()
+
         if not response:
             logger.warning(f"Empty response from LLM for agent {agent_name}")
             return "Unable to generate response. Please try again."
-        
+
         logger.info(f"LLM response received for {agent_name} ({len(response)} chars)")
         return response
 
@@ -74,7 +91,7 @@ async def call_llm_json(
     Call LLM with JSON output guarantee.
     Includes JSON-specific formatting and validation.
     """
-    
+
     try:
         # Load system prompt
         system_prompt = await get_prompt(db, agent_name)
@@ -87,30 +104,32 @@ async def call_llm_json(
             user_message = user_message + json_instruction
 
         system_safe = system_prompt[:3500]
-        user_safe = user_message[:2000]
+        user_safe   = user_message[:2000]
 
-        completion = groq_client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": system_safe},
-                {"role": "user", "content": user_safe},
-            ],
-            temperature=0.3,              # Lower temp for consistent JSON
-            max_completion_tokens=1024,
-            top_p=0.95,
-            stream=False,
+        payload = _build_payload(
+            system_prompt=system_safe,
+            user_message=user_safe,
+            temperature=0.3,    # Lower temp for consistent JSON
+            max_tokens=1024,
         )
+        # Ask Ollama to enforce JSON format at the sampler level
+        payload["format"] = "json"
 
-        response = completion.choices[0].message.content.strip()
-        
-        # Clean markdown artifacts if present
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+            resp = await client.post(_OLLAMA_CHAT_URL, json=payload)
+            resp.raise_for_status()
+
+        data = resp.json()
+        response = data["message"]["content"].strip()
+
+        # Clean markdown artifacts if present (defensive)
         if response.startswith("```json"):
             response = response[7:]
         if response.startswith("```"):
             response = response[3:]
         if response.endswith("```"):
             response = response[:-3]
-        
+
         logger.info(f"JSON response received for {agent_name}")
         return response.strip()
 

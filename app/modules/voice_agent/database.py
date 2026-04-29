@@ -8,8 +8,11 @@ Key fixes vs original:
 """
 import uuid
 import json
+import logging
 from datetime import datetime
 from typing import List, Optional
+
+logger = logging.getLogger("voice_agent.database")
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select, update, func, text as sa_text
@@ -61,16 +64,48 @@ def _orm_to_company(row: Company) -> CompanyData:
 
 
 def _orm_to_script(row: CompanyScript) -> CompanyScriptData:
-    # FIX: handle JSON column properly
-    if isinstance(row.steps, (dict, list)):
-        steps = row.steps
-    else:
-        steps = json.loads(row.steps)
+    """
+    Parse the steps JSON column which can arrive in three shapes from the DB:
 
-    if isinstance(row.objection_responses, dict):
-        objections = row.objection_responses
+      Shape 1 (correct): list   → [{"question": "...", "fallback": "..."}, ...]
+      Shape 2 (legacy):  dict with int-like string keys → {"0": {...}, "1": {...}}
+      Shape 3 (bug):     full script dict in steps column → {"steps": [...], "objection_responses": {...}}
+                         This happens when the entire parsed script object was
+                         stored in the steps column instead of just the list.
+
+    Always normalize to a plain Python list before returning.
+    """
+    # ── Deserialize steps ────────────────────────────────────────────────────
+    raw = row.steps if isinstance(row.steps, (dict, list)) else json.loads(row.steps)
+
+    if isinstance(raw, list):
+        # Shape 1 — correct, use directly
+        steps = raw
+
+    elif isinstance(raw, dict):
+        # Distinguish Shape 2 vs Shape 3 by checking if any key is a real step key
+        if "steps" in raw and isinstance(raw["steps"], list):
+            # Shape 3: full script dict stored in steps column — extract the list
+            steps = raw["steps"]
+        elif all(k.isdigit() for k in raw.keys()):
+            # Shape 2: {"0": {...}, "1": {...}} — convert to ordered list
+            steps = [raw[k] for k in sorted(raw.keys(), key=int)]
+        else:
+            # Unknown dict shape — try to salvage as list of values
+            steps = list(raw.values())
+            logger.warning(f"[_orm_to_script] Unknown steps shape for script {row.id}: {list(raw.keys())[:5]}")
+
     else:
-        objections = json.loads(row.objection_responses)
+        steps = []
+        logger.error(f"[_orm_to_script] Unrecognised steps type {type(raw)} for script {row.id}")
+
+    # ── Deserialize objection_responses ──────────────────────────────────────
+    raw_obj = (
+        row.objection_responses
+        if isinstance(row.objection_responses, (dict, list))
+        else json.loads(row.objection_responses)
+    )
+    objections = raw_obj if isinstance(raw_obj, dict) else {}
 
     return CompanyScriptData(
         id=row.id,

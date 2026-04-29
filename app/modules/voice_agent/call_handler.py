@@ -6,9 +6,10 @@ import base64
 import logging
 from datetime import datetime
 from typing import Optional
-
+from sarvamai import AsyncSarvamAI
 from fastapi import WebSocket, WebSocketDisconnect
-
+import base64
+import numpy as np
 from app.modules.voice_agent import config
 from app.modules.voice_agent import database as db
 from app.modules.voice_agent.models import (
@@ -21,7 +22,8 @@ from app.modules.voice_agent.services import (
     llm_respond, sarvam_tts,
     send_sms, get_calendar_slots, create_calendar_event,
     score_to_status, build_interview_sms, build_recall_sms,
-    SARVAM_STT_CONFIG_FRAME,
+    build_sarvam_stt_url, mulaw_to_pcm16,
+    SARVAM_STT_TRANSCRIPT_TYPES, SARVAM_STT_PARTIAL_TYPES,
 )
 
 logger = logging.getLogger("voice_agent.call_handler")
@@ -79,6 +81,12 @@ class CallHandler:
         # Sarvam STT WebSocket handle
         self.sarvam_stt_ws = None
 
+        self._rate_state = None
+        self._pcm_buffer = b""
+
+        self._prebuffer = []
+        self.stt_ready = False
+
         # Utterance state
         self.utterance_buffer: str = ""
         self.utterance_ready: asyncio.Event = asyncio.Event()
@@ -96,6 +104,9 @@ class CallHandler:
 
         # Track which slot index lead selected (0-based)
         self._chosen_slot_index: int = 0
+
+        self._speech_active = False
+        self._last_transcript = ""
 
     # ─────────────────────────────────────────────────────────────────────────
     # Entry point
@@ -132,6 +143,7 @@ class CallHandler:
                 except json.JSONDecodeError:
                     continue
 
+                logger.info(f"[{self.call_id}] RAW EVENT: {msg}")
                 event = msg.get("event")
 
                 if event == "connected":
@@ -139,27 +151,115 @@ class CallHandler:
                     logger.info(f"[{self.call_id}] Vobiz WS connected")
 
                 elif event == "start":
+                    start_data = msg.get("start")
+                    logger.info(f"[DEBUG] start_data raw: {start_data}")
                     self.stream_sid = (
-                        msg.get("streamSid")
-                        or msg.get("start", {}).get("streamSid", "")
+                        start_data.get("streamId")   # correct key
+                        or msg.get("streamSid")      # fallback
+                        or msg.get("stream_id")
                     )
                     logger.info(f"[{self.call_id}] Stream started | sid={self.stream_sid}")
                     # Unblock _tts_sender — it has been waiting for stream_sid
                     self._stream_sid_ready.set()
                     # Start STT + greeting (non-blocking — don't await)
+                    asyncio.create_task(self._start_sarvam_stt())
+
+                    # THEN greeting
                     asyncio.create_task(self._on_call_start())
 
                 elif event == "media":
                     payload = msg.get("media", {}).get("payload", "")
-                    if payload and not self.simulation_mode:
-                        if self.sarvam_stt_ws:
-                            try:
-                                await self.sarvam_stt_ws.send(
-                                    base64.b64decode(payload)
+
+                    if payload and self.sarvam_stt_ws:
+                        try:
+
+                            mulaw_bytes = base64.b64decode(payload)
+
+                            unique_bytes = len(set(mulaw_bytes))
+                            zero_ratio = mulaw_bytes.count(0) / len(mulaw_bytes)
+
+                            logger.warning(
+                                f"[{self.call_id}] RAW AUDIO CHECK | "
+                                f"len={len(mulaw_bytes)} | unique_bytes={unique_bytes} | "
+                                f"zero_ratio={zero_ratio:.2f} | first10={mulaw_bytes[:10]}"
+                            )
+
+                            pcm_8k      = audioop.ulaw2lin(mulaw_bytes, 2)
+                            pcm_16k, self._rate_state = audioop.ratecv(
+                                pcm_8k,
+                                2,
+                                1,
+                                8000,
+                                16000,
+                                self._rate_state
+                            )
+
+                            pcm = np.frombuffer(pcm_16k, dtype=np.int16)
+                            rms = np.sqrt(np.mean(pcm.astype(np.float32) ** 2))
+                            peak = np.max(np.abs(pcm))
+                            mean = np.mean(np.abs(pcm))
+                            zero_crossings = np.sum(np.diff(np.sign(pcm)) != 0)
+
+                            logger.warning(
+                                f"[{self.call_id}] PCM ANALYSIS | "
+                                f"RMS={rms:.2f} | PEAK={peak} | MEAN={mean:.2f} | "
+                                f"ZC={zero_crossings} | min={pcm.min()} max={pcm.max()}"
+                            )
+                            if rms < 50 and peak < 100:
+                                logger.error(f"[{self.call_id}] ❌ SILENCE DETECTED (no real speech)")
+                            else:
+                                logger.info(f"[{self.call_id}] ✅ REAL SPEECH DETECTED")
+
+                            if len(pcm_16k) % 2 != 0:
+                                pcm_16k = pcm_16k[:-1]
+                            b64_audio   = base64.b64encode(pcm_16k).decode("utf-8")
+                            logger.info(
+                                f"[{self.call_id}] Audio stats | mulaw={len(mulaw_bytes)} | pcm8k={len(pcm_8k)} | pcm16k={len(pcm_16k)}"
+                            )
+                            # Do NOT pass encoding= here; the connection was opened with pcm_s16le
+                            self._pcm_buffer += pcm_16k
+
+                            FRAME_SIZE = 640  # 20ms @ 16kHz
+
+                            # Ensure proper alignment
+                            if len(self._pcm_buffer) % 2 != 0:
+                                self._pcm_buffer = self._pcm_buffer[:-1]
+
+                            while len(self._pcm_buffer) >= FRAME_SIZE:
+                                chunk = self._pcm_buffer[:FRAME_SIZE]
+                                self._pcm_buffer = self._pcm_buffer[FRAME_SIZE:]
+
+                                # Recalculate RMS per chunk (IMPORTANT)
+                                pcm_chunk = np.frombuffer(chunk, dtype=np.int16)
+                                chunk_rms = np.sqrt(np.mean(pcm_chunk.astype(np.float32) ** 2))
+
+                                # Skip silence
+                                if chunk_rms < 10:
+                                    logger.warning(
+                                        f"[{self.call_id}] ⛔ SKIP SILENCE | rms={chunk_rms:.2f}"
+                                    )
+                                    continue
+
+                                # Ensure STT is ready
+                                if not self.stt_ready:
+                                    logger.warning(f"[{self.call_id}] STT not ready → buffering audio")
+                                    self._prebuffer.append(pcm_16k)
+                                    continue
+
+                                logger.warning(
+                                    f"[{self.call_id}] STT INPUT | bytes={len(chunk)} | rms={chunk_rms:.2f}"
                                 )
-                            except Exception as e:
-                                logger.warning(f"[{self.call_id}] STT send error: {e}")
-                                asyncio.create_task(self._reconnect_stt())
+
+                                logger.info(
+                                    f"[{self.call_id}] STT SEND chunk=640 buffer_left={len(self._pcm_buffer)}"
+                                )
+
+                                b64_audio = base64.b64encode(chunk).decode("utf-8")
+                                await self.sarvam_stt_ws.transcribe(audio=b64_audio)
+
+                        except Exception as e:
+                            logger.warning(f"[{self.call_id}] STT send error: {e}")
+                            asyncio.create_task(self._reconnect_stt())
 
                 elif event == "stop":
                     logger.info(f"[{self.call_id}] Vobiz stop event received")
@@ -177,13 +277,11 @@ class CallHandler:
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _on_call_start(self) -> None:
+        logger.info(f"[{self.call_id}] STEP 1: on_call_start reached")
         logger.info(f"[{self.call_id}] _on_call_start | sim={self.simulation_mode}")
 
         if self.simulation_mode:
             asyncio.create_task(self._inject_simulation_utterance())
-        else:
-            # Start STT WS — utterance_processor launched inside regardless of result
-            await self._start_sarvam_stt()
 
         # Speak greeting — this will block until TTS audio is queued
         greeting = self.script.steps[0]["question"].replace("{name}", self.lead.name)
@@ -201,97 +299,146 @@ class CallHandler:
     # Sarvam STT — streaming WebSocket
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def _start_sarvam_stt(self) -> None:
+    async def _keep_alive_stt(self):
         """
-        Connect to Sarvam STT WebSocket.
-        IMPORTANT: _utterance_processor is started here unconditionally.
-        Even if STT fails, the utterance processor must run (for timeouts + closing).
+        Keeps STT connection alive inside async with block
         """
-        # Always start the utterance processor — STT failing must not kill the call
+        while not self.call_ended:
+            await asyncio.sleep(1)
+
+    async def _start_sarvam_stt(self):
         asyncio.create_task(self._utterance_processor())
 
         if not config.SARVAM_API_KEY:
-            logger.error(f"[{self.call_id}] SARVAM_API_KEY is empty — STT disabled")
+            logger.error(f"[{self.call_id}] SARVAM_API_KEY missing")
             return
 
         try:
-            import websockets
+            client = AsyncSarvamAI(api_subscription_key=config.SARVAM_API_KEY)
 
-            self.sarvam_stt_ws = await websockets.connect(
-                config.SARVAM_STT_WS_URL,
-                additional_headers={"API-Subscription-Key": config.SARVAM_API_KEY},
-                ping_interval=20,
-                ping_timeout=10,
-            )
-            # Send config frame — required by Sarvam protocol before any audio
-            await self.sarvam_stt_ws.send(json.dumps(SARVAM_STT_CONFIG_FRAME))
-            logger.info(f"[{self.call_id}] Sarvam STT WS connected ✓")
+            async with client.speech_to_text_streaming.connect(
+                model="saaras:v3",
+                mode="transcribe",
+                language_code="ta-IN",
+                sample_rate=16000,
+                input_audio_codec="pcm_s16le",
+                high_vad_sensitivity=True,
+                vad_signals=True,
+            ) as ws:
+                self.sarvam_stt_ws = ws
 
-            asyncio.create_task(self._sarvam_stt_reader())
+                # STT READY IMMEDIATELY (NO SLEEP)
+                self.stt_ready = True
+                logger.info(f"[{self.call_id}] STT READY ✅")
+
+                # FLUSH BUFFERED AUDIO (CRITICAL FIX)
+                if hasattr(self, "_prebuffer") and self._prebuffer:
+                    logger.warning(
+                        f"[{self.call_id}] Flushing {len(self._prebuffer)} buffered chunks"
+                    )
+
+                    for chunk in self._prebuffer:
+                        try:
+                            b64_audio = base64.b64encode(chunk).decode("utf-8")
+                            await self.sarvam_stt_ws.transcribe(audio=b64_audio)
+                        except Exception as e:
+                            logger.warning(f"[{self.call_id}] Prebuffer send error: {e}")
+
+                    self._prebuffer.clear()
+
+                await asyncio.gather(
+                    asyncio.create_task(self._sarvam_stt_reader()),
+                    asyncio.create_task(self._keep_alive_stt()),
+                )
 
         except Exception as e:
-            logger.error(
-                f"[{self.call_id}] Sarvam STT connect FAILED: {e} "
-                f"— call continues in TTS-only mode"
-            )
+            logger.error(f"[{self.call_id}] STT connect FAILED: {e}", exc_info=True)
             self.sarvam_stt_ws = None
-            # utterance_processor is already running — it will timeout after 60s
-            # and end the call gracefully via _closing_sequence
 
-    async def _reconnect_stt(self) -> None:
+    async def _reconnect_stt(self):
         if self.call_ended:
             return
+
         logger.warning(f"[{self.call_id}] STT WS dropped — reconnecting in 1s")
-        try:
-            if self.sarvam_stt_ws:
-                await self.sarvam_stt_ws.close()
-        except Exception:
-            pass
-        self.sarvam_stt_ws = None
-        await asyncio.sleep(1.0)
-        if not self.call_ended:
-            await self._start_sarvam_stt()
+
+        await asyncio.sleep(1)
+
+        if self.call_ended:
+            return
+
+        # USE SDK AGAIN (NOT raw WS)
+        asyncio.create_task(self._start_sarvam_stt())
 
     async def _sarvam_stt_reader(self) -> None:
-        """
-        Read transcript events from Sarvam STT WS.
-
-        Sarvam event types:
-          {"type": "partial", "transcript": "..."}  — user still speaking → barge-in
-          {"type": "final",   "transcript": "..."}  — utterance complete
-          {"type": "error",   "message": "..."}      — STT error
-        """
         try:
-            async for raw in self.sarvam_stt_ws:
+            async for message in self.sarvam_stt_ws:
                 if self.call_ended:
                     break
-                try:
-                    msg = json.loads(raw)
-                except Exception:
-                    continue
 
-                msg_type = msg.get("type", "")
-                transcript = msg.get("transcript", "").strip()
+                # Normalize message
+                if isinstance(message, dict):
+                    msg_type = message.get("type", "")
+                    text = message.get("transcript", message.get("text", "")).strip()
+                    is_final = message.get("is_final", False)
+                else:
+                    msg_type = getattr(message, "type", "")
+                    text = getattr(message, "transcript",
+                                getattr(message, "text", "")).strip()
+                    is_final = getattr(message, "is_final", False)
 
-                if msg_type == "partial" and transcript:
-                    # Barge-in: user speaking → stop TTS immediately
+                logger.info(
+                    f"[{self.call_id}] STT EVENT → type={msg_type} | final={is_final} | text={text}"
+                )
+
+                # ---------------------------
+                # Speech start
+                # ---------------------------
+                if msg_type == "speech_start":
+                    self._speech_active = True
+                    logger.info(f"[{self.call_id}] 🎤 Speech started")
+
                     if self.session.tts_playing:
-                        logger.info(f"[{self.call_id}] Barge-in → flushing TTS")
+                        logger.info(f"[{self.call_id}] 🔴 Barge-in → flushing TTS")
                         self.session.tts_playing = False
                         await session_save(self.session)
-                        await self.tts_queue.put(None)  # flush sentinel
+                        await self.tts_queue.put(None)
 
-                elif msg_type == "final" and transcript:
-                    logger.info(f"[{self.call_id}] STT final: {transcript[:80]}")
-                    self.utterance_buffer += " " + transcript
-                    self.utterance_ready.set()
+                # ---------------------------
+                # Transcript (MOST IMPORTANT)
+                # ---------------------------
+                elif msg_type == "transcript":
+                    if text:
+                        logger.info(f"[{self.call_id}] Transcript chunk: {text} | final={is_final}")
 
+                        if is_final:
+                            logger.info(f"[{self.call_id}] FINAL transcript received: {text}")
+
+                            self.utterance_buffer += " " + text
+                            self.utterance_ready.set()
+
+                            self._last_transcript = ""
+                        else:
+                            self._last_transcript = text
+
+                # ---------------------------
+                # Speech end (fallback only)
+                # ---------------------------
+                elif msg_type == "speech_end":
+                    logger.info(f"[{self.call_id}] Speech ended")
+                    self._speech_active = False
+
+                # ---------------------------
+                # Error
+                # ---------------------------
                 elif msg_type == "error":
-                    logger.error(f"[{self.call_id}] STT error: {msg.get('message')}")
+                    logger.error(f"[{self.call_id}] STT error msg: {message}")
 
         except Exception as e:
             if not self.call_ended:
-                logger.warning(f"[{self.call_id}] _sarvam_stt_reader error: {e}")
+                logger.warning(
+                    f"[{self.call_id}] _sarvam_stt_reader dropped: {e}",
+                    exc_info=True
+                )
                 asyncio.create_task(self._reconnect_stt())
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -503,14 +650,13 @@ class CallHandler:
         logger.info(f"[{self.call_id}] TTS sender ready | sid={self.stream_sid}")
 
         # µ-law: 1 byte/sample, 8kHz, 20ms = 160 bytes/chunk
-        CHUNK_SIZE = 160
+        CHUNK_SIZE = 320  # change to 40ms for stability
 
         while not self.call_ended:
             try:
                 audio = await asyncio.wait_for(self.tts_queue.get(), timeout=1.0)
 
                 if audio is None:
-                    # Barge-in flush sentinel — drain queue and stop
                     while not self.tts_queue.empty():
                         try:
                             self.tts_queue.get_nowait()
@@ -520,28 +666,37 @@ class CallHandler:
                     await session_save(self.session)
                     continue
 
-                # Send in 160-byte µ-law chunks with 20ms pacing
+                # precise timing control
+                loop = asyncio.get_event_loop()
+                next_send_time = loop.time()
+
                 for i in range(0, len(audio), CHUNK_SIZE):
                     if self.call_ended:
                         break
-                    # Barge-in check: if new item in queue, stop mid-stream
+
                     if self.tts_queue.qsize() > 0:
                         break
 
                     chunk = audio[i: i + CHUNK_SIZE]
+
                     try:
                         await self.ws.send_text(json.dumps({
-                            "event": "media",
-                            "streamSid": self.stream_sid,
+                            "event": "playAudio",
                             "media": {
+                                "contentType": "audio/x-mulaw",
+                                "sampleRate": 8000,
                                 "payload": base64.b64encode(chunk).decode("ascii")
-                            },
+                            }
                         }))
+
+                        # precise pacing (NO DRIFT)
+                        next_send_time += 0.04  # 40ms
+                        now = loop.time()
+                        await asyncio.sleep(max(0, next_send_time - now))
+
                     except Exception as send_err:
                         logger.warning(f"[{self.call_id}] WS send error: {send_err}")
                         break
-
-                    await asyncio.sleep(0.020)  # 20ms pacing = real-time audio
 
                 self.session.tts_playing = False
                 await session_save(self.session)
@@ -568,7 +723,6 @@ class CallHandler:
         # Close Sarvam STT WS gracefully
         if self.sarvam_stt_ws and not self.simulation_mode:
             try:
-                await self.sarvam_stt_ws.send(json.dumps({"type": "end_of_stream"}))
                 await self.sarvam_stt_ws.close()
             except Exception:
                 pass
