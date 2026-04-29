@@ -5,18 +5,10 @@ services:
     image: ollama/ollama:latest
     container_name: aryu_ollama
     restart: always
-    # GPU passthrough (remove 'deploy' block if no GPU on server)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     volumes:
-      - ollama_data:/root/.ollama       # persists pulled models across restarts
+      - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"                   # expose for local debugging; remove in prod
+      - "11434:11434"
     networks:
       - aryu_network
     healthcheck:
