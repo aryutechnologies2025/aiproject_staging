@@ -1,39 +1,5 @@
 services:
 
-  # ── Ollama inference server ──────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: aryu_ollama
-    restart: always
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    networks:
-      - aryu_network
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
-
-  # ── Model pull init container ────────────────────────────────────────────────
-  # Runs once on first deploy; pulls gemma4:31b-cloud into the shared volume.
-  ollama-pull:
-    image: ollama/ollama:latest
-    container_name: aryu_ollama_pull
-    restart: "no"
-    depends_on:
-      ollama:
-        condition: service_healthy
-    entrypoint: ["ollama", "pull", "gemma4:31b-cloud"]
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-    networks:
-      - aryu_network
-
-  # ── FastAPI application ──────────────────────────────────────────────────────
   api:
     build: .
     image: sivaarun10/aryu_api:latest
@@ -42,21 +8,15 @@ services:
     env_file:
       - .env
     environment:
-      # Override OLLAMA_HOST to reach the sidecar service by name
-      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_HOST: http://host.docker.internal:11434
       OLLAMA_MODEL: gemma4:31b-cloud
       OLLAMA_TIMEOUT: "120"
     ports:
       - "8000:8000"
-    depends_on:
-      ollama:
-        condition: service_healthy
     networks:
       - aryu_network
-
-volumes:
-  ollama_data:
-    driver: local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   aryu_network:
