@@ -41,7 +41,7 @@ COPY alembic.ini .
 
 # Ollama lives on the HOST (or a sidecar); we just need the URL reachable.
 # OLLAMA_HOST is injected via .env / docker-compose; default shown below.
-ENV OLLAMA_HOST=http://host.docker.internal:11434
+ENV OLLAMA_HOST=http://172.17.0.1:11434
 ENV OLLAMA_MODEL=gemma4:31b-cloud
 ENV OLLAMA_TIMEOUT=120
 
