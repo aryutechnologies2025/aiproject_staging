@@ -2,16 +2,16 @@
 
 import re
 from fastapi import APIRouter, Depends
-from app.services.llm_client import call_llm
+from app.utils.llm_client import call_llm
 from app.utils.language_detect import detect_language
 from app.api.v1.prompt import router as prompt_router
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
-api_router = APIRouter()
+router = APIRouter()
 
-api_router.include_router(prompt_router)
+router.include_router(prompt_router)
 
 async def route_message(message: str, user_id: str):
     msg_lower = message.lower()

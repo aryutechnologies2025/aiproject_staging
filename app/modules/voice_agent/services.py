@@ -1,15 +1,22 @@
 """
-services.py — Core AI services (FIXED)
+services.py — Core AI services
 
-Key fix in sarvam_tts():
-  Before: returned base64-decoded bytes but the encoding param was "linear16"
-          which is correct PCM16 — but call_handler was sending it raw to Vobiz
-          without converting to mulaw first.
-  After:  sarvam_tts() still returns raw PCM16 bytes.
-          call_handler._speak() now does: PCM16 → audioop.lin2ulaw() → mulaw → Vobiz.
+Audio contract:
+  sarvam_tts()  → returns raw LINEAR16 PCM bytes at 8kHz (NOT mulaw, NOT base64)
+  sarvam_stt_rest() → REST fallback, wraps PCM16 bytes in WAV and posts to Sarvam
 
-The encoding field is explicitly "linear16" here so Sarvam gives us PCM16.
-The mulaw conversion happens in call_handler._pcm16_to_mulaw().
+  call_handler._speak() converts TTS output: PCM16 → audioop.lin2ulaw() → mulaw → Vobiz.
+  Do NOT change sarvam_tts() encoding to "mulaw" — Sarvam's mulaw output quality
+  is lower than converting ourselves via audioop.lin2ulaw().
+
+STT event contract (saaras:v3 with vad_signals=True):
+  type="speech_start"  → VAD detected onset of speech
+  type="events"        → keepalive heartbeat (text may be empty — this is normal)
+  type="speech_end"    → VAD detected end of utterance / silence
+  type="transcript"    → final recognised text for the utterance
+
+  SARVAM_STT_TRANSCRIPT_TYPES and SARVAM_STT_PARTIAL_TYPES are imported by
+  call_handler so both modules stay in sync on event-type strings.
 """
 
 import asyncio
@@ -34,6 +41,23 @@ from app.modules.voice_agent.tamil_normalizer import normalize
 logger = logging.getLogger("voice_agent.services")
 
 _redis: Optional[aioredis.Redis] = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sarvam STT event-type constants
+#
+# Imported by call_handler._sarvam_stt_reader() — keep in sync with Sarvam docs.
+#
+# saaras:v3 final event:   {"type": "transcript", "transcript": "..."}
+# legacy saarika:v2 final: {"type": "final",      "text": "..."}
+# We handle both so a model downgrade doesn't break the pipeline.
+#
+# "speech_start" appears in PARTIAL_TYPES because it sometimes carries
+# a preliminary text field in some SDK versions — handled defensively.
+# ─────────────────────────────────────────────────────────────────────────────
+
+SARVAM_STT_TRANSCRIPT_TYPES = frozenset({"transcript", "final"})
+SARVAM_STT_PARTIAL_TYPES    = frozenset({"partial", "speech_start"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -183,18 +207,19 @@ async def llm_respond(
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TTS — Sarvam AI (bulbul:v2)
+#
 # Returns raw LINEAR16 PCM bytes at 8kHz.
-# Caller (call_handler._speak) is responsible for converting to µ-law for Vobiz.
+# Caller (call_handler._speak) converts to µ-law before sending to Vobiz.
+#
+# Why linear16 and not mulaw?
+#   Sarvam's mulaw output is encoded server-side from a lower-quality path.
+#   Doing the conversion ourselves with audioop.lin2ulaw gives better audio.
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def sarvam_tts(text: str) -> bytes:
     """
     Convert text → LINEAR16 PCM audio at 8kHz via Sarvam TTS.
-    Returns raw PCM16 bytes.
-
-    NOTE: call_handler._speak() converts this to µ-law before sending to Vobiz.
-    Do NOT change encoding to "mulaw" here — Sarvam's mulaw output quality is
-    lower than converting from linear16 ourselves.
+    Returns raw PCM16 bytes (NOT base64, NOT mulaw).
     """
     normalized = normalize(text)
     if not normalized.strip():
@@ -227,38 +252,31 @@ async def sarvam_tts(text: str) -> bytes:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STT — Sarvam AI streaming WebSocket
-#
-# From docs.sarvam.ai (confirmed):
-#   • Connection params go as URL QUERY PARAMS, not in a JSON frame
-#   • input_audio_codec supports: wav, pcm_s16le, pcm_l16, pcm_raw — NOT mulaw
-#   • Vobiz sends mulaw audio → must convert to pcm_s16le before sending to Sarvam
-#   • Recommended model: saaras:v3 with mode=transcribe
-#   • sample_rate=8000 must be set (matches Vobiz's 8kHz mulaw stream)
-#
-# WebSocket URL format:
-#   wss://api.sarvam.ai/speech-to-text-streaming
-#     ?model=saaras:v3
-#     &language_code=ta-IN
-#     &mode=transcribe
-#     &sample_rate=8000
-#     &input_audio_codec=pcm_s16le
-#     &high_vad_sensitivity=true
-#
-# Audio flow:
-#   Vobiz → mulaw 8kHz → audioop.ulaw2lin() → pcm_s16le → Sarvam STT WS
+# STT helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_sarvam_stt_url() -> str:
-    """Build the Sarvam STT WebSocket URL with all connection params as query params."""
+    """
+    Build the Sarvam STT WebSocket URL with connection params as query params.
+
+    This is used if you ever want to connect via raw websockets instead of the
+    SDK. Normally call_handler uses the AsyncSarvamAI SDK client directly.
+
+    Audio flow before calling this endpoint:
+      Vobiz → mulaw 8kHz → audioop.ulaw2lin() → pcm_s16le 8kHz
+      → audioop.ratecv() → pcm_s16le 16kHz → send here
+
+    Note: sample_rate=16000 because call_handler upsamples to 16kHz.
+    """
     from urllib.parse import urlencode
     params = urlencode({
-        "model":             "saaras:v3",
-        "language_code":     "ta-IN",
-        "mode":              "transcribe",
-        "sample_rate":       "8000",
-        "input_audio_codec": "pcm_s16le",   # Sarvam does NOT support mulaw
+        "model":                "saaras:v3",
+        "language_code":        "ta-IN",
+        "mode":                 "transcribe",
+        "sample_rate":          "16000",      # upsampled in call_handler
+        "input_audio_codec":    "pcm_s16le",  # Sarvam does NOT support mulaw
         "high_vad_sensitivity": "true",
+        "vad_signals":          "true",
         "api_subscription_key": config.SARVAM_API_KEY,
     })
     return f"{config.SARVAM_STT_WS_URL}?{params}"
@@ -267,28 +285,27 @@ def build_sarvam_stt_url() -> str:
 def mulaw_to_pcm16(mulaw_bytes: bytes) -> bytes:
     """
     Convert G.711 µ-law bytes (from Vobiz) to LINEAR16 PCM (for Sarvam STT).
-    Sarvam STT only accepts PCM codecs — mulaw is NOT supported as input_audio_codec.
+    Sarvam STT only accepts PCM codecs — mulaw is NOT a valid input_audio_codec.
     """
     import audioop
-    return audioop.ulaw2lin(mulaw_bytes, 2)  # 2 = output 16-bit samples
+    return audioop.ulaw2lin(mulaw_bytes, 2)  # 2 = 16-bit output samples
 
 
-# Response event keys from Sarvam STT saaras:v3:
-#   {"type": "transcript", "text": "..."}   — final utterance
-#   {"type": "speech_start"}                — VAD detected speech
-#   {"type": "speech_end"}                  — VAD silence detected
-# (legacy saarika:v2 used "final"/"partial" — saaras:v3 uses "transcript")
-SARVAM_STT_TRANSCRIPT_TYPES = {"transcript", "final"}  # handle both model versions
-SARVAM_STT_PARTIAL_TYPES    = {"partial", "speech_start"}
+async def sarvam_stt_rest(audio_bytes: bytes, sample_rate: int = 16000) -> str:
+    """
+    REST fallback STT — wraps raw PCM16 bytes in a WAV container and posts
+    to the Sarvam REST endpoint. Used when the streaming WS is unavailable.
 
+    audio_bytes: raw PCM16 (signed 16-bit little-endian, mono)
+    sample_rate: must match the actual audio (default 16000 after upsampling)
+    """
+    import io
+    import wave
 
-async def sarvam_stt_rest(audio_bytes: bytes, sample_rate: int = 8000) -> str:
-    """REST fallback STT — used when streaming WS is unavailable."""
-    import io, wave
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
+        wf.setnchannels(1)      # mono
+        wf.setsampwidth(2)      # 16-bit = 2 bytes
         wf.setframerate(sample_rate)
         wf.writeframes(audio_bytes)
     buf.seek(0)
@@ -298,7 +315,11 @@ async def sarvam_stt_rest(audio_bytes: bytes, sample_rate: int = 8000) -> str:
             config.SARVAM_STT_REST_URL,
             headers={"API-Subscription-Key": config.SARVAM_API_KEY},
             files={"file": ("audio.wav", buf, "audio/wav")},
-            data={"language_code": "ta-IN", "model": "saarika:v2"},
+            data={
+                "language_code": "ta-IN",
+                "model": "saaras:v3",
+                "mode": "transcribe",
+            },
         )
         resp.raise_for_status()
         return resp.json().get("transcript", "")
@@ -319,7 +340,7 @@ def _vobiz_headers() -> dict:
 async def vobiz_initiate_call(lead: LeadData, stream_url: str) -> str:
     """
     Initiate outbound call via Vobiz.
-    Correct endpoint: POST /Account/{auth_id}/Call/
+    Endpoint: POST /Account/{auth_id}/Call/
     """
     answer_url = (
         f"{config.PUBLIC_BASE_URL}/api/v1/voice/answer"
@@ -377,32 +398,30 @@ async def simulate_call(lead: LeadData, stream_url: str) -> str:
 
 def build_stream_xml(stream_wss_url: str) -> str:
     """
-    Exact Vobiz XML format confirmed from docs.vobiz.ai/xml-builder:
+    Build the Vobiz Stream XML response for bidirectional audio.
 
-        <Response>
-            <Stream>
-                wss://yourapp.com/ws
-            </Stream>
-        </Response>
-
-    Rules:
-      - <Stream> has NO attributes (no url=, no bidirectional=, no contentType=)
-      - WSS URL is the TEXT CONTENT of <Stream>, not an attribute
-      - NO <Connect> wrapper — Vobiz does not support that element
+    Vobiz XML rules (confirmed from docs.vobiz.ai):
+      - <Stream> text content = WSS URL (NOT an attribute)
+      - bidirectional="true"  — required to receive inbound (caller) audio
+      - keepCallAlive="true"  — prevents call from hanging up while streaming
+      - contentType="audio/x-mulaw;rate=8000" — tells Vobiz the codec we want
       - Must be wss:// not https://
+      - NO <Connect> wrapper
+
+    If bidirectional="true" is missing or ignored by Vobiz, you will receive
+    ONLY outbound (TTS) audio looped back, not the caller's voice.
+    Symptom: all µ-law bytes = 0x7F (silence) with unique_bytes ≈ 1-2.
     """
     wss_url = stream_wss_url.replace("https://", "wss://").replace("http://", "ws://")
 
     return f'''<?xml version="1.0" encoding="UTF-8"?>
-    <Response>
-        <Stream 
-            bidirectional="true"
-            keepCallAlive="true"
-            contentType="audio/x-mulaw;rate=8000"
-        >
-            {wss_url}
-        </Stream>
-    </Response>'''
+<Response>
+    <Stream
+        bidirectional="true"
+        keepCallAlive="true"
+        contentType="audio/x-mulaw;rate=8000"
+    >{wss_url}</Stream>
+</Response>'''
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -417,10 +436,15 @@ async def send_sms(phone: str, message: str) -> bool:
         try:
             resp = await client.post(
                 "https://api.msg91.com/api/v5/flow/",
-                headers={"authkey": config.MSG91_AUTH_KEY, "Content-Type": "application/json"},
+                headers={
+                    "authkey": config.MSG91_AUTH_KEY,
+                    "Content-Type": "application/json",
+                },
                 json={
                     "template_id": config.MSG91_TEMPLATE_ID,
-                    "recipients": [{"mobiles": phone.lstrip("+"), "message": message}],
+                    "recipients": [
+                        {"mobiles": phone.lstrip("+"), "message": message}
+                    ],
                     "sender": config.MSG91_SENDER_ID,
                 },
             )
@@ -472,7 +496,10 @@ async def get_calendar_slots(lookahead_days: int = 3) -> List[datetime]:
 
 
 async def create_calendar_event(
-    lead: LeadData, company: CompanyData, slot: datetime, call_id: str
+    lead: LeadData,
+    company: CompanyData,
+    slot: datetime,
+    call_id: str,
 ) -> str:
     if not config.GOOGLE_CALENDAR_CREDENTIALS:
         return ""
@@ -483,15 +510,24 @@ async def create_calendar_event(
         service = build("calendar", "v3", credentials=creds)
         event = {
             "summary": f"Interview — {lead.name} ({company.name})",
-            "description": f"Lead: {lead.name}\nPhone: {lead.phone}\nCall ID: {call_id}",
-            "start": {"dateTime": slot.isoformat() + "+05:30", "timeZone": "Asia/Kolkata"},
+            "description": (
+                f"Lead: {lead.name}\nPhone: {lead.phone}\nCall ID: {call_id}"
+            ),
+            "start": {
+                "dateTime": slot.isoformat() + "+05:30",
+                "timeZone": "Asia/Kolkata",
+            },
             "end": {
-                "dateTime": (slot + timedelta(minutes=config.INTERVIEW_DURATION_MINUTES)).isoformat() + "+05:30",
+                "dateTime": (
+                    slot + timedelta(minutes=config.INTERVIEW_DURATION_MINUTES)
+                ).isoformat() + "+05:30",
                 "timeZone": "Asia/Kolkata",
             },
             "reminders": {"useDefault": True},
         }
-        created = service.events().insert(calendarId=config.GOOGLE_CALENDAR_ID, body=event).execute()
+        created = service.events().insert(
+            calendarId=config.GOOGLE_CALENDAR_ID, body=event
+        ).execute()
         return created.get("id", "")
     except Exception as e:
         logger.error(f"[calendar] create_calendar_event error: {e}")
@@ -504,7 +540,7 @@ async def create_calendar_event(
 
 def score_to_status(score: str) -> LeadStatus:
     return {
-        "hot": LeadStatus.HOT,
+        "hot":  LeadStatus.HOT,
         "warm": LeadStatus.WARM,
         "cold": LeadStatus.COLD,
     }.get(score.lower(), LeadStatus.COLD)

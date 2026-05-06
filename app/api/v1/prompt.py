@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Form, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
-from app.services.prompt_service import (
+from app.utils.prompt_service import (
     get_prompt, create_prompt, update_prompt, list_prompts
 )
 

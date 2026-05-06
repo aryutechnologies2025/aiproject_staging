@@ -4,7 +4,7 @@ import logging
 import httpx
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.prompt_service import get_prompt
+from app.utils.prompt_service import get_prompt
 
 logger = logging.getLogger(__name__)
 

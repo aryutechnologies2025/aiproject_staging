@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.meeting import Meeting
-from app.services.notification_email_service import send_meeting_email
+from app.modules.whatsapp_bot.website_bot.notification_email_service import send_meeting_email
 import re
-from app.services.notification_whatsapp_service import send_meeting_whatsapp
+from app.modules.whatsapp_bot.website_bot.notification_whatsapp_service import send_meeting_whatsapp
 
 async def save_meeting(data: dict, session_id: str, db: AsyncSession):
     meeting = Meeting(

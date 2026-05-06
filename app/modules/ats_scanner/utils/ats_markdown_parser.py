@@ -1,9 +1,3 @@
-"""
-ATS Markdown Parser v4
-Parses markdown resume into ATS-scoring dict.
-Regex-only — zero LLM calls.
-"""
-
 from __future__ import annotations
 
 import re
@@ -12,106 +6,139 @@ from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CANONICAL SECTION MAP — every alias → canonical name
-# ─────────────────────────────────────────────────────────────────────────────
-
 _CANONICAL: Dict[str, str] = {}
 
 _RAW_ALIASES: Dict[str, List[str]] = {
     "contact": [
-        "contact","contact information","contact info","contact details",
-        "personal details","personal information","personal info",
+        "contact", "contact information", "contact info", "contact details",
+        "personal details", "personal information", "personal info",
+        "personal data", "personal profile", "contact me",
     ],
     "summary": [
-        "summary","professional summary","career summary","executive summary",
-        "objective","career objective","professional objective",
-        "profile","professional profile","about","about me",
-        "overview","introduction","personal statement","highlights",
-        "career highlights","bio","snapshot",
+        "summary", "professional summary", "career summary", "executive summary",
+        "objective", "career objective", "professional objective",
+        "profile", "professional profile", "about", "about me",
+        "overview", "introduction", "personal statement", "highlights",
+        "career highlights", "bio", "snapshot", "professional overview",
+        "professional profile", "professional background summary",
+        "career profile", "personal overview", "who i am",
     ],
     "experience": [
-        "experience","experiences",
-        "work experience","work experiences",
-        "professional experience","professional experiences",
-        "employment","employment history","employment record",
-        "work history","career history","career","career experience",
-        "professional background","professional history",
-        "industry experience","relevant experience","related experience",
-        "practical experience","hands-on experience",
-        "job experience","job history","positions held","positions",
-        "roles","roles held",
-        "internship","internships","internship experience",
-        "intern experience","industrial training","industry training",
-        "training","training experience",
-        "clinical experience","teaching experience","research experience",
-        "consulting experience","freelance experience","project experience",
-        "field experience","work & experience","career details",
-        "professional work experience","prior experience","past experience",
+        "experience", "experiences",
+        "work experience", "work experiences",
+        "professional experience", "professional experiences",
+        "employment", "employment history", "employment record",
+        "work history", "career history", "career", "career experience",
+        "professional background", "professional history",
+        "industry experience", "relevant experience", "related experience",
+        "practical experience", "hands-on experience",
+        "job experience", "job history", "positions held", "positions",
+        "roles", "roles held",
+        "internship", "internships", "internship experience",
+        "intern experience", "industrial training", "industry training",
+        "training", "training experience",
+        "clinical experience", "teaching experience", "research experience",
+        "consulting experience", "freelance experience", "project experience",
+        "field experience", "work & experience", "career details",
+        "professional work experience", "prior experience", "past experience",
+        "work background", "career background", "occupation", "occupations",
+        "job profile", "employment details", "work details",
+        "professional details", "corporate experience",
+        "apprenticeship", "apprenticeships", "placement", "placements",
+        "work placements", "on the job experience", "organizational experience",
+        "operational experience", "industry background",
     ],
     "education": [
-        "education","educational background","educational history",
-        "educational qualifications","educational details",
-        "academic background","academic history","academic qualifications",
-        "academic details","qualifications","qualification","academic",
-        "degrees","degree","schooling","university","college","studies",
-        "formal education","academic training",
+        "education", "educational background", "educational history",
+        "educational qualifications", "educational details",
+        "academic background", "academic history", "academic qualifications",
+        "academic details", "qualifications", "qualification", "academic",
+        "degrees", "degree", "schooling", "university", "college", "studies",
+        "formal education", "academic training",
+        "scholastic background", "scholastic details", "scholastic achievements",
+        "scholastic qualifications", "academic achievements",
+        "educational achievements", "academic profile",
+        "educational profile", "learning background",
+        "academic credentials", "educational credentials",
+        "degree details", "academic record", "educational record",
+        "school background", "university background", "college background",
+        "technical education", "professional education",
     ],
     "skills": [
-        "skills","skill","skill set","skillset",
-        "technical skills","tech skills","technical competencies",
-        "technical expertise","core competencies","core skills","key skills",
-        "competencies","expertise","areas of expertise",
-        "technologies","technology","tech stack","technical stack",
-        "tools","tools & technologies","tools and technologies",
-        "tools & frameworks","frameworks","programming languages",
-        "coding skills","software skills","software proficiency",
-        "platforms","knowledge","technical knowledge","proficiencies",
-        "abilities","strengths","it skills","computer skills",
-        "digital skills","hard skills",
+        "skills", "skill", "skill set", "skillset",
+        "technical skills", "tech skills", "technical competencies",
+        "technical expertise", "core competencies", "core skills", "key skills",
+        "competencies", "expertise", "areas of expertise",
+        "technologies", "technology", "tech stack", "technical stack",
+        "tools", "tools & technologies", "tools and technologies",
+        "tools & frameworks", "frameworks", "programming languages",
+        "coding skills", "software skills", "software proficiency",
+        "platforms", "knowledge", "technical knowledge", "proficiencies",
+        "abilities", "strengths", "it skills", "computer skills",
+        "digital skills", "hard skills", "key competencies",
+        "professional skills", "functional skills", "domain skills",
+        "domain expertise", "technical proficiency", "technical abilities",
+        "core technical skills", "software expertise",
+        "systems", "systems knowledge", "tools used",
+        "languages and tools", "languages & tools",
+        "programming skills", "development skills",
     ],
     "projects": [
-        "projects","project","key projects","major projects",
-        "personal projects","academic projects","side projects",
-        "project experience","project work","project portfolio",
-        "portfolio","notable projects","selected projects",
-        "capstone","open source","open-source contributions","case studies",
-        "works",
+        "projects", "project", "key projects", "major projects",
+        "personal projects", "academic projects", "side projects",
+        "project experience", "project work", "project portfolio",
+        "portfolio", "notable projects", "selected projects",
+        "capstone", "open source", "open-source contributions", "case studies",
+        "works", "project highlights", "featured projects",
+        "independent projects", "individual projects",
     ],
     "certifications": [
-        "certifications","certification","certifications & licenses",
-        "certificates","certificate","licenses","license",
-        "licences","licence","credentials","professional certifications",
-        "courses","course","training & certifications",
-        "professional development","continuing education","accreditations",
-        "online courses",
+        "certifications", "certification", "certifications & licenses",
+        "certificates", "certificate", "licenses", "license",
+        "licences", "licence", "credentials", "professional certifications",
+        "courses", "course", "training & certifications",
+        "professional development", "continuing education", "accreditations",
+        "online courses", "badges", "qualifications & certifications",
+        "professional licenses", "professional credentials",
+        "technical certifications", "industry certifications",
+        "completed courses", "course completions",
     ],
     "languages": [
-        "languages","language","language proficiency","spoken languages",
-        "human languages","foreign languages","linguistic skills",
-        "language skills","languages known",
+        "languages", "language", "language proficiency", "spoken languages",
+        "human languages", "foreign languages", "linguistic skills",
+        "language skills", "languages known", "languages spoken",
+        "communication languages", "verbal communication",
     ],
     "awards": [
-        "awards","award","awards & honors","awards and honors",
-        "achievements","achievement","honors","honours",
-        "recognitions","accomplishments","accolades","scholarships",
-        "fellowships","prizes","distinctions",
+        "awards", "award", "awards & honors", "awards and honors",
+        "achievements", "achievement", "honors", "honours",
+        "recognitions", "accomplishments", "accolades", "scholarships",
+        "fellowships", "prizes", "distinctions", "recognition",
+        "awards and recognition", "honors and awards",
+        "academic awards", "professional awards",
+        "achievements and awards", "notable achievements",
     ],
     "volunteer": [
-        "volunteer","volunteering","volunteer experience","volunteer work",
-        "voluntary work","community service","community involvement",
-        "extracurricular","extra-curricular","activities","civic involvement",
+        "volunteer", "volunteering", "volunteer experience", "volunteer work",
+        "voluntary work", "community service", "community involvement",
+        "extracurricular", "extra-curricular", "activities", "civic involvement",
+        "social work", "ngo work", "non-profit", "nonprofit",
+        "community activities", "outreach",
     ],
     "publications": [
-        "publications","publication","research","research work","papers",
-        "articles","journal articles","patents","presentations",
+        "publications", "publication", "research", "research work", "papers",
+        "articles", "journal articles", "patents", "presentations",
+        "published work", "research papers", "research publications",
+        "conference papers", "conference presentations",
     ],
     "hobbies": [
-        "hobbies","hobby","hobbies & interests","interests","interest",
-        "personal interests","leisure","recreational activities","passions",
+        "hobbies", "hobby", "hobbies & interests", "interests", "interest",
+        "personal interests", "leisure", "recreational activities", "passions",
+        "outside interests", "other interests",
     ],
     "references": [
-        "references","reference","referees","referee","professional references",
+        "references", "reference", "referees", "referee",
+        "professional references", "character references",
     ],
 }
 
@@ -119,13 +146,7 @@ for _sec, _aliases in _RAW_ALIASES.items():
     for _a in _aliases:
         _CANONICAL[_a.lower().strip()] = _sec
 
-# Sorted by length descending so longer aliases match first
 _SORTED_ALIASES = sorted(_CANONICAL.keys(), key=len, reverse=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PATTERNS
-# ─────────────────────────────────────────────────────────────────────────────
 
 EMAIL_RE      = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", re.I)
 PHONE_RE      = re.compile(r"(\+\d{1,3}[\s\-]?)?(\(?\d{2,5}\)?[\s\-]?)?\d{3,5}[\s\-]?\d{3,5}[\s\-]?\d{0,5}")
@@ -156,31 +177,19 @@ INSTITUTION_RE = re.compile(
 )
 GPA_RE     = re.compile(r"(?:CGPA|GPA|Grade|Percentage)[:\s]*([0-9]+\.?[0-9]*)", re.I)
 MD_H_RE    = re.compile(r"^(#{1,4})\s+(.+)$")
-BULLET_RE  = re.compile(r"^[\s]*[-*•▶►→✓✔]\s+(.+)$")
+BULLET_RE  = re.compile(r"^[\s]*[-*•▶►→✓✔\u2022\u2023]+\s+(.+)$")
 SEP_RE     = re.compile(r"^[-*_=]{3,}$")
 BOLD_H_RE  = re.compile(r"^\*{1,2}([^*]{2,60})\*{1,2}\s*:?\s*$")
 ALLCAPS_RE = re.compile(r"^[A-Z][A-Z\s&/\-]{2,53}[A-Z]$")
-JOB_RE     = re.compile(
-    r"(engineer|developer|manager|analyst|consultant|designer|architect|"
-    r"specialist|coordinator|director|officer|lead|head|associate|intern|"
-    r"executive|administrator|technician|scientist|researcher|nurse|doctor|"
-    r"teacher|professor|lawyer|accountant|advisor|representative|agent|"
-    r"supervisor|trainer|planner|strategist|recruiter|programmer|"
-    r"devops|fullstack|full.stack|backend|frontend|"
-    r"software engineer|web developer|mobile developer)", re.I,
+DATE_RANGE = re.compile(
+    r"(?P<start>(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\.?\s?\d{4})"
+    r"\s*[-–to]+\s*"
+    r"(?P<end>(Present|Current|Now|\d{4}))",
+    re.I
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION RESOLVER
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _resolve(raw: str) -> Optional[str]:
-    """
-    Map any heading text to a canonical section name.
-    4 progressive strategies — never returns a wrong match.
-    """
-    # Normalise
     key = raw.lower().strip()
     key = re.sub(r"^#+\s*", "", key)
     key = re.sub(r"\*{1,2}", "", key)
@@ -190,32 +199,37 @@ def _resolve(raw: str) -> Optional[str]:
     if not key or len(key) < 2:
         return None
 
-    # S1: exact
     if key in _CANONICAL:
         return _CANONICAL[key]
 
-    # S2: any alias contained within heading
     for alias in _SORTED_ALIASES:
         if alias in key:
             return _CANONICAL[alias]
 
-    # S3: heading contains a keyword anchor
     _ANCHORS = [
         ("experience",          "experience"),
         ("employment",          "experience"),
         ("work history",        "experience"),
         ("career history",      "experience"),
+        ("career background",   "experience"),
+        ("work background",     "experience"),
         ("internship",          "experience"),
         ("industrial training", "experience"),
+        ("apprenticeship",      "experience"),
+        ("placement",           "experience"),
         ("training",            "experience"),
+        ("scholastic",          "education"),
         ("education",           "education"),
         ("academic",            "education"),
         ("qualification",       "education"),
+        ("schooling",           "education"),
+        ("degree",              "education"),
         ("skills",              "skills"),
         ("competenc",           "skills"),
         ("expertise",           "skills"),
         ("technolog",           "skills"),
         ("stack",               "skills"),
+        ("proficienc",          "skills"),
         ("project",             "projects"),
         ("portfolio",           "projects"),
         ("certification",       "certifications"),
@@ -223,6 +237,7 @@ def _resolve(raw: str) -> Optional[str]:
         ("licence",             "certifications"),
         ("license",             "certifications"),
         ("course",              "certifications"),
+        ("accreditation",       "certifications"),
         ("summary",             "summary"),
         ("objective",           "summary"),
         ("profile",             "summary"),
@@ -235,6 +250,9 @@ def _resolve(raw: str) -> Optional[str]:
         ("award",               "awards"),
         ("achievement",         "awards"),
         ("honor",               "awards"),
+        ("honour",              "awards"),
+        ("recognition",         "awards"),
+        ("accomplishment",      "awards"),
         ("volunteer",           "volunteer"),
         ("community",           "volunteer"),
         ("language",            "languages"),
@@ -248,16 +266,6 @@ def _resolve(raw: str) -> Optional[str]:
 
     return None
 
-DATE_RANGE = re.compile(
-        r"(?P<start>(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\.?\s?\d{4})"
-        r"\s*[-–to]+\s*"
-        r"(?P<end>(Present|Current|Now|\d{4}))",
-        re.I
-    )
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN PARSER
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ATSMarkdownParser:
 
@@ -266,7 +274,7 @@ class ATSMarkdownParser:
             return self._empty()
 
         sections = self._split_sections(markdown)
-        logger.info(f"Sections: {list(sections.keys())}")
+        logger.info(f"Sections detected: {list(sections.keys())}")
 
         contact = self._contact(markdown, sections.get("contact", ""))
 
@@ -299,10 +307,6 @@ class ATSMarkdownParser:
         )
         return result
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # SECTION SPLITTER — the most critical function
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _split_sections(self, markdown: str) -> Dict[str, str]:
         lines    = markdown.split("\n")
         sections: Dict[str, str] = {}
@@ -318,13 +322,10 @@ class ATSMarkdownParser:
                         sections[cur_sec] + "\n" + content
                         if cur_sec in sections else content
                     )
-            cur_lines = []
+            cur_lines.clear()
 
         for line in lines:
             stripped = line.strip()
-
-            # ── Try every heading detection method in order ────────────────
-
             canonical = self._detect_heading(line, stripped)
 
             if canonical is not None:
@@ -333,7 +334,6 @@ class ATSMarkdownParser:
                 cur_lines = []
                 continue
 
-            # Content line
             if cur_sec is not None:
                 cur_lines.append(line)
             else:
@@ -342,7 +342,6 @@ class ATSMarkdownParser:
 
         flush()
 
-        # Merge header block into contact
         if "_header" in sections:
             hc = sections.pop("_header").strip()
             if hc:
@@ -353,58 +352,39 @@ class ATSMarkdownParser:
         return sections
 
     def _detect_heading(self, line: str, stripped: str) -> Optional[str]:
-        """
-        Return canonical section name if this line is a heading, else None.
-        Tries 5 detection strategies.
-        """
-
-        # S1: Markdown ## heading
         md_m = MD_H_RE.match(line)
         if md_m:
-            return _resolve(md_m.group(2).strip()) or md_m.group(2).strip().lower()[:40]
+            resolved = _resolve(md_m.group(2).strip())
+            return resolved or md_m.group(2).strip().lower()[:40]
 
-        # S2: ALL CAPS line — most common in PDF-extracted resumes
-        #     "PROFESSIONAL EXPERIENCE", "WORK EXPERIENCE", "EDUCATION" etc.
         if ALLCAPS_RE.match(stripped):
             result = _resolve(stripped)
             if result:
                 return result
-            # Even if _resolve doesn't know it, treat unknown ALL-CAPS as section boundary
-            # This prevents content leaking into wrong sections
             if 3 <= len(stripped) <= 55 and not re.search(r"\d", stripped[:3]):
                 return stripped.lower().replace(" ", "_")[:30]
 
-        # S3: Bold heading **TEXT**
         bm = BOLD_H_RE.match(stripped)
         if bm:
             result = _resolve(bm.group(1))
             if result:
                 return result
 
-        # S4: Title-Case short line — "Professional Experience", "Work History"
-        #     Only fire if _resolve confidently identifies it as a section
         if (
             not stripped.startswith(("-", "•", "*", "+"))
-            and 3 <= len(stripped) <= 55
+            and 3 <= len(stripped) <= 60
             and not stripped[0].isdigit()
         ):
             result = _resolve(stripped)
             if result:
-                # Extra guard: don't misidentify content lines
-                # Content lines usually have commas+digits together or are long
-                words      = stripped.split()
-                has_digit  = bool(re.search(r"\d", stripped))
-                has_pipe   = "|" in stripped
-                has_at     = "@" in stripped
-                # If it has @, | or looks like a data line, skip
+                words     = stripped.split()
+                has_at    = "@" in stripped
+                has_pipe  = "|" in stripped
+                has_digit = bool(re.search(r"\d", stripped))
                 if not has_at and not has_pipe and len(words) <= 6:
                     return result
 
         return None
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # CONTACT
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _contact(self, full_md: str, section: str) -> Dict[str, str]:
         src   = section if section.strip() else full_md[:2000]
@@ -458,10 +438,6 @@ class ATSMarkdownParser:
                 return m.group(0).strip()
         return ""
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # SUMMARY
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _summary(self, sec: str, full_md: str) -> str:
         if sec.strip():
             return " ".join(
@@ -481,10 +457,6 @@ class ATSMarkdownParser:
                 break
         return " ".join(found)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # EXPERIENCE
-    # ─────────────────────────────────────────────────────────────────────────
-    
     def _experience(self, text: str) -> List[Dict]:
         if not text.strip():
             return []
@@ -496,57 +468,48 @@ class ATSMarkdownParser:
         i = 0
         while i < len(lines):
             line = lines[i]
-
-            # ── 1. Detect Date Range (anchor) ──
             date_match = DATE_RANGE.search(line)
 
             if date_match:
                 if current:
                     entries.append(current)
 
-                # Extract title (before date)
                 title = line[:date_match.start()].strip(" |-,")
 
                 current = {
-                    "title": title,
-                    "company": "",
-                    "location": "",
+                    "title":      title,
+                    "company":    "",
+                    "location":   "",
                     "start_date": date_match.group("start"),
-                    "end_date": date_match.group("end"),
-                    "bullets": []
+                    "end_date":   date_match.group("end"),
+                    "bullets":    [],
                 }
 
-                # ── 2. Look ahead for company/location ──
                 j = i + 1
                 while j < len(lines):
                     next_line = lines[j]
-
-                    # stop if next job starts
                     if DATE_RANGE_RE.search(next_line):
                         break
-
-                    # skip bullets
                     if re.match(r"^[•\-–*]", next_line):
                         break
-
-                    # assign company if empty
                     if not current["company"]:
                         current["company"] = next_line
                     elif not current["location"]:
                         current["location"] = next_line
-
                     j += 1
 
                 i = j
                 continue
 
-            # ── 3. Bullet lines ──
-            if re.match(r"^[•\-–*]", line):
+            if re.match(r"^[•\-–*►▶→✓✔]", line):
                 if current:
-                    clean = re.sub(r'^[•\-–*]\s*', '', line)
+                    clean = re.sub(r'^[•\-–*►▶→✓✔]\s*', '', line)
                     current["bullets"].append(clean)
                 i += 1
                 continue
+
+            if current and not current["company"] and not re.search(r"\d{4}", line):
+                current["company"] = line
 
             i += 1
 
@@ -554,10 +517,6 @@ class ATSMarkdownParser:
             entries.append(current)
 
         return entries
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # EDUCATION
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _education(self, sec: str) -> List[Dict[str, Any]]:
         if not sec.strip():
@@ -586,27 +545,25 @@ class ATSMarkdownParser:
         return entries or [text]
 
     def _parse_edu(self, text: str) -> Dict[str, Any]:
-        c = re.sub(r"[*_`#]+", "", text).strip()
+        c  = re.sub(r"[*_`#]+", "", text).strip()
         dm = DEGREE_RE.search(c)
         im = INSTITUTION_RE.search(c)
         ym = YEAR_RE.search(c)
         gm = GPA_RE.search(c)
-        degree = dm.group(0).strip().rstrip(",;|") if dm else ""
+        degree      = dm.group(0).strip().rstrip(",;|") if dm else ""
         institution = im.group(1).strip().rstrip(",;|") if im else ""
         if not degree and not institution:
-            parts = [p.strip() for p in re.split(r"[|\n,]", c) if p.strip()]
+            parts       = [p.strip() for p in re.split(r"[|\n,]", c) if p.strip()]
             degree      = parts[0][:100] if parts else ""
             institution = parts[1][:100] if len(parts) > 1 else ""
         return {
-            "degree": degree, "institution": institution, "college": institution,
-            "year": ym.group(0) if ym else "",
-            "gpa":  gm.group(1) if gm else "",
-            "raw_text": c[:300],
+            "degree":      degree,
+            "institution": institution,
+            "college":     institution,
+            "year":        ym.group(0) if ym else "",
+            "gpa":         gm.group(1) if gm else "",
+            "raw_text":    c[:300],
         }
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SKILLS
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _skills(self, sec: str) -> List[str]:
         if not sec.strip():
@@ -626,10 +583,6 @@ class ATSMarkdownParser:
         seen: set = set()
         return [s for s in skills if not (s.lower() in seen or seen.add(s.lower()))]  # type: ignore
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # PROJECTS
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _projects(self, sec: str) -> List[Dict[str, Any]]:
         if not sec.strip():
             return []
@@ -639,10 +592,10 @@ class ATSMarkdownParser:
             clean = re.sub(r"[*_`]+", "", e).strip()
             if not clean:
                 continue
-            lines = [l.strip() for l in clean.split("\n") if l.strip()]
-            title = lines[0][:120] if lines else ""
-            desc  = ""
-            techs: List[str] = []
+            lines   = [l.strip() for l in clean.split("\n") if l.strip()]
+            title   = lines[0][:120] if lines else ""
+            desc    = ""
+            techs:   List[str] = []
             bullets: List[str] = []
             for line in lines[1:]:
                 lc = line.lower()
@@ -654,14 +607,14 @@ class ATSMarkdownParser:
                 elif not desc:
                     desc = line
             um = URL_RE.search(e)
-            results.append({"title": title, "description": desc,
-                            "technologies": techs, "bullets": bullets,
-                            "url": um.group(0) if um else ""})
+            results.append({
+                "title":        title,
+                "description":  desc,
+                "technologies": techs,
+                "bullets":      bullets,
+                "url":          um.group(0) if um else "",
+            })
         return results
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # CERTIFICATIONS
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _certifications(self, sec: str) -> List[Dict[str, Any]]:
         if not sec.strip():
@@ -672,7 +625,7 @@ class ATSMarkdownParser:
             line = line.strip().lstrip("-•*▶►→ ").strip()
             if not line or len(line) < 3:
                 continue
-            ym = YEAR_RE.search(line)
+            ym   = YEAR_RE.search(line)
             year = ym.group(0) if ym else ""
             base = line[:ym.start()].strip().rstrip("(,|") if ym else line
             ps   = re.split(r"\||-|,|\bby\b", base, maxsplit=1, flags=re.I)
@@ -681,10 +634,6 @@ class ATSMarkdownParser:
             if t:
                 results.append({"title": t, "name": t, "issuer": iss, "year": year})
         return results
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # LANGUAGES
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _languages(self, sec: str) -> List[str]:
         if not sec.strip():
@@ -702,10 +651,6 @@ class ATSMarkdownParser:
                     langs.append(p)
         return langs
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # GENERIC LIST
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _list_section(self, sec: str) -> List[str]:
         if not sec.strip():
             return []
@@ -716,17 +661,13 @@ class ATSMarkdownParser:
             if l.strip().lstrip("-•*▶►→ ").strip() and len(l.strip()) > 3
         ]
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # HELPERS
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _split_by_bold(self, text: str) -> List[str]:
         lines   = text.split("\n")
         entries: List[List[str]] = []
         cur:     List[str]       = []
         for line in lines:
             s = line.strip()
-            if (MD_H_RE.match(line) or (BOLD_H_RE.match(s) and 4 < len(s) < 100)):
+            if MD_H_RE.match(line) or (BOLD_H_RE.match(s) and 4 < len(s) < 100):
                 if cur and any(l.strip() for l in cur):
                     entries.append("\n".join(cur))
                 cur = []

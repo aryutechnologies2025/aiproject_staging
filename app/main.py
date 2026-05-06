@@ -15,9 +15,10 @@ from app.modules.voice_agent.scheduler import setup_scheduler
 from app.modules.voice_agent import database as db
 from app.core.database import Base, engine
 from app.api.v1 import (
-    whatsapp, youtube, admin, health,
+    youtube, admin, health,
     prompt, suggestion_api, hrms, yura_chat_api,
 )
+from app.modules.whatsapp_bot.router import router as whatsapp_router
 
 load_dotenv()
 
@@ -35,11 +36,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Aryu Academy AI Bot", version="1.0.0")
 
-# app = FastAPI(
-#     docs_url=None,
-#     redoc_url=None,
-#     openapi_url=None
-# )
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CORS
@@ -152,7 +153,7 @@ async def startup():
 # ROUTERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-app.include_router(whatsapp.router,       prefix="/api/v1/whatsapp",  tags=["WhatsApp"])
+app.include_router(whatsapp_router,       prefix="/api/v1/whatsapp",  tags=["WhatsApp"])
 app.include_router(youtube.router,        prefix="/api/v1/youtube",   tags=["YouTube"])
 app.include_router(admin.router,          prefix="/api/v1/admin",     tags=["Admin"])
 app.include_router(health.router,         prefix="/api/v1/health",    tags=["Health"])

@@ -121,6 +121,9 @@ async def ats_scan_from_file(
     Upload PDF or DOCX → LlamaParse extracts markdown →
     regex parser builds ATS dict → full ATS scan.
     """
+    print("HIT ENDPOINT")
+    print("FILE OBJECT:", file)
+
     filename = (file.filename or "").lower()
 
     if not filename.endswith((".pdf", ".docx")):

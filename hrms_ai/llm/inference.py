@@ -2,7 +2,7 @@
 
 import json
 import re
-from app.services.llm_client import call_llm
+from app.utils.llm_client import call_llm
 
 
 def extract_json(text: str):

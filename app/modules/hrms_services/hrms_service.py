@@ -6,12 +6,12 @@ from bs4 import BeautifulSoup
 from datetime import date, timedelta
 
 from pydantic import ValidationError
-from app.services.llm_client import call_llm
-from app.services.prompt_service import get_prompt
+from app.utils.llm_client import call_llm
+from app.utils.prompt_service import get_prompt
 import httpx
 import re
 import json
-from app.services.ai_logger import log_ai_interaction
+from app.modules.whatsapp_bot.ai_logger import log_ai_interaction
 from datetime import datetime, timedelta
 
 EMPLOYEE_API = "https://hrms.aryuprojects.com/api/employees/all-active-employees"
