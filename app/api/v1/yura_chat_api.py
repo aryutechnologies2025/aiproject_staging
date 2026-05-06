@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.services.yura_chat_service import yura_chat
+from app.modules.whatsapp_bot.website_bot.yura_chat_service import yura_chat
 
 router = APIRouter(prefix="/api/yura", tags=["YURA Bot"])
 

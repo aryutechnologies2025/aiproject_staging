@@ -1,8 +1,8 @@
 # /home/aryu_user/Arun/aiproject_staging/app/modules/resume_builder/service.py
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.llm_client import call_llm
-from app.services.prompt_service import get_prompt
+from app.utils.llm_client import call_llm
+from app.utils.prompt_service import get_prompt
 from typing import Dict, Any
 import json
 from .extractor import extract_with_llamaparse
@@ -213,53 +213,43 @@ async def suggest_education(data: dict, db: AsyncSession) -> dict:
     if not isinstance(education_list, list):
         raise HTTPException(400, "education must be a list")
 
-    if len(education_list) == 0:
-        user_prompt = """Generate education bullets for candidate with non-traditional background.
+    if not education_list:
+        return {
+            "education_bullets": "",
+            "count": 0,
+            "quality_notes": "No education data provided"
+        }
 
-Your task: Create 3-5 achievement-focused bullets covering:
-- Relevant certifications or bootcamps completed
-- Online courses or technical training
-- Self-taught skills or demonstrated competencies
-- Professional development or continuous learning
+    formatted_entries = ""
 
-OUTPUT RULES:
-- Output ONLY the bullet lines
-- ONE item per line
-- NO symbols, NO dots, NO dashes, NO asterisks at line starts
-- NO intro text, NO explanation
-- Plain text only
-- 3-5 lines maximum"""
-    else:
-        formatted_entries = ""
-        for i, edu in enumerate(education_list, 1):
-            formatted_entries += f"""
-EDUCATION #{i}:
-Degree: {edu.get("degree", "")}
-Institution: {edu.get("college", "")}
-Year: {edu.get("year", "")}
-Location: {edu.get("location", "")}
-GPA/Grade: {edu.get("grade", "")}
-Achievements: {edu.get("achievements", "")}
----"""
+    for i, edu in enumerate(education_list, 1):
+        formatted_entries += f"""
+#{i}
+College:{edu.get("college","").strip()}
+Degree:{edu.get("degree","").strip()}
+Year:{edu.get("year","").strip()}
+Location:{edu.get("location","").strip()}
+Grade:{edu.get("grade","").strip()}
+Achievements:{edu.get("achievements","").strip()}
+"""
 
-        user_prompt = f"""Generate compelling education section bullets.
+    user_prompt = f"""
+Generate 5 strong resume education bullets.
 
+Rules:
+- Use given college and degree details
+- Create meaningful academic descriptions based on the degree
+- Include subjects, technical exposure, concepts, and learning areas typically related to the degree
+- Do NOT create fake awards, GPA, rankings, internships, or achievements
+- No bootcamp/certification/self-learning text
+- ATS-friendly professional wording
+- One bullet per line
+- No headings or symbols
+- Avoid repeating college name in every line
+
+Data:
 {formatted_entries}
-
-Your task: Create 2-3 bullets per education entry that highlight:
-1. Academic honors/distinctions (only if GPA 3.5+)
-2. Relevant coursework or specializations
-3. Scholarships, awards, or achievements
-4. Leadership or involvement if applicable
-
-OUTPUT RULES:
-- Output ONLY the bullet lines
-- ONE item per line
-- NO symbols, NO dots, NO dashes, NO asterisks at line starts
-- NO intro text, NO explanation, NO section headers
-- Only include provided information (NO invention)
-- Plain text only
-- 2-3 lines per education entry"""
+"""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -272,7 +262,7 @@ OUTPUT RULES:
     return {
         "education_bullets": "\n".join(bullets),
         "count": len(bullets),
-        "quality_notes": "Education section emphasizes academic achievements and relevant learning"
+        "quality_notes": "Education bullets generated from provided education data"
     }
 
 

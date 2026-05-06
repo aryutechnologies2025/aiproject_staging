@@ -1,17 +1,17 @@
-from app.services.lead_service import detect_lead_intent
-from app.services.enterprise_lead_service import detect_contact_intent, detect_specific_contact
-from app.services.meeting_service import detect_meeting_intent
-from app.services.meeting_state import (
+from app.modules.whatsapp_bot.lead_service import detect_lead_intent
+from app.modules.whatsapp_bot.website_bot.enterprise_lead_service import detect_contact_intent, detect_specific_contact
+from app.modules.whatsapp_bot.website_bot.meeting_service import detect_meeting_intent
+from app.modules.whatsapp_bot.website_bot.meeting_state import (
     get_meeting_state,
     save_meeting_state,
     next_meeting_step
 )
-from app.services.chat_memory_service import (
+from app.modules.whatsapp_bot.chat_memory_service import (
     get_chat_history,
     save_chat_message
 )
-from app.services.meeting_service import save_meeting
-from app.services.llm_client import call_llm
+from app.modules.whatsapp_bot.website_bot.meeting_service import save_meeting
+from app.utils.llm_client import call_llm
 from app.core.config import WHATSAPP_NUMBER, CONTACT_EMAIL
 
 async def yura_chat(message: str, session_id: str, db):

@@ -1,18 +1,18 @@
 #whatsapp_service.py
 import os
 import httpx
-from app.services.llm_client import call_llm
-from app.services.prompt_service import get_prompt
-from app.services.router import route_message
+from app.utils.llm_client import call_llm
+from app.utils.prompt_service import get_prompt
+from app.modules.whatsapp_bot.router import route_message
 from dotenv import load_dotenv
 from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.chat_state_service import (
+from app.modules.whatsapp_bot.chat_state_service import (
     get_chat_state,
     update_chat_state,
 )
-from app.services.chat_memory_service import (
+from app.modules.whatsapp_bot.chat_memory_service import (
     get_chat_history,
     save_chat_message,
 )
@@ -84,7 +84,7 @@ async def send_interactive_buttons(to: str):
                 "buttons": [
                     {
                         "type": "reply",
-                        "reply": {"id": "speak_mr_y", "title": "Speak with Mr. Y"},
+                        "reply": {"id": "free_resources", "title": "Free Resources"},
                     },
                     {
                         "type": "reply",

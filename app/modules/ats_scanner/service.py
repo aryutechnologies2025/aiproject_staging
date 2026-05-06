@@ -1,30 +1,25 @@
-# /home/aryu_user/Arun/aiproject_staging/app/modules/ats_scanner/service.py
 from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 import asyncio
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.ats_scanner.utils.ats_rules_advanced import ATSRulesEngine, SeverityLevel
-from app.modules.ats_scanner.utils.ats_keyword_engine import KeywordEngine, KeywordAnalysis
+from app.modules.ats_scanner.utils.ats_keyword_engine import KeywordEngine, KeywordAnalysis, UNIVERSAL_SKILLS
 from app.modules.ats_scanner.utils.ats_feedback_generator import (
     DetailedFeedbackGenerator,
     ComprehensiveFeedback,
     GLOBAL_ATS_TACTICS,
     RECRUITER_TIPS,
 )
-from app.services.llm_client import call_llm
+from app.utils.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTS
-# ─────────────────────────────────────────────────────────────────────────────
 
 EMAIL_RE    = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", re.I)
 PHONE_RE    = re.compile(r"(\+\d{1,3}[\s\-]?)?\(?\d{3,5}\)?[\s\-]?\d{3,5}[\s\-]?\d{4,6}")
@@ -38,10 +33,74 @@ _SUBTITLE_TOKENS = {
     "designer", "director", "officer", "lead", "head of",
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# AI PROMPT  — uses numbered placeholders so curly braces in JSON schema
-# do NOT clash with .format() substitution
-# ─────────────────────────────────────────────────────────────────────────────
+_MONTH_MAP: Dict[str, int] = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+_STRONG_VERBS: Set[str] = {
+    "led", "managed", "directed", "spearheaded", "orchestrated", "oversaw",
+    "achieved", "delivered", "exceeded", "surpassed", "attained",
+    "developed", "built", "created", "designed", "architected", "engineered",
+    "launched", "initiated", "pioneered", "founded", "innovated",
+    "optimized", "improved", "enhanced", "streamlined", "accelerated",
+    "increased", "reduced", "minimized", "maximized", "scaled", "expanded",
+    "analyzed", "evaluated", "assessed", "diagnosed", "identified",
+    "implemented", "deployed", "integrated", "established", "released",
+    "transformed", "modernized", "reformed", "restructured", "negotiated",
+    "generated", "secured", "raised", "grew", "drove", "cut", "saved",
+}
+
+_WEAK_OPENERS: Set[str] = {
+    "responsible for", "involved in", "helped with", "assisted",
+    "worked on", "was part of", "participated in", "contributed to",
+    "was responsible", "duties included", "tasked with",
+}
+
+_METRIC_PATS: List[re.Pattern] = [
+    re.compile(r"\$[\d,]+\.?\d*\s*[KMBkmb]?"),
+    re.compile(r"\b\d+\s*%"),
+    re.compile(r"\b\d+[xX]\b"),
+    re.compile(r"\b\d+\+\s*(?:users?|clients?|customers?|projects?|employees?)"),
+    re.compile(r"(?:increased|reduced|grew|improved|decreased|expanded|saved|cut)\s+by\s+\d+"),
+    re.compile(r"\b\d[\d,]*\s*(?:million|billion|thousand|M|B|K)\b", re.I),
+]
+
+_SYNONYMS: Dict[str, Set[str]] = {
+    "javascript":       {"js", "ecmascript", "es6"},
+    "typescript":       {"ts"},
+    "python":           {"python3", "py"},
+    "c#":               {"csharp", "dotnet", ".net"},
+    "c++":              {"cpp"},
+    "node.js":          {"node", "nodejs"},
+    "react":            {"reactjs", "react.js"},
+    "vue":              {"vuejs", "vue.js"},
+    "angular":          {"angularjs"},
+    "postgresql":       {"postgres"},
+    "kubernetes":       {"k8s"},
+    "machine learning": {"ml"},
+    "artificial intelligence": {"ai"},
+    "natural language processing": {"nlp"},
+    "registered nurse": {"rn"},
+    "electronic health records": {"ehr", "emr"},
+    "certified public accountant": {"cpa"},
+    "chartered financial analyst": {"cfa"},
+    "search engine optimization": {"seo"},
+    "project management professional": {"pmp"},
+    "enterprise resource planning": {"erp"},
+    "customer relationship management": {"crm"},
+}
+
+_REV_SYN: Dict[str, str] = {}
+for _can, _vars in _SYNONYMS.items():
+    for _v in _vars:
+        _REV_SYN[_v.lower()] = _can.lower()
+
+_HARD_CAPS: Dict[str, int] = {
+    "no_experience": 40,
+    "no_skills":     50,
+    "no_email":      85,
+}
 
 AI_ANALYSIS_PROMPT = """You are a senior ATS expert. Analyse this resume and respond ONLY with valid JSON.
 
@@ -90,10 +149,6 @@ Return ONLY this JSON structure with no markdown fences, no extra text:
 }}"""
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# UTILITY FUNCTIONS
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _safe(value: Any) -> str:
     if value is None:
         return ""
@@ -101,17 +156,8 @@ def _safe(value: Any) -> str:
 
 
 def _safe_for_prompt(value: Any, max_len: int = 200) -> str:
-    """
-    Sanitise a value for injection into an LLM prompt that will ask
-    the LLM to respond with JSON.  Removes characters that commonly
-    break JSON generation when embedded in prompt context.
-    """
     text = _safe(value)[:max_len]
-    # Remove actual newlines — replace with space
-    text = text.replace("\n", " ").replace("\r", " ")
-    # Remove or escape characters that confuse JSON parsing in LLM output
-    text = text.replace("\\", "")
-    # Collapse multiple spaces
+    text = text.replace("\n", " ").replace("\r", " ").replace("\\", "")
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
 
@@ -124,6 +170,10 @@ def _is_present(value: Any) -> bool:
     if isinstance(value, (list, dict)):
         return len(value) > 0
     return bool(value)
+
+
+def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
+    return max(lo, min(hi, v))
 
 
 def _grade(score: int) -> str:
@@ -168,10 +218,6 @@ def _ats_verdict(score: int) -> str:
     return "Very high ATS rejection risk — major revision required before applying."
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NAME CLEANING
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _clean_name(raw: str) -> str:
     if not raw:
         return ""
@@ -200,10 +246,6 @@ def _extract_name_from_raw_text(raw_text: str) -> str:
                 return s
     return ""
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CONTACT DETECTION
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _build_contact_from_resume(resume: Dict) -> Dict:
     nested   = resume.get("contact") or {}
@@ -252,14 +294,10 @@ def _score_contact(contact: Dict) -> Tuple[int, List[str], List[str], List[str]]
         missing.append("Email address")
         score -= 25
     else:
-        if EMAIL_RE.match(contact["email"]):
-            if re.search(r"@(hotmail|yahoo|rediffmail|ymail)\.", contact["email"], re.I):
-                quality.append(f"Unprofessional email: {contact['email']} — use Gmail or custom domain")
-            else:
-                strengths.append(f"Professional email: {contact['email']}")
+        if re.search(r"@(hotmail|yahoo|rediffmail|ymail)\.", contact["email"], re.I):
+            quality.append(f"Unprofessional email: {contact['email']} — use Gmail or custom domain")
         else:
-            quality.append(f"Email format may be incorrect: {contact['email']}")
-            score -= 5
+            strengths.append(f"Professional email: {contact['email']}")
 
     if not contact.get("phone"):
         missing.append("Phone number")
@@ -270,48 +308,54 @@ def _score_contact(contact: Dict) -> Tuple[int, List[str], List[str], List[str]]
     if not contact.get("location"):
         quality.append("Location missing — many ATS filter by city/country")
         score -= 10
-    else:
-        strengths.append(f"Location: {contact['location']}")
 
     if not contact.get("linkedin"):
         quality.append("No LinkedIn URL — 90% of recruiters check LinkedIn before contacting")
         score -= 5
 
     if contact.get("github"):
-        strengths.append("GitHub profile linked — strong proof of work for tech roles")
+        strengths.append("GitHub profile linked")
 
     return max(score, 0), missing, quality, strengths
 
 
-def _build_contact_section_proxy(contact: Dict) -> "_DictProxy":
-    score, missing, quality, strengths = _score_contact(contact)
+class _DictProxy:
+    def __init__(self, d: Dict) -> None:
+        self._d = d
 
+    def __getattr__(self, name: str):
+        try:
+            return self._d[name]
+        except KeyError:
+            return None
+
+    def get(self, key, default=None):
+        return self._d.get(key, default)
+
+
+def _build_contact_section_proxy(contact: Dict) -> _DictProxy:
+    score, missing, quality, strengths = _score_contact(contact)
     ats_tips = [
-        "Keep contact info in the resume body — NOT a header/footer (ATS skips those).",
-        "Use City, State/Country only — not your full street address (privacy).",
-        "Always include a country code in your phone number: +91, +1, +44 etc.",
+        "Keep contact info in the resume body — NOT a header/footer.",
+        "Use City, State/Country only — not your full street address.",
+        "Always include a country code in your phone number.",
         "Add your LinkedIn URL — recruiters verify before scheduling interviews.",
         "Professional email format: firstname.lastname@gmail.com",
     ]
-
     data = {
-        "section_name":    "contact",
-        "current_score":   score,
-        "missing_fields":  missing,
-        "quality_issues":  quality,
-        "strengths":       strengths,
-        "ats_tips":        ats_tips,
-        "improvements":    [f"Add {m}" for m in missing] + quality,
+        "section_name":   "contact",
+        "current_score":  score,
+        "missing_fields": missing,
+        "quality_issues": quality,
+        "strengths":      strengths,
+        "ats_tips":       ats_tips,
+        "improvements":   [f"Add {m}" for m in missing] + quality,
         "rewrite_examples": [],
-        "current_status":  ["good"] if score >= 70 else (["needs_improvement"] if score >= 40 else ["critical"]),
-        "complete":        not missing,
+        "current_status": ["good"] if score >= 70 else (["needs_improvement"] if score >= 40 else ["critical"]),
+        "complete":       not missing,
     }
     return _DictProxy(data)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# EDUCATION RECOVERY
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _recover_education_from_text(raw_text: str) -> List[Dict]:
     DEGREE_RE = re.compile(
@@ -322,12 +366,12 @@ def _recover_education_from_text(raw_text: str) -> List[Dict]:
         r"Associate[^,\n|]{0,40}|Diploma[^,\n|]{0,40})",
         re.IGNORECASE,
     )
-    INST_RE  = re.compile(
+    INST_RE = re.compile(
         r"([\w\s&'\-\.]+(?:University|College|Institute|School|Academy|Engineering College)[\w\s&'\-\.]{0,40})",
         re.IGNORECASE,
     )
-    YEAR_RE  = re.compile(r"\b(19|20)\d{2}\b")
-    CGPA_RE  = re.compile(r"(?:CGPA|GPA)[:\s]*([0-9]\.[0-9]{1,2})", re.IGNORECASE)
+    YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
+    CGPA_RE = re.compile(r"(?:CGPA|GPA)[:\s]*([0-9]\.[0-9]{1,2})", re.IGNORECASE)
 
     entries = []
     for m in DEGREE_RE.finditer(raw_text):
@@ -364,10 +408,6 @@ def _recover_education_from_text(raw_text: str) -> List[Dict]:
     return entries
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RESUME ENRICHMENT
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _enrich_resume(resume: Dict) -> Dict:
     r = dict(resume)
 
@@ -393,113 +433,530 @@ def _enrich_resume(resume: Dict) -> Dict:
     return r
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# _DictProxy
-# ─────────────────────────────────────────────────────────────────────────────
+def _parse_date_to_months(raw: str) -> Optional[int]:
+    raw = _safe(raw).lower()
+    if not raw or re.match(r"present|current|now|till", raw, re.I):
+        return 12 * 2026 + 6
 
-class _DictProxy:
-    def __init__(self, d: Dict) -> None:
-        self._d = d
+    for abbr, num in _MONTH_MAP.items():
+        if abbr in raw:
+            ym = re.search(r"(19|20)\d{2}", raw)
+            if ym:
+                return int(ym.group(0)) * 12 + num
 
-    def __getattr__(self, name: str):
-        try:
-            return self._d[name]
-        except KeyError:
-            return None
+    ym = re.search(r"(19|20)\d{2}", raw)
+    if ym:
+        return int(ym.group(0)) * 12 + 6
 
-    def get(self, key, default=None):
-        return self._d.get(key, default)
+    return None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SCORE EXPLANATION
-# ─────────────────────────────────────────────────────────────────────────────
+def _duration_months(start: str, end: str) -> int:
+    s = _parse_date_to_months(start)
+    e = _parse_date_to_months(end)
+    if s is None or e is None:
+        return 0
+    return max(0, e - s)
+
+
+def _has_metric(text: str) -> bool:
+    return any(p.search(text) for p in _METRIC_PATS)
+
+
+def _has_strong_verb(text: str) -> bool:
+    words = re.findall(r"\b\w+\b", text.lower())
+    return bool(words and words[0] in _STRONG_VERBS)
+
+
+def _has_weak_opener(text: str) -> bool:
+    lower = text.lower()
+    return any(lower.startswith(w) for w in _WEAK_OPENERS)
+
+
+def _resume_flat_text(resume: Dict) -> str:
+    parts: List[str] = []
+    for key in ("summary", "skills", "raw_text", "raw_resume"):
+        v = resume.get(key)
+        if isinstance(v, str):
+            parts.append(v)
+    for exp in (resume.get("experience") or []):
+        if isinstance(exp, dict):
+            parts.append(_safe(exp.get("title")))
+            parts.append(_safe(exp.get("company")))
+            for b in (exp.get("bullets") or []):
+                parts.append(_safe(b))
+    for s in (resume.get("skills") or []):
+        parts.append(_safe(s))
+    return " ".join(parts).lower()
+
+
+def _known_skills_set() -> Set[str]:
+    known: Set[str] = set()
+    for cats in UNIVERSAL_SKILLS.values():
+        for skills in cats.values():
+            known.update(s.lower() for s in skills)
+    return known
+
+
+_KNOWN_SKILLS: Set[str] = _known_skills_set()
+
+
+def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
+    resume_text        = _resume_flat_text(resume)
+    resume_skills_raw  = [_safe(s).lower() for s in (resume.get("skills") or [])]
+    resume_skills_set  = {_REV_SYN.get(s, s) for s in resume_skills_raw} | set(resume_skills_raw)
+
+    if not job_description or not job_description.strip():
+        skill_count = len(resume_skills_raw)
+        raw = _clamp(100.0 / (1.0 + math.exp(-0.2 * (skill_count - 12))))
+        return {
+            "raw_score": raw, "weight": 0.30,
+            "skill_count": skill_count, "jd_provided": False,
+            "penalties": (["No job description provided"] if skill_count < 5 else []),
+            "bonuses":   ([f"{skill_count} skills listed"] if skill_count >= 8 else []),
+        }
+
+    jd_lower  = job_description.lower()
+    jd_words  = re.findall(r"\b[\w\+#\.]+\b", jd_lower)
+    jd_bigrams = [f"{jd_words[i]} {jd_words[i+1]}" for i in range(len(jd_words) - 1)]
+    jd_tokens = list(set(jd_words + jd_bigrams))
+
+    freq: Dict[str, int] = {}
+    for tok in jd_tokens:
+        canon = _REV_SYN.get(tok, tok)
+        if canon in _KNOWN_SKILLS or tok in _KNOWN_SKILLS:
+            freq[canon] = freq.get(canon, 0) + jd_lower.count(tok)
+
+    if not freq:
+        skill_count = len(resume_skills_raw)
+        raw = _clamp(100.0 / (1.0 + math.exp(-0.18 * (skill_count - 10))))
+        return {
+            "raw_score": raw, "weight": 0.30,
+            "jd_skills_detected": 0, "skill_count": skill_count,
+            "penalties": [], "bonuses": [],
+        }
+
+    total_weight   = 0.0
+    matched_weight = 0.0
+    missing_critical: List[str] = []
+    matched_skills:   List[str] = []
+
+    for skill, cnt in freq.items():
+        w = 1.0 + math.log(max(cnt, 1))
+        total_weight += w
+        found = False
+        if skill in resume_skills_set or skill in resume_text:
+            found = True
+        else:
+            for var in _SYNONYMS.get(skill, set()):
+                if var.lower() in resume_skills_set or var.lower() in resume_text:
+                    found = True
+                    break
+        if found:
+            matched_weight += w
+            matched_skills.append(skill)
+        elif cnt >= 3:
+            missing_critical.append(skill)
+
+    match_ratio = matched_weight / total_weight if total_weight > 0 else 0.0
+    raw = _clamp(match_ratio * 100)
+
+    words_in_resume = len(resume_text.split())
+    density = len(resume_skills_set) / max(words_in_resume, 1)
+    if density > 0.06:
+        raw = min(raw + 5, 100)
+
+    return {
+        "raw_score":        raw,
+        "weight":           0.30,
+        "jd_skills_detected": len(freq),
+        "matched":          len(matched_skills),
+        "match_ratio":      round(match_ratio, 3),
+        "missing_critical": missing_critical,
+        "keyword_density":  round(density, 4),
+        "penalties":        [f'Missing critical keyword: "{s}"' for s in missing_critical[:5]],
+        "bonuses":          [f'Matched: "{s}"' for s in matched_skills[:5]],
+    }
+
+
+def _dim_experience(resume: Dict) -> Dict:
+    experience = resume.get("experience") or []
+    if not isinstance(experience, list) or not experience:
+        return {
+            "raw_score": 0.0, "weight": 0.25,
+            "total_months": 0, "roles": 0,
+            "penalties": ["No work experience entries found"], "bonuses": [],
+        }
+
+    total_months   = 0
+    complete_roles = 0
+    role_count     = len(experience)
+    penalties: List[str] = []
+    bonuses:   List[str] = []
+
+    for idx, exp in enumerate(experience):
+        if not isinstance(exp, dict):
+            continue
+        title   = _safe(exp.get("title"))
+        company = _safe(exp.get("company"))
+        start   = _safe(exp.get("start_date"))
+        end     = _safe(exp.get("end_date"))
+        bullets = exp.get("bullets") or []
+
+        dur = _duration_months(start, end)
+        if dur == 0 and start:
+            dur = 12
+        total_months += dur
+
+        complete = bool(title and company and (start or dur > 0) and bullets)
+        if complete:
+            complete_roles += 1
+        else:
+            missing = []
+            if not title:   missing.append("title")
+            if not company: missing.append("company")
+            if not start:   missing.append("dates")
+            if not bullets: missing.append("bullets")
+            if missing:
+                penalties.append(f"Role {idx+1}: missing {', '.join(missing)}")
+
+        title_lower = title.lower()
+        if any(t in title_lower for t in ("senior", "lead", "principal", "head", "director", "vp", "chief", "manager")):
+            bonuses.append(f"Senior role: {title}")
+
+    if total_months == 0:
+        dur_score = 0.0
+    elif total_months <= 6:
+        dur_score = 15.0
+    else:
+        dur_score = _clamp(
+            35.0 + 30.0 * math.log(total_months / 12.0)
+            if total_months >= 12 else total_months / 12.0 * 35.0
+        )
+
+    role_bonus       = _clamp(min(role_count * 5.0, 15.0))
+    completeness     = complete_roles / max(role_count, 1)
+    completeness_pts = completeness * 20.0
+    raw              = _clamp(dur_score + role_bonus * completeness + completeness_pts)
+
+    return {
+        "raw_score":       raw,
+        "weight":          0.25,
+        "total_months":    total_months,
+        "total_years":     round(total_months / 12, 1),
+        "roles":           role_count,
+        "complete_roles":  complete_roles,
+        "completeness_pct": round(completeness * 100),
+        "penalties":       penalties,
+        "bonuses":         bonuses,
+    }
+
+
+def _dim_quality(resume: Dict) -> Dict:
+    experience = resume.get("experience") or []
+    summary    = _safe(resume.get("summary"))
+    skills     = resume.get("skills") or []
+
+    all_bullets: List[str] = []
+    for exp in experience:
+        if isinstance(exp, dict):
+            for b in (exp.get("bullets") or []):
+                if _safe(b):
+                    all_bullets.append(_safe(b))
+
+    total_bullets = len(all_bullets)
+    strong_count  = 0
+    metric_count  = 0
+    weak_count    = 0
+    penalties: List[str] = []
+    bonuses:   List[str] = []
+
+    for b in all_bullets:
+        if _has_strong_verb(b):  strong_count += 1
+        if _has_metric(b):       metric_count += 1
+        if _has_weak_opener(b):  weak_count   += 1
+
+    if total_bullets == 0:
+        bullet_score = 0.0
+        penalties.append("No achievement bullets in experience section")
+    else:
+        strong_ratio = strong_count / total_bullets
+        metric_ratio = metric_count / total_bullets
+        weak_ratio   = weak_count   / total_bullets
+        bullet_score = _clamp((strong_ratio * 40.0) + (metric_ratio * 50.0) - (weak_ratio * 20.0))
+
+        if metric_ratio > 0.5:
+            bonuses.append(f"{int(metric_ratio * 100)}% of bullets contain measurable results")
+        elif metric_ratio < 0.2:
+            penalties.append(f"Only {int(metric_ratio * 100)}% of bullets have metrics — add numbers")
+
+        if weak_ratio > 0.3:
+            penalties.append(f"{int(weak_ratio * 100)}% of bullets start with weak openers")
+
+    summary_score = 0.0
+    if not summary:
+        penalties.append("Professional summary missing")
+    else:
+        words = len(summary.split())
+        if words < 20:
+            summary_score = 8.0
+            penalties.append(f"Summary too brief ({words} words)")
+        elif words > 150:
+            summary_score = 15.0
+            penalties.append("Summary too long — trim to 50-80 words")
+        else:
+            summary_score = 20.0
+        if _has_metric(summary):
+            summary_score = min(summary_score + 5.0, 25.0)
+            bonuses.append("Summary contains quantified achievement")
+
+    generic_terms = {
+        "ms office", "microsoft office", "computers", "communication",
+        "teamwork", "adaptability", "hardworking", "detail oriented",
+        "fast learner", "quick learner", "team player",
+    }
+    specific_count = sum(1 for s in skills
+                         if _safe(s).lower() not in generic_terms and len(_safe(s)) > 2)
+    specificity_score = _clamp(min(specific_count * 1.5, 15.0))
+
+    raw = _clamp(bullet_score * 0.60 + summary_score + specificity_score)
+
+    return {
+        "raw_score":          raw,
+        "weight":             0.20,
+        "total_bullets":      total_bullets,
+        "strong_verb_pct":    round(strong_count / max(total_bullets, 1) * 100),
+        "metric_pct":         round(metric_count / max(total_bullets, 1) * 100),
+        "weak_opener_pct":    round(weak_count   / max(total_bullets, 1) * 100),
+        "summary_score":      round(summary_score),
+        "specificity_score":  round(specificity_score),
+        "penalties":          penalties,
+        "bonuses":            bonuses,
+    }
+
+
+def _dim_structure(resume: Dict) -> Dict:
+    earned   = 0.0
+    max_pts  = 85.0
+    penalties: List[str] = []
+    bonuses:   List[str] = []
+
+    summary = _safe(resume.get("summary"))
+    if summary and len(summary.split()) >= 15:
+        earned += 20
+        bonuses.append("Professional summary present")
+    elif summary:
+        earned += 10
+        penalties.append("Summary present but too brief")
+    else:
+        penalties.append("Professional summary missing")
+
+    exp = resume.get("experience") or []
+    if isinstance(exp, list) and len(exp) > 0:
+        earned += 20
+    else:
+        penalties.append("Work experience section missing")
+
+    skills = resume.get("skills") or []
+    if isinstance(skills, list) and len(skills) >= 5:
+        earned += 20
+    elif isinstance(skills, list) and 0 < len(skills) < 5:
+        earned += 10
+        penalties.append(f"Too few skills ({len(skills)} — add at least 5)")
+    else:
+        penalties.append("Skills section missing or empty")
+
+    edu = resume.get("education") or []
+    if isinstance(edu, list) and len(edu) > 0:
+        has_valid = any(
+            isinstance(e, dict) and (e.get("degree") or e.get("institution"))
+            for e in edu
+        )
+        earned += 20 if has_valid else 10
+
+    contact = _build_contact_from_resume(resume)
+    if contact.get("email"):
+        earned += 5
+        bonuses.append("Email present")
+    else:
+        penalties.append("Email address missing")
+
+    proj = resume.get("projects") or []
+    if isinstance(proj, list) and len(proj) > 0:
+        bonuses.append(f"{len(proj)} project(s) listed")
+
+    raw = _clamp((earned / max_pts) * 100)
+    return {
+        "raw_score": raw, "weight": 0.15,
+        "pts_earned": round(earned), "pts_max": round(max_pts),
+        "penalties": penalties, "bonuses": bonuses,
+    }
+
+
+def _dim_format(resume: Dict) -> Dict:
+    score    = 100.0
+    penalties: List[str] = []
+    bonuses:   List[str] = []
+
+    if resume.get("uses_table") or resume.get("has_tables"):
+        score -= 15
+        penalties.append("Tables detected — ATS cannot parse table content")
+
+    if resume.get("uses_columns") or resume.get("multi_column"):
+        score -= 12
+        penalties.append("Multi-column layout — ATS reads columns out of order")
+
+    if resume.get("has_images") or resume.get("uses_graphics"):
+        score -= 8
+        penalties.append("Images/graphics detected — ATS cannot read visual elements")
+
+    contact = _build_contact_from_resume(resume)
+    if contact.get("linkedin"):
+        bonuses.append("LinkedIn profile linked")
+        score = min(score + 3, 100)
+    if contact.get("github"):
+        bonuses.append("GitHub profile linked")
+        score = min(score + 2, 100)
+
+    return {
+        "raw_score": _clamp(score), "weight": 0.10,
+        "penalties": penalties, "bonuses": bonuses,
+    }
+
+
+def _apply_hard_caps(score: float, resume: Dict) -> Tuple[float, List[str]]:
+    applied: List[str] = []
+    exp    = resume.get("experience") or []
+    skills = resume.get("skills")    or []
+    contact = _build_contact_from_resume(resume)
+    email   = contact.get("email", "")
+
+    if not (isinstance(exp, list) and len(exp) > 0):
+        if score > _HARD_CAPS["no_experience"]:
+            score = float(_HARD_CAPS["no_experience"])
+            applied.append(f"No work experience — score capped at {_HARD_CAPS['no_experience']}")
+
+    if not (isinstance(skills, list) and len(skills) >= 1):
+        if score > _HARD_CAPS["no_skills"]:
+            score = float(_HARD_CAPS["no_skills"])
+            applied.append(f"No skills section — score capped at {_HARD_CAPS['no_skills']}")
+
+    if not email:
+        if score > _HARD_CAPS["no_email"]:
+            score = float(_HARD_CAPS["no_email"])
+            applied.append(f"Missing email — score capped at {_HARD_CAPS['no_email']}")
+
+    return score, applied
+
+
+def _calculate_dynamic_score(
+    resume:          Dict,
+    job_description: Optional[str],
+    ai_insights:     Dict,
+) -> Tuple[int, Dict]:
+    d_kw      = _dim_keyword(resume, job_description)
+    d_exp     = _dim_experience(resume)
+    d_quality = _dim_quality(resume)
+    d_struct  = _dim_structure(resume)
+    d_format  = _dim_format(resume)
+
+    raw_weighted = (
+        d_kw["raw_score"]      * d_kw["weight"]      +
+        d_exp["raw_score"]     * d_exp["weight"]      +
+        d_quality["raw_score"] * d_quality["weight"]  +
+        d_struct["raw_score"]  * d_struct["weight"]   +
+        d_format["raw_score"]  * d_format["weight"]
+    )
+
+    logger.info(
+        f"  kw={d_kw['raw_score']:.1f}  exp={d_exp['raw_score']:.1f}  "
+        f"qual={d_quality['raw_score']:.1f}  struct={d_struct['raw_score']:.1f}  "
+        f"fmt={d_format['raw_score']:.1f}  → weighted={raw_weighted:.1f}"
+    )
+
+    ai_bonus = 0
+    if ai_insights.get("success"):
+        ai_scores = ai_insights.get("ai_section_scores") or {}
+        if ai_scores:
+            vals = [
+                v.get("score", 70)
+                for v in ai_scores.values()
+                if isinstance(v, dict) and isinstance(v.get("score"), (int, float))
+            ]
+            if vals:
+                ai_bonus = int((sum(vals) / len(vals) - 70) * 0.08)
+
+    raw_with_ai = raw_weighted + ai_bonus
+    capped, caps_applied = _apply_hard_caps(raw_with_ai, resume)
+    final = max(0, min(100, round(capped)))
+
+    breakdown = {
+        "keyword_skill_density":      {"raw": round(d_kw["raw_score"],      1), "weight": d_kw["weight"],      "weighted": round(d_kw["raw_score"]      * d_kw["weight"],      2), **{k: v for k, v in d_kw.items()      if k not in ("raw_score", "weight")}},
+        "experience_depth_duration":  {"raw": round(d_exp["raw_score"],     1), "weight": d_exp["weight"],     "weighted": round(d_exp["raw_score"]     * d_exp["weight"],     2), **{k: v for k, v in d_exp.items()     if k not in ("raw_score", "weight")}},
+        "achievement_quality":        {"raw": round(d_quality["raw_score"], 1), "weight": d_quality["weight"], "weighted": round(d_quality["raw_score"] * d_quality["weight"], 2), **{k: v for k, v in d_quality.items() if k not in ("raw_score", "weight")}},
+        "structure_completeness":     {"raw": round(d_struct["raw_score"],  1), "weight": d_struct["weight"],  "weighted": round(d_struct["raw_score"]  * d_struct["weight"],  2), **{k: v for k, v in d_struct.items()  if k not in ("raw_score", "weight")}},
+        "format_ats_compliance":      {"raw": round(d_format["raw_score"],  1), "weight": d_format["weight"],  "weighted": round(d_format["raw_score"]  * d_format["weight"],  2), **{k: v for k, v in d_format.items()  if k not in ("raw_score", "weight")}},
+        "hard_caps_applied":          caps_applied,
+        "ai_bonus":                   ai_bonus,
+    }
+
+    return final, breakdown
+
 
 def _score_explanation(
     rule_score:    int,
     keyword_score: int,
     final_score:   int,
     has_jd:        bool,
+    dim_breakdown: Dict,
 ) -> Dict:
     return {
         "resume_quality_score": {
-            "score":  rule_score,
-            "grade":  _grade(rule_score),
-            "what_it_means": (
-                "How well-written the resume is: structure, formatting, "
-                "action verbs, bullet quality. Does NOT measure job fit."
-            ),
-            "interpretation": (
-                "Excellent resume writing quality."
-                if rule_score >= 85 else
-                "Good quality with minor improvements needed."
-                if rule_score >= 70 else
+            "score":            rule_score,
+            "grade":            _grade(rule_score),
+            "what_it_means":    "How well-written the resume is: structure, formatting, action verbs, bullet quality.",
+            "interpretation":   (
+                "Excellent resume writing quality."    if rule_score >= 85 else
+                "Good quality with minor improvements." if rule_score >= 70 else
                 "Quality issues that need addressing."
             ),
         },
         "keyword_match_score": {
-            "score":  keyword_score if has_jd else None,
-            "grade":  _grade(keyword_score) if has_jd else "N/A (no JD provided)",
-            "what_it_means": (
-                "How many keywords from the job description appear in the resume."
-            ),
+            "score":         keyword_score if has_jd else None,
+            "grade":         _grade(keyword_score) if has_jd else "N/A (no JD provided)",
+            "what_it_means": "How many keywords from the job description appear in the resume.",
             "interpretation": (
-                "Not calculated — provide a job description to measure keyword match."
-                if not has_jd else
-                "High keyword alignment — resume will pass ATS keyword filters."
-                if keyword_score >= 70 else
-                "Low keyword match — resume will likely be filtered out by ATS."
-                if keyword_score < 50 else
-                "Moderate keyword match — adding more JD keywords will improve ATS score."
+                "Not calculated — provide a job description to measure keyword match." if not has_jd else
+                "High keyword alignment."              if keyword_score >= 70 else
+                "Low keyword match — resume will likely be filtered out." if keyword_score < 50 else
+                "Moderate keyword match — add more JD keywords."
             ),
         },
         "final_ats_score": {
-            "score":  final_score,
-            "grade":  _grade(final_score),
-            "what_it_means": (
-                "Weighted final score: 40% resume quality + 50% keyword match."
-                if has_jd else
-                "Resume quality score (no job description provided)."
-            ),
+            "score":         final_score,
+            "grade":         _grade(final_score),
+            "what_it_means": "Multi-dimensional score: keyword density 30% + experience depth 25% + achievement quality 20% + structure 15% + format 10%.",
             "interpretation": _ats_verdict(final_score),
         },
-        "why_scores_differ": (
-            "Resume is well-written but does not match the job description keywords. "
-            "Add the missing keywords listed in keyword_analysis."
-            if has_jd and rule_score >= 70 and keyword_score < 50 else
-            "Scores are consistent across all dimensions."
-        ),
+        "dimension_breakdown": dim_breakdown,
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JSON REPAIR UTILITIES
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _strip_markdown_fences(text: str) -> str:
-    """Remove ```json ... ``` or ``` ... ``` wrappers."""
     text = text.strip()
-    # Remove opening fence
     text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-    # Remove closing fence
     text = re.sub(r"\s*```\s*$", "", text)
     return text.strip()
 
 
 def _extract_json_object(text: str) -> str:
-    """
-    Extract the outermost { ... } block.
-    Handles cases where the LLM adds preamble or postamble text.
-    """
     start = text.find("{")
     if start == -1:
         return text
-
-    depth = 0
-    in_string = False
-    escape_next = False
-    end = start
-
+    depth        = 0
+    in_string    = False
+    escape_next  = False
+    end          = start
     for i, ch in enumerate(text[start:], start):
         if escape_next:
             escape_next = False
@@ -519,41 +976,13 @@ def _extract_json_object(text: str) -> str:
             if depth == 0:
                 end = i
                 break
-
     return text[start:end + 1]
 
 
-def _repair_json_string(raw: str) -> str:
-    """
-    Multi-pass JSON repair for common LLM output issues:
-    1. Trailing commas before } or ]
-    2. Unescaped newlines inside string values
-    3. Unescaped double quotes inside string values (basic heuristic)
-    4. Truncated JSON — add missing closing brackets
-    """
-    # Pass 1: remove trailing commas
-    text = re.sub(r",\s*([\]}])", r"\1", raw)
-
-    # Pass 2: replace literal newlines inside strings with \n escape
-    # We do this by scanning char by char to find string boundaries
-    text = _escape_newlines_in_strings(text)
-
-    # Pass 3: fix unescaped control characters
-    # Replace tab, carriage return inside strings
-    text = re.sub(r'(?<=": ")(.*?)(?="(?:\s*[,}\]]))', _sanitise_string_value, text)
-
-    # Pass 4: attempt to close unclosed structure
-    text = _close_unclosed_json(text)
-
-    return text
-
-
 def _escape_newlines_in_strings(text: str) -> str:
-    """Replace literal \n and \r inside JSON string values with their escape sequences."""
-    result = []
-    in_string = False
-    escape_next = False
-
+    result:      List[str] = []
+    in_string    = False
+    escape_next  = False
     for ch in text:
         if escape_next:
             escape_next = False
@@ -568,53 +997,32 @@ def _escape_newlines_in_strings(text: str) -> str:
             result.append(ch)
             continue
         if in_string:
-            if ch == "\n":
-                result.append("\\n")
-            elif ch == "\r":
-                result.append("\\r")
-            elif ch == "\t":
-                result.append("\\t")
-            else:
-                result.append(ch)
+            if ch == "\n":   result.append("\\n")
+            elif ch == "\r": result.append("\\r")
+            elif ch == "\t": result.append("\\t")
+            else:            result.append(ch)
         else:
             result.append(ch)
-
     return "".join(result)
 
 
-def _sanitise_string_value(m: re.Match) -> str:
-    """Escape any bare double-quotes found inside a captured string value."""
-    content = m.group(0)
-    # This is a rough pass — only process if needed
-    return content
-
-
-def _close_unclosed_json(text: str) -> str:
-    """Add missing ] and } to close a truncated JSON string."""
+def _repair_json(raw: str) -> str:
+    text = re.sub(r",\s*([\]}])", r"\1", raw)
+    text = _escape_newlines_in_strings(text)
+    text = text.rstrip().rstrip(",")
     open_braces   = text.count("{") - text.count("}")
     open_brackets = text.count("[") - text.count("]")
-
-    # Remove trailing comma before we close
-    text = text.rstrip().rstrip(",")
-
     text += "]" * max(open_brackets, 0)
-    text += "}" * max(open_braces, 0)
-
+    text += "}" * max(open_braces,   0)
     return text
 
 
 def _try_parse_json(text: str) -> Optional[Dict]:
-    """
-    Attempt JSON parsing with progressive repair steps.
-    Returns parsed dict or None.
-    """
-    # Attempt 1: direct parse
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Attempt 2: strip fences + extract object
     cleaned = _strip_markdown_fences(text)
     cleaned = _extract_json_object(cleaned)
     try:
@@ -622,15 +1030,12 @@ def _try_parse_json(text: str) -> Optional[Dict]:
     except json.JSONDecodeError:
         pass
 
-    # Attempt 3: repair then parse
-    repaired = _repair_json_string(cleaned)
+    repaired = _repair_json(cleaned)
     try:
         return json.loads(repaired)
     except json.JSONDecodeError:
         pass
 
-    # Attempt 4: use json5-style lenient parser via ast.literal_eval approximation
-    # Replace single-quoted strings with double-quoted (common LLM mistake)
     try:
         swapped = re.sub(r"(?<![\\])'", '"', repaired)
         return json.loads(swapped)
@@ -641,22 +1046,12 @@ def _try_parse_json(text: str) -> Optional[Dict]:
 
 
 def _extract_fields_by_regex(text: str) -> Dict:
-    """
-    Last-resort: extract known fields from malformed JSON using regex.
-    Returns a partial dict — always succeeds.
-    """
     result: Dict = {}
-
-    # String fields
-    for field in (
-        "industry_detected", "role_level", "ats_compatibility_verdict",
-        "overall_assessment",
-    ):
+    for field in ("industry_detected", "role_level", "ats_compatibility_verdict", "overall_assessment"):
         m = re.search(rf'"{field}"\s*:\s*"([^"{{}}[\]]*)"', text)
         if m:
             result[field] = m.group(1).strip()
 
-    # Array of strings
     for field in ("content_strengths", "ats_passing_tactics", "priority_action_plan"):
         m = re.search(rf'"{field}"\s*:\s*\[([^\]]*)\]', text, re.DOTALL)
         if m:
@@ -664,7 +1059,6 @@ def _extract_fields_by_regex(text: str) -> Dict:
             if items:
                 result[field] = items
 
-    # ai_section_scores — extract scores only
     section_scores = {}
     for sec in ("summary", "experience", "skills", "education"):
         m = re.search(rf'"{sec}"\s*:\s*\{{\s*"score"\s*:\s*(\d+)', text)
@@ -675,10 +1069,6 @@ def _extract_fields_by_regex(text: str) -> Dict:
 
     return result
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN SERVICE
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ATSScannerService:
 
@@ -694,24 +1084,20 @@ class ATSScannerService:
         db:              Optional[AsyncSession] = None,
         include_ai:      bool = True,
     ) -> Dict:
-        logger.info("=== ATS Scan v4.0 Starting ===")
+        logger.info("=== ATS Scan v5 Starting ===")
 
-        # ── PRE-PROCESS ───────────────────────────────────────────────────────
         resume        = _enrich_resume(resume)
         contact_built = _build_contact_from_resume(resume)
         logger.info(
-            f"  name='{resume.get('name')}' | "
-            f"email='{contact_built.get('email')}' | "
-            f"edu={len(resume.get('education') or [])} | "
-            f"exp={len(resume.get('experience') or [])} | "
+            f"  name='{resume.get('name')}' "
+            f"edu={len(resume.get('education') or [])} "
+            f"exp={len(resume.get('experience') or [])} "
             f"skills={len(resume.get('skills') or [])}"
         )
 
-        # ── Stage 1: Rules ────────────────────────────────────────────────────
         logger.info("[Stage 1] ATSRulesEngine")
         rules_score = self.rules_engine.analyze(resume)
 
-        # ── Stage 2: Keywords ─────────────────────────────────────────────────
         logger.info("[Stage 2] KeywordEngine")
         keyword_analysis: Optional[KeywordAnalysis] = None
         keyword_score = 0
@@ -725,7 +1111,6 @@ class ATSScannerService:
             except Exception as e:
                 logger.warning(f"  Keyword engine error: {e}")
 
-        # ── Stage 3: AI Analysis ──────────────────────────────────────────────
         ai_insights: Dict = {}
         if include_ai and db:
             logger.info("[Stage 3] AI analysis")
@@ -734,21 +1119,15 @@ class ATSScannerService:
                     resume, job_description, rules_score.total_score,
                     keyword_analysis, db,
                 )
-                logger.info(f"  AI success={ai_insights.get('success')} "
-                            f"partial={ai_insights.get('partial', False)}")
+                logger.info(f"  AI success={ai_insights.get('success')} partial={ai_insights.get('partial', False)}")
             except Exception as e:
                 logger.warning(f"  AI failed (graceful fallback): {e}")
                 ai_insights = {"success": False, "error": str(e)}
 
-        # ── Stage 3.5: Final score ────────────────────────────────────────────
-        final_score = self._calculate_final_score(
-            rules_score.total_score, keyword_score, ai_insights
-        )
-        logger.info(
-            f"  final={final_score} rules={rules_score.total_score} kw={keyword_score}"
-        )
+        logger.info("[Stage 3.5] Dynamic multi-dimensional scoring")
+        final_score, dim_breakdown = _calculate_dynamic_score(resume, job_description, ai_insights)
+        logger.info(f"  final={final_score}")
 
-        # ── Stage 4: Feedback ─────────────────────────────────────────────────
         logger.info("[Stage 4] Feedback generation")
         rules_score.section_issues["contact"] = _build_contact_section_proxy(contact_built)
 
@@ -769,26 +1148,21 @@ class ATSScannerService:
                     section_scores[sec] = int(r_s * 0.6 + a_s * 0.4)
 
         detailed_feedback = self.feedback_generator.generate_detailed_feedback(
-            ats_score        = final_score,
-            section_scores   = section_scores,
-            resume           = resume,
-            ats_issues       = rules_score.all_issues,
-            section_analyses = rules_score.section_issues,
+            ats_score         = final_score,
+            section_scores    = section_scores,
+            resume            = resume,
+            ats_issues        = rules_score.all_issues,
+            section_analyses  = rules_score.section_issues,
         )
 
-        # ── Stage 5: Assemble ─────────────────────────────────────────────────
         logger.info("[Stage 5] Assembling response")
         response = self._build_response(
             rules_score, keyword_analysis, keyword_score, final_score,
             detailed_feedback, ai_insights, resume,
-            section_scores, contact_built, has_jd,
+            section_scores, contact_built, has_jd, dim_breakdown,
         )
         logger.info(f"=== Scan complete — final={final_score}/100 ===")
         return response
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # AI
-    # ─────────────────────────────────────────────────────────────────────────
 
     async def _run_ai_analysis(
         self,
@@ -806,7 +1180,6 @@ class ATSScannerService:
             ", ".join([_safe(s) for s in (resume.get("skills") or [])[:15]]), 200
         )
 
-        # Experience bullets — sanitised, max 6 bullets
         exp_lines: List[str] = []
         for exp in (resume.get("experience") or [])[:3]:
             if isinstance(exp, dict):
@@ -816,7 +1189,6 @@ class ATSScannerService:
                         exp_lines.append(clean)
         experience_bullets = "; ".join(exp_lines[:6]) or "Not provided"
 
-        # Education — sanitised
         edu_parts: List[str] = []
         for edu in (resume.get("education") or [])[:2]:
             if isinstance(edu, dict):
@@ -827,17 +1199,14 @@ class ATSScannerService:
                     edu_parts.append(f"{d} at {i} ({y})".strip())
         education = "; ".join(edu_parts) or "Not provided"
 
-        # Certs and projects — sanitised
         certs = ", ".join([
             _safe_for_prompt(c.get("name") if isinstance(c, dict) else c, 60)
-            for c in (resume.get("certifications") or [])[:5]
-            if c
+            for c in (resume.get("certifications") or [])[:5] if c
         ]) or "None"
 
         projects = ", ".join([
             _safe_for_prompt(p.get("name") or p.get("title") if isinstance(p, dict) else p, 60)
-            for p in (resume.get("projects") or [])[:3]
-            if p
+            for p in (resume.get("projects") or [])[:3] if p
         ]) or "None"
 
         additional = ", ".join([
@@ -848,45 +1217,35 @@ class ATSScannerService:
         jd_text = _safe_for_prompt(job_description or "Not provided", 600)
 
         prompt = AI_ANALYSIS_PROMPT.format(
-            name               = name or "Candidate",
-            target_role        = _safe_for_prompt(
-                resume.get("target_role") or self._guess_target_role(resume) or "Not specified", 60
-            ),
-            industry           = _safe_for_prompt(industry, 40),
-            summary            = summary or "Not provided",
-            skills             = skills or "Not provided",
-            experience_bullets = experience_bullets,
-            education          = education,
-            certifications     = certs,
-            projects           = projects,
-            additional_sections= additional,
-            job_description    = jd_text,
-            ats_score          = ats_score,
+            name                = name or "Candidate",
+            target_role         = _safe_for_prompt(resume.get("target_role") or self._guess_target_role(resume) or "Not specified", 60),
+            industry            = _safe_for_prompt(industry, 40),
+            summary             = summary or "Not provided",
+            skills              = skills  or "Not provided",
+            experience_bullets  = experience_bullets,
+            education           = education,
+            certifications      = certs,
+            projects            = projects,
+            additional_sections = additional,
+            job_description     = jd_text,
+            ats_score           = ats_score,
         )
 
         raw = await call_llm(user_message=prompt, agent_name="ats_scanner", db=db)
         return self._parse_ai_response(raw)
 
     def _parse_ai_response(self, raw: str) -> Dict:
-        """
-        Robust multi-pass JSON parser for LLM responses.
-        Never raises — always returns a dict with success flag.
-        """
         if not raw or not raw.strip():
             return {"success": False, "error": "Empty AI response"}
 
-        # Attempt full parse with progressive repair
         parsed = _try_parse_json(raw)
-
         if parsed and isinstance(parsed, dict):
             parsed["success"] = True
             logger.info("AI JSON parsed successfully")
             return parsed
 
-        # Full parse failed — extract whatever fields we can via regex
         logger.warning("Full JSON parse failed — extracting partial fields via regex")
         partial = _extract_fields_by_regex(raw)
-
         if partial:
             partial["success"] = bool(
                 partial.get("overall_assessment") or
@@ -897,36 +1256,6 @@ class ATSScannerService:
             return partial
 
         return {"success": False, "error": "AI response could not be parsed", "raw": raw[:200]}
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SCORING
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _calculate_final_score(
-        self, rule_score: int, keyword_score: int, ai_insights: Dict
-    ) -> int:
-        ai_bonus = 0
-        if ai_insights.get("success"):
-            ai_scores = ai_insights.get("ai_section_scores") or {}
-            if ai_scores:
-                vals = [
-                    v.get("score", 70)
-                    for v in ai_scores.values()
-                    if isinstance(v, dict) and isinstance(v.get("score"), (int, float))
-                ]
-                if vals:
-                    ai_bonus = int((sum(vals) / len(vals) - 70) * 0.1)
-
-        if keyword_score > 0:
-            final = (rule_score * 0.40) + (keyword_score * 0.50) + ai_bonus
-        else:
-            final = (rule_score * 0.80) + ai_bonus
-
-        return min(max(int(final), 0), 100)
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # RESPONSE BUILDER
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_response(
         self,
@@ -940,9 +1269,8 @@ class ATSScannerService:
         section_scores:    Dict[str, int],
         contact_built:     Dict,
         has_jd:            bool,
+        dim_breakdown:     Dict,
     ) -> Dict:
-
-        # Section output
         section_output: Dict = {}
         for sn, sf in (detailed_feedback.section_feedback or {}).items():
             section_output[sn] = {
@@ -965,7 +1293,6 @@ class ATSScannerService:
                 "strengths":            sf.strengths,
             }
 
-        # Keyword output
         keyword_output = None
         if keyword_analysis:
             keyword_output = {
@@ -993,7 +1320,6 @@ class ATSScannerService:
                             "source":            "ai",
                         })
 
-        # AI block
         if ai_insights.get("success"):
             ai_block = {
                 "status":                    "success",
@@ -1016,8 +1342,8 @@ class ATSScannerService:
                 "reason": ai_insights.get("error", "AI analysis not enabled."),
             }
 
-        grade  = _grade(final_score)
-        status = _status_from_score(final_score)
+        grade         = _grade(final_score)
+        status        = _status_from_score(final_score)
         contact_score, _, _, _ = _score_contact(contact_built)
 
         return {
@@ -1038,9 +1364,10 @@ class ATSScannerService:
                 "structure_quality":    rules_score.structure_score,
                 "content_quality":      rules_score.content_score,
                 "ats_compliance":       rules_score.ats_compliance_score,
+                "dimension_breakdown":  dim_breakdown,
             },
             "score_explanation": _score_explanation(
-                rules_score.total_score, keyword_score, final_score, has_jd
+                rules_score.total_score, keyword_score, final_score, has_jd, dim_breakdown
             ),
             "contact_detected": {
                 "name":     contact_built.get("name"),
@@ -1078,17 +1405,10 @@ class ATSScannerService:
             },
         }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # HELPERS
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _format_issues(self, issues) -> Dict[str, List[Dict]]:
         out: Dict[str, List[Dict]] = {"critical": [], "high": [], "medium": [], "low": []}
         for issue in issues:
-            sev = (
-                issue.severity.value if hasattr(issue.severity, "value")
-                else str(issue.severity)
-            )
+            sev   = issue.severity.value if hasattr(issue.severity, "value") else str(issue.severity)
             entry = {
                 "section":    issue.section,
                 "message":    issue.message,
@@ -1140,10 +1460,6 @@ class ATSScannerService:
                 return _safe(first.get("title") or first.get("job_title"))
         return None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CONVENIENCE
-# ─────────────────────────────────────────────────────────────────────────────
 
 async def create_ats_scan(
     resume:          Dict,

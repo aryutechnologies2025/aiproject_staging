@@ -36,7 +36,7 @@ from typing import Any, Dict
 from app.modules.resume_builder.resume_parser_helper import extract_text_from_docx, extract_text_from_pdf
 from app.modules.ats_scanner.utils.text_extraction import extract_text
 from app.modules.resume_builder.resume_parser_service import parse_resume_to_schema, split_into_sections
-from app.services.llm_client import call_llm
+from app.utils.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
