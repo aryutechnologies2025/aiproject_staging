@@ -208,44 +208,27 @@ PostgreSQL"""
 
 
 async def suggest_education(data: dict, db: AsyncSession) -> dict:
-    education_list = data.get("education", [])
 
-    if not isinstance(education_list, list):
-        raise HTTPException(400, "education must be a list")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "invalid payload")
 
-    if not education_list:
-        return {
-            "education_bullets": "",
-            "count": 0,
-            "quality_notes": "No education data provided"
-        }
-
-    formatted_entries = ""
-
-    for i, edu in enumerate(education_list, 1):
-        formatted_entries += f"""
-#{i}
-College:{edu.get("college","").strip()}
-Degree:{edu.get("degree","").strip()}
-Year:{edu.get("year","").strip()}
-Location:{edu.get("location","").strip()}
-Grade:{edu.get("grade","").strip()}
-Achievements:{edu.get("achievements","").strip()}
+    formatted_entries = f"""
+Degree:{data.get("degree","")}
+College:{data.get("college","")}
+Location:{data.get("location","")}
+Year:{data.get("year","")}
 """
 
     user_prompt = f"""
 Generate 5 strong resume education bullets.
 
 Rules:
-- Use given college and degree details
-- Create meaningful academic descriptions based on the degree
-- Include subjects, technical exposure, concepts, and learning areas typically related to the degree
-- Do NOT create fake awards, GPA, rankings, internships, or achievements
-- No bootcamp/certification/self-learning text
+- Use given degree and college details
+- Include relevant academic concepts related to the degree
+- No fake achievements, GPA, awards, or internships
 - ATS-friendly professional wording
 - One bullet per line
 - No headings or symbols
-- Avoid repeating college name in every line
 
 Data:
 {formatted_entries}
@@ -262,7 +245,7 @@ Data:
     return {
         "education_bullets": "\n".join(bullets),
         "count": len(bullets),
-        "quality_notes": "Education bullets generated from provided education data"
+        "quality_notes": "Education bullets generated"
     }
 
 
