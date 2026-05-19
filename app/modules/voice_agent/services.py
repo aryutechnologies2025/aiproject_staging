@@ -308,13 +308,14 @@ async def sarvam_stt_rest(audio_bytes: bytes, sample_rate: int = 16000) -> str:
         wf.setsampwidth(2)      # 16-bit = 2 bytes
         wf.setframerate(sample_rate)
         wf.writeframes(audio_bytes)
-    buf.seek(0)
+
+    wav_bytes = buf.getvalue()
 
     async with httpx.AsyncClient(timeout=20) as client:
         resp = await client.post(
             config.SARVAM_STT_REST_URL,
             headers={"API-Subscription-Key": config.SARVAM_API_KEY},
-            files={"file": ("audio.wav", buf, "audio/wav")},
+            files={"file": ("audio.wav", wav_bytes, "audio/wav")},
             data={
                 "language_code": "ta-IN",
                 "model": "saaras:v3",

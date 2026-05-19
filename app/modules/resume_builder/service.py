@@ -5,6 +5,7 @@ from app.utils.llm_client import call_llm
 from app.utils.prompt_service import get_prompt
 from typing import Dict, Any
 import json
+import re
 from .extractor import extract_with_llamaparse
 import logging
 
@@ -15,7 +16,7 @@ def _strip_leading_symbol(text: str) -> str:
     """Remove leading bullet symbols, dashes, asterisks, dots from a line."""
     if not text:
         return text
-    import re
+    
     return re.sub(r'^[\s]*[•\-\*\.\u2022\u2023\u25E6\u2043\u2219►▶→]+[\s]*', '', text.strip()).strip()
 
 
@@ -40,35 +41,38 @@ async def suggest_experience(data: dict, db: AsyncSession) -> dict:
     description = data.get("description", "")
     tone = data.get("tone", "professional")
 
-    user_prompt = f"""You are a professional resume writer creating compelling experience bullets.
+    user_prompt = f"""[CRITICAL INTEGRITY CONSTRAINT]
+You are an expert multi-industry resume writer. Your task is to distill the raw job description provided below into concise, high-impact, ATS-optimized accomplishment statements. Do NOT invent metrics or titles. Do NOT use IT jargon if the candidate is in a non-tech field.
 
-ROLE CONTEXT:
-Title: {job_title}
-Company: {company}
-Duration: {duration}
-Location: {location}
-Description: {description}
-Style: {tone}
+ROLE DATA:
+- Job Title: {job_title}
+- Organization: {company}
+- Tenure/Duration: {duration}
+- Location: {location}
+- Raw Description/Tasks: {description}
+- Target Tone: {tone}
+
+EXECUTION RULES:
+1. NO personal pronouns allowed (No: I, me, my, we, our).
+2. Follow the universal formula: [Strong Action Verb] + [Core Task/Responsibility] + [Measurable Business/Operational Impact].
+3. Prioritize concise, clear sentence structures over wordy explanations.
+4. Output exactly 3 to 5 high-quality bullets maximum. One bullet per line.
+
+UNIVERSAL REFERENCE PATTERNS:
+
+Example 1 (Corporate / Operations / Admin):
+Raw Input: "I managed the daily schedules for the office, organized client files, and helped reduce office supply spending over the year."
+Output: Coordinated daily administrative workflows and calendar management for senior executive teams.
+Output: Restructured physical and digital client data archiving systems, improving retrieval times.
+Output: Audited vendor contracts and optimized office inventory pipelines, reducing annual operational expenditure.
+
+Example 2 (Education / Teaching):
+Raw Input: "I was a teacher handling 30 students. I changed the lesson plans and grades went up quite a bit."
+Output: Executed comprehensive curriculum delivery tailored to diverse learning styles for groups of 30+ students.
+Output: Innovated custom interactive lesson frameworks, resulting in measurable improvements in quarterly student performance metrics.
 
 YOUR TASK:
-Generate 15-20 impact-focused experience bullets that:
-1. Start with strong action verbs (developed, built, designed, implemented, led, optimized, created, launched)
-2. Include quantifiable results where possible (%, numbers, time saved, scale)
-3. Show business or team impact, not just tasks
-4. Use professional resume language (no "I", "we", personal pronouns)
-5. Follow format: [Verb] [what] [impact/metric]
-
-EXAMPLES OF STRONG BULLETS:
-Developed microservices architecture handling 1M+ daily transactions, reducing latency by 40%
-Led cross-functional team of 6 to deliver Q4 roadmap 2 weeks early, exceeding targets by 15%
-Optimized database queries improving application performance by 60%, enhancing user experience
-
-OUTPUT RULES:
-- Output EXACTLY 15-20 lines
-- ONE bullet per line
-- NO symbols, NO dots, NO dashes, NO asterisks, NO bullet characters at the start
-- NO intro text, NO explanation, NO numbering
-- Plain text only"""
+Transform the Raw Description/Tasks provided above into 3 to 5 clean, distinct accomplishment lines matching the layout of the reference patterns. Do not output anything else. No introduction, no markdown punctuation symbols, no bullet characters (*, -, •) at line starts."""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -76,19 +80,28 @@ OUTPUT RULES:
         db=db,
     )
 
-    bullets = _clean_bullets(response)
+    # Standard clean up for variations in 30B model outputs
+    raw_lines = response.strip().split('\n')
+    bullets = []
+    for line in raw_lines:
+        cleaned = line.strip().strip('*').strip('-').strip('•').strip('"').strip("'").strip()
+        # Remove common model echoes like "Output:" if it copies the few-shot template literally
+        if cleaned.lower().startswith("output:"):
+            cleaned = cleaned[7:].strip()
+        if cleaned:
+            bullets.append(cleaned)
 
     return {
         "experience_bullets": "\n".join(bullets),
         "count": len(bullets),
-        "quality_notes": "Each bullet emphasizes measurable impact and business outcomes"
+        "quality_notes": "Raw data distilled into high-density operational statements optimized for standard resume parsing schemas."
     }
 
 
 async def suggest_summary(data: dict, db: AsyncSession) -> dict:
     system_prompt = await get_prompt(db, "resume_builder")
     if not system_prompt:
-        system_prompt = "You are a professional resume writer for students and professionals."
+        system_prompt = "You are an expert ATS-optimization engine and professional resume writer."
 
     experiences = data.get("experiences", [])
     experience_text = ""
@@ -114,12 +127,13 @@ async def suggest_summary(data: dict, db: AsyncSession) -> dict:
             edu_parts.append(f"{degree} from {institution}")
         education_text = "; ".join(edu_parts)
 
+    # Universally generalized from "skills" to industry terms
     skills = data.get("skills", [])
-    skills_text = ", ".join(skills[:5]) if isinstance(skills, list) else str(skills)
+    skills_text = ", ".join(skills[:8]) if isinstance(skills, list) else str(skills)
 
     tone = data.get("tone", "modern professional")
 
-    years_experience = ""
+    years_experience = "0+"
     if experiences:
         try:
             start_years = [
@@ -131,39 +145,46 @@ async def suggest_summary(data: dict, db: AsyncSession) -> dict:
                 min_year = min(start_years)
                 from datetime import datetime
                 current_year = datetime.now().year
-                years_experience = f"{current_year - min_year}+ years"
+                diff = current_year - min_year
+                years_experience = f"{diff}+" if diff > 0 else "1+"
         except:
-            years_experience = ""
+            years_experience = "0+"
 
-    user_prompt = f"""Create a powerful professional summary that gets recruiter attention.
+    # Dynamically extract the latest job title to anchor any profession naturally
+    target_title = experiences[0].get("job_title", "Experienced") if experiences else "Qualified"
 
-CANDIDATE PROFILE:
-Background: {experience_text[:200]}
-Key Skills: {skills_text}
-Education: {education_text[:150]}
-Estimated Experience: {years_experience}
-Tone: {tone}
+    user_prompt = f"""[CRITICAL INTEGRITY CONSTRAINT]
+You must write a professional resume summary using ONLY the verified candidate data provided below. Do NOT invent specific company names, metrics, or credentials not explicitly listed. Avoid generic AI fluff phrases like "Dynamic, results-driven professional".
+
+CANDIDATE DATA PAYLOAD:
+- Target/Latest Profession: {target_title}
+- Work History & Roles: {experience_text[:300]}
+- Core Competencies / ATS Keywords: {skills_text}
+- Academic Credentials: {education_text[:150]}
+- Total Career Tenure: {years_experience} years
+- Stylistic Tone: {tone}
+
+EXECUTION RULES:
+1. NO personal pronouns allowed under any circumstances (No: I, me, my, we, our).
+2. The summary must seamlessly integrate at least 3-4 keywords directly from the Core Competencies list for algorithmic ATS parsing.
+3. Keep the entire response between 2 to 4 lines maximum formatted as a single unified plain-text paragraph block.
+
+FEW-SHOT REFERENCE PATTERNS (UNIVERSAL INDUSTRIES):
+
+Example 1 (Healthcare / Nursing):
+Input Stack: Patient Care, ICU Operations, Life Support, BLS Certified, Staff Nurse, 5+ years
+Output: Compassionate Staff Nurse with over 5 years of dedicated experience in critical care environments. Proven track record managing complex Patient Care schedules and high-pressure ICU Operations. Expert at maintaining safety compliance and deploying specialized life support protocols.
+
+Example 2 (Sales / Real Estate):
+Input Stack: Relationship Management, Negotiation, Lead Generation, CRM Systems, Sales Executive, 3+ years
+Output: Results-oriented Sales Executive with 3+ years of expertise in high-value property markets. Strong history of driving growth through targeted Lead Generation, strategic Relationship Management, and structured client negotiations. Experienced in optimizing sales pipelines using industry-standard CRM Systems.
+
+Example 3 (Python Developer / Backend Engineering):
+Input Stack: Python, FastAPI, PostgreSQL, AWS, Backend Engineer, 3+ years
+Output: Backend Engineering professional with 3+ years of expertise in high-performance application development. Proven track record in Python, FastAPI, and data architecture scaling using PostgreSQL. Accomplished in designing cloud infrastructure workflows across distributed AWS environments.
 
 YOUR TASK:
-Write 2-4 lines that:
-1. Start with strongest differentiator or achievement
-2. Show years of experience and domain expertise
-3. Highlight 2-3 core technical competencies
-4. Demonstrate track record of results
-5. Use power words: proven, expert, accomplished, pioneered, transformed
-6. No personal pronouns (I, me, my, we)
-7. Include ATS keywords naturally
-
-STRUCTURE:
-Line 1: [Title] professional with [X years] expertise in [specialization]
-Line 2: Proven track record in [2-3 key skills]. Delivered [specific achievement/metric].
-Line 3 (optional): [Additional competitive advantage or forward-looking statement]
-
-OUTPUT RULES:
-- Output ONLY the summary text
-- NO symbols, NO bullet points, NO dashes at line starts
-- NO intro text, NO explanation
-- Plain text paragraph(s) only"""
+Generate the plain-text summary paragraph now based strictly on the CANDIDATE DATA PAYLOAD using the exact structure and text density of the reference patterns above. Do not output anything else. No introduction, no conversational text, no markdown styling."""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -172,39 +193,60 @@ OUTPUT RULES:
     )
 
     summary = response.strip()
+    
+    # Post-processing cleanup to strip accidental formatting
+    if summary.startswith("```"):
+        summary = summary.strip("`").replace("text\n", "").replace("json\n", "").strip()
+    summary = summary.strip('"').strip("'")
+    
     lines = len([l for l in summary.split('\n') if l.strip()])
 
     return {
         "summary": summary,
         "line_count": lines,
-        "quality_notes": "Summary positions candidate on unique value and key differentiators"
+        "quality_notes": "Summary structurally locked to validated domain parameters and standardized multi-industry ATS rules."
     }
 
 
 def build_skills_prompt(job_titles: list[str], career_level: str = "experienced") -> str:
-    roles = ", ".join(job_titles) if job_titles else "Entry-level professional"
+    roles = ", ".join(job_titles) if job_titles else "General Professional"
 
-    return f"""Generate the most valuable technical skills for these roles.
+    return f"""[CRITICAL INTEGRITY CONSTRAINT]
+You are an industry-standard resume indexing engine. Your task is to identify and extract the most relevant core competencies and domain-specific skills based strictly on the provided job titles. Do NOT include soft skills (e.g., leadership, communication, team player).
 
 TARGET ROLES: {roles}
 CAREER LEVEL: {career_level}
 
-OUTPUT RULES:
-- Output EXACTLY 5-8 skills
-- ONLY hard technical/domain skills (no soft skills)
-- Tools, frameworks, platforms actually used in these roles
-- Currently in-demand and market-relevant
-- ONE skill per line
-- NO descriptions, NO explanations, NO formatting
-- NO numbers, NO versions, NO symbols, NO dashes, NO dots at line starts
-- Plain text only
+EXECUTION RULES:
+1. Output EXACTLY 5 to 8 high-value skills/competencies.
+2. Return ONLY one distinct skill per line.
+3. No versions, no descriptions, no definitions, and no punctuation marks at line starts.
+4. Output must be raw text only. No introduction, no markdown formatting.
 
-EXAMPLES OF GOOD OUTPUT:
-Python
-React
-AWS
-Docker
-PostgreSQL"""
+FEW-SHOT REFERENCE PATTERNS (CROSS-INDUSTRY):
+
+Example 1 (Finance / Accounting):
+Target Roles: Accountant, Tax Analyst
+Output:
+Financial Auditing
+Tax Compliance
+GAAP Principles
+Reconciliation
+QuickBooks
+Excel Data Models
+
+Example 2 (Logistics / Supply Chain):
+Target Roles: Warehouse Supervisor, Logistics Coordinator
+Output:
+Inventory Management
+Supply Chain Optimization
+WMS Software
+Freight Forwarding
+OSHA Safety Compliance
+Route Planning
+
+YOUR TASK:
+Generate the plain-text list of 5 to 8 domain skills now for the TARGET ROLES following the exact layout of the reference patterns above."""
 
 
 async def suggest_education(data: dict, db: AsyncSession) -> dict:
@@ -255,51 +297,44 @@ def build_ats_resume_json_prompt(
     company: str,
     job_description: str
 ) -> str:
-    """Build optimized ATS resume JSON prompt"""
+    """Build a concise, multi-industry ATS resume JSON prompt"""
     
-    return f"""Generate an ATS-optimized resume specifically for this job posting.
+    return f"""[CRITICAL INTEGRITY CONSTRAINT]
+You are a precision ATS optimization engine. Your task is to extract core requirements and target keywords from the job posting below to outline an optimized resume framework. Do NOT invent explicit historical company names, personal credentials, or unprovided numerical metrics.
 
 JOB POSTING:
-Title: {job_title}
-Company: {company}
-Description (key requirements):
-{job_description[:1500]}
+- Title: {job_title}
+- Organization: {company}
+- Core Requirements & Description:
+{job_description[:1200]}
 
-YOUR TASK:
-Create a resume that:
-1. Professional summary (2-3 lines) directly addressing job requirements
-2. 5-7 achievement bullets clearly aligned to job description
-3. 6-8 technical skills matching job requirements
-4. Includes keywords from job posting naturally
+EXECUTION RULES:
+1. "summary": Write a 2-3 line target profile matching this role without using personal pronouns.
+2. "experience": Generate exactly 4 to 6 concise, impact-focused role accomplishment lines that seamlessly integrate primary keywords from the description text.
+3. "skills": Extract exactly 6 to 8 core competencies or specialized domain skills found in the posting (No soft skills).
+4. Do NOT output any introductory text, trailing explanations, or markdown code blocks. Output the raw JSON structure only.
 
-OPTIMIZATION RULES:
-- Match candidate strength to job needs
-- Use job description keywords without forcing
-- Achievement-based language (metrics when possible)
-- ATS-friendly format
-- No invented information or metrics
-
-RETURN VALID JSON ONLY - NO MARKDOWN OR EXPLANATION:
-
+REQUIRED JSON FORMAT SPECIFICATION:
 {{
-  "summary": "2-3 line summary directly addressing job requirements",
+  "summary": "String paragraph containing the optimized profile.",
   "experience": [
-    "Achievement bullet aligned to job description",
-    "Achievement bullet with relevant skill"
+    "Accomplishment line 1 integrating target job keywords.",
+    "Accomplishment line 2 showing domain capability."
   ],
   "skills": [
-    "Required technical skill 1",
-    "Required technical skill 2"
+    "Core Skill 1",
+    "Core Skill 2"
   ],
-  "optimization_notes": "How resume is optimized for this specific role"
+  "optimization_notes": "A brief summary sentence detailing why this layout clears the target posting's ATS keywords."
 }}"""
 
 
 async def generate_ats_resume_json(data: dict, db: AsyncSession) -> dict:
     """
-    Generate complete ATS-optimized resume for specific job.
+    Generates a complete ATS-optimized resume JSON structure tailored for any target role.
+    Features robust regex filtering to extract pure JSON, bypassing conversational output 
+    or unexpected markdown wrappings from 30B parameter models.
     """
-
     job_title = data.get("job_title")
     job_description = data.get("job_description")
     company = data.get("company", "")
@@ -307,6 +342,7 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession) -> dict:
     if not job_title or not job_description:
         raise HTTPException(status_code=400, detail="job_title and job_description are required")
 
+    # Build the specialized, multi-industry ATS optimization prompt
     user_prompt = build_ats_resume_json_prompt(
         job_title=job_title,
         company=company,
@@ -314,28 +350,54 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession) -> dict:
     )
 
     try:
+        # Call your core LLM interaction function
         raw_response = await call_llm(
             user_message=user_prompt,
             agent_name="resume_builder",
             db=db,
         )
 
-        # Clean response
         clean = raw_response.strip()
-        if clean.startswith("```json"):
-            clean = clean[7:]
-        if clean.startswith("```"):
-            clean = clean[3:]
-        if clean.endswith("```"):
-            clean = clean[:-3]
         
-        result = json.loads(clean.strip())
+        # Robust Regex Parsing:
+        # 30B models often enclose JSON in ```json { ... } ``` blocks despite instructions.
+        # This regex looks for the outermost curly braces containing the JSON payload.
+        json_match = re.search(r"(\{.*\})", clean, re.DOTALL)
+        if json_match:
+            clean = json_match.group(1)
+        else:
+            # Fallback manual string trimming if regex couldn't resolve the boundaries
+            if clean.startswith("```json"):
+                clean = clean[7:]
+            elif clean.startswith("```"):
+                clean = clean[3:]
+            if clean.endswith("```"):
+                clean = clean[:-3]
+        
+        clean = clean.strip()
+        
+        # Safely load the clean string into a python dictionary
+        result = json.loads(clean)
+        
+        # Post-execution structure validation to ensure no key properties are missing
+        required_keys = ["summary", "experience", "skills", "optimization_notes"]
+        for key in required_keys:
+            if key not in result:
+                result[key] = f"Missing data fallback for {key}" if key != "experience" and key != "skills" else []
+
         return result
     
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Failed to generate valid resume JSON")
+    except json.JSONDecodeError as jde:
+        # Fallback error for invalid JSON configurations or unparseable output syntax
+        raise HTTPException(
+            status_code=422, 
+            detail="Failed to parse LLM generation into a valid JSON schema. Raw response contained formatting anomalies."
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Resume generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"ATS resume schema processing failed: {str(e)}"
+        )
 
 
 async def refine_resume_section(
