@@ -95,7 +95,7 @@ app.add_middleware(
         "https://ai.aryuacademy.com",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE","OPTIONS"],
     allow_headers=[
         "Authorization",
         "Content-Type",
