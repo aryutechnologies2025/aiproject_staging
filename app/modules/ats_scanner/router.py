@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, validator
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.security import validate_file_security
 from app.core.database import get_db
 from app.modules.ats_scanner.service import ATSScannerService, create_ats_scan
 from app.modules.ats_scanner.utils.ats_extractor import extract_resume_markdown
@@ -112,7 +112,9 @@ async def ats_scan(
 
 @router.post("/scan-file")
 async def ats_scan_from_file(
-    file:            UploadFile     = File(...),
+    # By wrapping the file parameter with Depends(), we perform deep-content inspection 
+    # of magic bytes and safely reject spoofed or dangerous files before execution.
+    file:            UploadFile     = Depends(validate_file_security),
     job_description: Optional[str] = Form(default=None),
     include_ai:      bool           = Form(default=True),
     db:              AsyncSession   = Depends(get_db),
@@ -120,18 +122,14 @@ async def ats_scan_from_file(
     """
     Upload PDF or DOCX → LlamaParse extracts markdown →
     regex parser builds ATS dict → full ATS scan.
+    
+    Now secured against execution/malware injection.
     """
     print("HIT ENDPOINT")
     print("FILE OBJECT:", file)
 
-    filename = (file.filename or "").lower()
-
-    if not filename.endswith((".pdf", ".docx")):
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF and DOCX files are supported.",
-        )
-
+    # Redundant manual validation can be removed since validate_file_security checks 
+    # both allowed extensions and true underlying binary formats!
     job_description = _sanitise_text(job_description)
     logger.info(f"ATS file scan start: {file.filename}, has_jd={bool(job_description)}")
 

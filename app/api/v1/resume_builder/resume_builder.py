@@ -5,6 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from app.modules.resume_builder.extractor import extract_with_llamaparse
+from app.core.security import validate_file_security
 from app.modules.resume_builder.parser_service import parse_resume_with_ai
 from fastapi.responses import JSONResponse
 import logging
@@ -216,7 +217,11 @@ async def refine_resume(
 
 
 @router.post("/parse-resume")
-async def parse_resume(file: UploadFile = File(...)):
+async def parse_resume(
+    # By wrapping your file input with Depends(), the security check 
+    # executes instantly before any extraction processing begins.
+    file: UploadFile = Depends(validate_file_security)
+):
     try:
         # STEP 1: Read file
         file_bytes = await file.read()
