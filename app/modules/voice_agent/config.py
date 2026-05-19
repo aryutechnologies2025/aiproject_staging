@@ -8,29 +8,28 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── STT (Sarvam AI — Tamil-first) ────────────────────────────────────────────
-SARVAM_API_KEY        = os.getenv("SARVAM_API_KEY", "")
-# Sarvam STT WebSocket endpoint (streaming, mulaw-8k compatible)
-SARVAM_STT_WS_URL     = os.getenv(
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
+
+SARVAM_STT_WS_URL = os.getenv(
     "SARVAM_STT_WS_URL",
-    "wss://api.sarvam.ai/speech-to-text-streaming"
+    "wss://api.sarvam.ai/speech-to-text/ws"
 )
-# Sarvam STT REST endpoint (for short utterance fallback)
-sarvam_stt_ws_URL   = os.getenv(
-    "sarvam_stt_ws_URL",
+
+SARVAM_STT_REST_URL = os.getenv(
+    "SARVAM_STT_REST_URL",
     "https://api.sarvam.ai/speech-to-text"
 )
-STT_LANGUAGE_CODE     = os.getenv("STT_LANGUAGE_CODE", "ta-IN")
-# ms of silence before utterance is considered complete
-STT_ENDPOINTING_MS    = int(os.getenv("STT_ENDPOINTING_MS", "600"))
+
+STT_LANGUAGE_CODE = os.getenv("STT_LANGUAGE_CODE", "ta-IN")
 
 # ── TTS (Sarvam AI) ───────────────────────────────────────────────────────────
-SARVAM_TTS_URL        = os.getenv(
+SARVAM_TTS_URL = os.getenv(
     "SARVAM_TTS_URL",
     "https://api.sarvam.ai/text-to-speech"
 )
-TTS_SPEAKER           = os.getenv("TTS_SPEAKER", "manisha")
-TTS_MODEL             = os.getenv("TTS_MODEL", "bulbul:v2")
-TTS_SAMPLE_RATE       = int(os.getenv("TTS_SAMPLE_RATE", "8000"))
+TTS_SPEAKER    = os.getenv("TTS_SPEAKER", "manisha")
+TTS_MODEL      = os.getenv("TTS_MODEL", "bulbul:v2")
+TTS_SAMPLE_RATE = int(os.getenv("TTS_SAMPLE_RATE", "8000"))
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 LLM_PROVIDER          = os.getenv("LLM_PROVIDER", "groq")      # groq | gemini

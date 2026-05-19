@@ -36,22 +36,33 @@ logger = logging.getLogger("voice_agent.call_handler")
 # Audio constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Minimum RMS for a 16kHz PCM16 chunk to be considered real speech.
-# Telephony at 8kHz upsampled to 16kHz — normal speech RMS is 300–5000.
-# Comfort noise / silence from Vobiz sits at RMS 1–15.
-# This threshold gates silence from being forwarded to Sarvam STT.
-SPEECH_RMS_THRESHOLD = 120
+# STT chunk size: 640 bytes = 320 samples @ 16kHz = 20ms
+#
+# FIX (Bug 3): The original code had FRAME_SIZE = 3200 despite the comment
+# saying 640 bytes / 20ms. 3200 bytes = 200ms chunks. This caused:
+#   1. 200ms buffering latency before any audio reached Sarvam
+#   2. VAD could not detect speech onset because frames were too coarse
+#   3. Possible silent drops inside the SDK's internal buffers
+#
+# Vobiz sends 20ms mulaw frames (160 bytes @ 8kHz).
+# After ulaw2lin → PCM8k (320 bytes) → ratecv to 16kHz → 640 bytes.
+# So FRAME_SIZE=640 matches exactly one Vobiz input frame at the output rate.
+FRAME_SIZE = 640  # 320 samples × 2 bytes = 20ms @ 16kHz  ← WAS 3200, WRONG
+
+# Minimum RMS for a 16kHz PCM16 chunk to block purely digital silence.
+# FIX (Bug 4): Original threshold was 120, applied before _speech_active was
+# ever set to True (because _speech_active depended on speech_start events
+# that were never parsed due to Bug 2). This caused ALL pre-speech audio to be
+# dropped, preventing Sarvam's server-side VAD from ever seeing speech onset.
+# Lower to 30 to pass only true digital zero-padding.
+# The server-side VAD in saaras:v3 handles speech/silence discrimination.
+SPEECH_RMS_THRESHOLD = 30  # was 120 — too aggressive, blocked speech onset
 
 # G.711 µ-law silence codewords: 0x7F = positive silence, 0x7E / 0x80 = adjacent
-# If >85% of a mulaw frame is these bytes, it is CN/silence — not speech.
 MULAW_SILENCE_BYTES = {0x7E, 0x7F, 0x80}
 MULAW_SILENCE_RATIO_THRESHOLD = 0.85
 
-# STT chunk size: 640 bytes = 320 samples @ 16kHz = 20ms
-FRAME_SIZE = 3200
-
 # Audio dump for diagnostics — set AUDIO_DUMP_DIR in env to enable
-# e.g. AUDIO_DUMP_DIR=/tmp/audio_debug
 AUDIO_DUMP_DIR = os.environ.get("AUDIO_DUMP_DIR", "")
 
 
@@ -63,19 +74,12 @@ def _pcm16_to_mulaw(pcm16_bytes: bytes) -> bytes:
     PCM16: 2 bytes/sample, 8000 Hz → 16000 bytes/sec
     mulaw: 1 byte/sample, 8000 Hz →  8000 bytes/sec
     """
-    return audioop.lin2ulaw(pcm16_bytes, 2)  # 2 = 16-bit (2 bytes per sample)
+    return audioop.lin2ulaw(pcm16_bytes, 2)
 
 
 def _is_mulaw_silence(mulaw_bytes: bytes) -> bool:
     """
     Returns True if the µ-law frame is comfort noise / silence.
-
-    G.711 silence = byte value 0x7F (127). Adjacent values 0x7E / 0x80
-    are the lowest-energy non-zero codewords. If >85% of a frame is
-    these three values, Vobiz is not delivering real inbound audio.
-
-    This check happens BEFORE ulaw2lin conversion so we catch silence
-    at the source rather than after it has been resampled.
     """
     if not mulaw_bytes:
         return True
@@ -84,10 +88,7 @@ def _is_mulaw_silence(mulaw_bytes: bytes) -> bool:
 
 
 def _mulaw_diag(mulaw_bytes: bytes) -> dict:
-    """
-    Return diagnostic dict for a µ-law buffer.
-    Used for structured logging — no side effects.
-    """
+    """Return diagnostic dict for a µ-law buffer."""
     counts = Counter(mulaw_bytes)
     top5 = counts.most_common(5)
     silence_count = sum(1 for b in mulaw_bytes if b in MULAW_SILENCE_BYTES)
@@ -100,28 +101,102 @@ def _mulaw_diag(mulaw_bytes: bytes) -> dict:
     }
 
 
+def _parse_sarvam_stt_message(message) -> tuple[str, str]:
+    """
+    Parse a Sarvam STT WebSocket message and return (event_name, text).
+
+    FIX (Bug 2): The WebSocket AsyncAPI spec (WebSocket doc, lines 455–465)
+    defines the response envelope as:
+        {
+          "type": "data" | "error" | "events",   ← ResponseType enum
+          "data": { ... }                          ← SpeechToTextResponseData
+        }
+
+    The top-level "type" field is NEVER "speech_start", "transcript",
+    "speech_end" — those strings do not appear in the ResponseType enum.
+    The original code checked message.get("type") for those strings, which
+    meant every message fell through to the "Unknown STT event type" branch.
+
+    Correct parsing:
+      - type == "data"   → data is SpeechToTextTranscriptionData
+                           → data["transcript"] contains the final text
+                           → return ("transcript", text)
+
+      - type == "events" → data is EventsData
+                           → data["signal_type"] is "START_SPEECH" or "END_SPEECH"
+                             (EventsDataSignalType enum, WebSocket doc lines 421–427)
+                           → return ("speech_start" | "speech_end", "")
+
+      - type == "error"  → data is ErrorData
+                           → return ("error", error_message)
+
+    Returns a tuple of (normalised_event_name, text_content).
+    normalised_event_name values: "transcript", "speech_start", "speech_end", "error", "unknown"
+    """
+    # Normalise to dict — SDK may return object or dict depending on version
+    if not isinstance(message, dict):
+        try:
+            message = vars(message)
+        except Exception:
+            message = {}
+
+    top_type = message.get("type", "")       # "data", "error", "events"
+    data = message.get("data", {}) or {}
+
+    # Normalise data to dict as well
+    if not isinstance(data, dict):
+        try:
+            data = vars(data)
+        except Exception:
+            data = {}
+
+    if top_type == "data":
+        # SpeechToTextTranscriptionData — final transcript
+        # WebSocket doc, SpeechToTextTranscriptionData schema, lines 352–407:
+        #   transcript: string — "Transcript of the provided speech in original language"
+        text = (data.get("transcript") or "").strip()
+        return ("transcript", text)
+
+    elif top_type == "events":
+        # EventsData — VAD signal
+        # WebSocket doc, EventsData schema, lines 428–448:
+        #   signal_type enum: "START_SPEECH" | "END_SPEECH"
+        signal_type = data.get("signal_type", "")
+        if signal_type == "START_SPEECH":
+            return ("speech_start", "")
+        elif signal_type == "END_SPEECH":
+            return ("speech_end", "")
+        else:
+            # Other event_type values — heartbeat / unknown
+            return ("events", "")
+
+    elif top_type == "error":
+        # ErrorData schema, lines 408–420:
+        #   error: string, code: string
+        error_msg = data.get("error", str(data))
+        return ("error", error_msg)
+
+    else:
+        # Completely unexpected envelope — log for diagnosis
+        return ("unknown", "")
+
+
 class CallHandler:
     """
     Manages one outbound call from start to finish.
 
     Audio pipeline:
       Vobiz → WS (mulaw 8kHz)
-        → silence gate (drop CN frames)
+        → silence gate (drop true CN frames only)
         → audioop.ulaw2lin() → PCM8k
         → audioop.ratecv() → PCM16k
-        → 640-byte chunks
-        → Sarvam STT WS (pcm_s16le @ 16kHz)
-        → transcript events
+        → 640-byte chunks (20ms)
+        → Sarvam STT WS (pcm_s16le @ 16kHz, sample_rate set at connection)
+        → transcript events (type="data") / VAD events (type="events")
         → Groq/Gemini LLM
         → Sarvam TTS (PCM16 @ 8kHz)
         → audioop.lin2ulaw() → mulaw
         → base64 → Vobiz WS playAudio frame
-
-    Concurrency:
-      _vobiz_listener()      — reads WS frames from Vobiz
-      _sarvam_stt_reader()   — reads transcripts from Sarvam STT WS
-      _utterance_processor() — consumes transcripts, drives LLM + TTS
-      _tts_sender()          — drains TTS queue → writes mulaw to Vobiz WS
     """
 
     def __init__(
@@ -148,6 +223,8 @@ class CallHandler:
 
         # Sarvam STT WebSocket handle
         self.sarvam_stt_ws = None
+
+        self._last_barge_in = 0.0
 
         # audioop.ratecv filter state — must persist across calls
         self._rate_state = None
@@ -179,12 +256,19 @@ class CallHandler:
         self._speech_active = False
         self._last_transcript = ""
 
-        # ── Diagnostics ────────────────────────────────────────────────────
-        # Counters for log-rate-limiting
-        self._silence_frame_count = 0      # consecutive silence frames received
-        self._speech_frame_count = 0       # consecutive speech frames received
-        self._total_frames_received = 0    # total media frames seen
-        self._stt_chunks_sent = 0          # chunks actually forwarded to STT
+        self._speech_start_time = 0
+
+        # Tiered STT Fallback State
+        self._stt_timeout_task: Optional[asyncio.Task] = None
+        self._stt_audio_buffer = b""
+        self._local_speech_active = False
+        self._consecutive_silence_chunks = 0
+
+        # Diagnostics
+        self._silence_frame_count = 0
+        self._speech_frame_count = 0
+        self._total_frames_received = 0
+        self._stt_chunks_sent = 0
 
         # Audio dump file handle (None = disabled)
         self._mulaw_dump: Optional[io.RawIOBase] = None
@@ -196,6 +280,18 @@ class CallHandler:
                 logger.info(f"[{self.call_id}] 🎙 Audio dump → {dump_path}")
             except Exception as e:
                 logger.warning(f"[{self.call_id}] Could not open audio dump: {e}")
+
+    @staticmethod
+    def _pcm_to_wav_base64(pcm_data: bytes, sample_rate: int = 16000) -> str:
+        """Wrap raw PCM16 mono audio in a WAV container and return base64 string."""
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)          # 16‑bit
+            wf.setframerate(sample_rate)
+            wf.writeframes(pcm_data)
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode("utf-8")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Entry point
@@ -237,11 +333,9 @@ class CallHandler:
 
                 event = msg.get("event")
 
-                # ── connected ────────────────────────────────────────────────
                 if event == "connected":
                     logger.info(f"[{self.call_id}] Vobiz WS connected | full_msg={msg}")
 
-                # ── start ────────────────────────────────────────────────────
                 elif event == "start":
                     start_data = msg.get("start", {})
                     logger.critical(
@@ -256,8 +350,6 @@ class CallHandler:
                     logger.info(
                         f"[{self.call_id}] Stream started | sid={self.stream_sid}"
                     )
-
-                    # Log all start metadata — helps diagnose bidirectional config
                     logger.info(
                         f"[{self.call_id}] START METADATA | "
                         f"mediaFormat={start_data.get('mediaFormat')} | "
@@ -269,11 +361,9 @@ class CallHandler:
                     asyncio.create_task(self._start_sarvam_stt())
                     asyncio.create_task(self._on_call_start())
 
-                # ── media ────────────────────────────────────────────────────
                 elif event == "media":
                     await self._handle_media_frame(msg)
 
-                # ── stop ─────────────────────────────────────────────────────
                 elif event == "stop":
                     logger.info(
                         f"[{self.call_id}] Vobiz stop | "
@@ -283,7 +373,6 @@ class CallHandler:
                     break
 
                 else:
-                    # Log unknown events — could be dtmf, mark, etc.
                     logger.debug(f"[{self.call_id}] Unknown Vobiz event: {event} | {msg}")
 
         except WebSocketDisconnect:
@@ -302,7 +391,6 @@ class CallHandler:
 
         self._total_frames_received += 1
 
-        # ── 1. Track type diagnosis ──────────────────────────────────────────
         track = media.get("track", "unknown")
 
         logger.info(
@@ -312,23 +400,22 @@ class CallHandler:
         )
 
         if self._total_frames_received <= 5:
-            # Log first 5 frames verbosely — reveals if Vobiz is sending inbound
             logger.info(
                 f"[{self.call_id}] MEDIA FRAME #{self._total_frames_received} | "
                 f"track={track} | timestamp={media.get('timestamp')} | "
                 f"chunk={media.get('chunk')}"
             )
+
         if track == "outbound":
-            # Vobiz is echoing our TTS back — bidirectional not configured correctly
             if self._total_frames_received == 1:
                 logger.error(
                     f"[{self.call_id}] ❌ VOBIZ SENDING OUTBOUND TRACK ONLY — "
                     f"inbound (caller) audio not enabled. "
                     f"Check Stream XML: bidirectional='true' and Vobiz account settings."
                 )
-            return  # never forward outbound audio to STT
+            return
 
-        # ── 2. Decode mulaw ──────────────────────────────────────────────────
+        # ── Decode mulaw ─────────────────────────────────────────────────────
         try:
             mulaw_bytes = base64.b64decode(payload)
             logger.info(
@@ -340,14 +427,22 @@ class CallHandler:
             logger.warning(f"[{self.call_id}] base64 decode failed: {e}")
             return
 
-        # ── 3. Raw dump ──────────────────────────────────────────────────────
+        # ── Raw dump ─────────────────────────────────────────────────────────
         if self._mulaw_dump and not self._mulaw_dump.closed:
             try:
                 self._mulaw_dump.write(mulaw_bytes)
             except Exception:
                 pass
 
-        # Real audio arrived — reset silence counter
+        # Skip pure comfort-noise frames (Vobiz sends 0x7F fill when no audio)
+        if _is_mulaw_silence(mulaw_bytes):
+            self._silence_frame_count += 1
+            if self._silence_frame_count % 100 == 1:
+                logger.debug(
+                    f"[{self.call_id}] Silence frame #{self._silence_frame_count} (mulaw CN gate)"
+                )
+            return
+
         if self._silence_frame_count > 0:
             logger.info(
                 f"[{self.call_id}] ✅ Real audio after {self._silence_frame_count} silence frames"
@@ -359,17 +454,17 @@ class CallHandler:
             diag = _mulaw_diag(mulaw_bytes)
             logger.critical(
                 f"[{self.call_id}] 🔥 INBOUND AUDIO CONFIRMED FROM VOBIZ "
-                f"(first non-silence frame received)"
+                f"(first non-silence frame received) | diag={diag}"
             )
 
-        # ── 5. ulaw → PCM8k ─────────────────────────────────────────────────
+        # ── ulaw → PCM8k ─────────────────────────────────────────────────────
         try:
             pcm_8k = audioop.ulaw2lin(mulaw_bytes, 2)
         except Exception as e:
             logger.warning(f"[{self.call_id}] ulaw2lin failed: {e}")
             return
 
-        # ── 6. Resample 8k → 16k ────────────────────────────────────────────
+        # ── Resample 8k → 16k ────────────────────────────────────────────────
         try:
             pcm_16k, self._rate_state = audioop.ratecv(
                 pcm_8k,
@@ -383,55 +478,110 @@ class CallHandler:
             logger.warning(f"[{self.call_id}] ratecv failed: {e}")
             return
 
-        # ── 7. Accumulate buffer ─────────────────────────────────────────────
+        # ── Accumulate buffer ─────────────────────────────────────────────────
         self._pcm_buffer += pcm_16k
 
-        # ── 8. Emit 640-byte chunks to STT ───────────────────────────────────
+        # ── Emit 640-byte (20ms) chunks to STT ───────────────────────────────
+        #
+        # FIX (Bug 3): FRAME_SIZE is now 640 (was 3200).
+        # Each chunk is exactly 20ms of PCM16 at 16kHz.
+        # This matches Vobiz's 20ms input cadence after upsampling.
         while len(self._pcm_buffer) >= FRAME_SIZE:
             chunk = self._pcm_buffer[:FRAME_SIZE]
             self._pcm_buffer = self._pcm_buffer[FRAME_SIZE:]
 
-            # FRAME_SIZE=640 is always even, but guard defensively
             if len(chunk) % 2 != 0:
                 chunk = chunk[:-1]
                 if not chunk:
                     continue
 
-            # Per-chunk RMS gate — final protection against low-energy frames
+            # Per-chunk RMS gate — block only true digital silence (zeros)
             pcm_chunk = np.frombuffer(chunk, dtype=np.int16)
             chunk_rms = float(np.sqrt(np.mean(pcm_chunk.astype(np.float32) ** 2)))
 
-            if chunk_rms < SPEECH_RMS_THRESHOLD and not self._speech_active:
-                # Below threshold AND no active speech — skip silently
-                logger.debug(
-                    f"[{self.call_id}] Chunk below RMS threshold | "
-                    f"rms={chunk_rms:.1f} < {SPEECH_RMS_THRESHOLD} | skipping"
-                )
+            # Layer 1: Verification & Local Buffering
+            if chunk_rms >= SPEECH_RMS_THRESHOLD:
+                if not self._local_speech_active:
+                    self._local_speech_active = True
+                    self._stt_audio_buffer = chunk
+                    # Cancel any leftover timeout
+                    if self._stt_timeout_task and not self._stt_timeout_task.done():
+                        self._stt_timeout_task.cancel()
+                else:
+                    self._stt_audio_buffer += chunk
+                self._consecutive_silence_chunks = 0
+            else:
+                if self._local_speech_active:
+                    self._consecutive_silence_chunks += 1
+                    self._stt_audio_buffer += chunk
+                    # 40 chunks * 20ms = 800ms of consecutive local silence
+                    if self._consecutive_silence_chunks >= 40:
+                        self._local_speech_active = False
+                        # Speech ended locally -> Start STT Tier 1 timeout
+                        self._start_tier1_timeout()
+
+            # Prevent sending padding zeroes when user is purely silent.
+            # But DO NOT block intra-speech and trailing silence, as STT server needs it to trigger END_SPEECH!
+            if not self._local_speech_active and chunk_rms < SPEECH_RMS_THRESHOLD:
                 continue
 
             # If STT not ready yet — buffer the chunk
             if not self.stt_ready or self.sarvam_stt_ws is None:
                 logger.debug(f"[{self.call_id}] STT not ready → prebuffering chunk")
                 self._prebuffer.append(chunk)
-                # Cap prebuffer to avoid memory growth during long STT connect delay
                 if len(self._prebuffer) > 200:
                     self._prebuffer = self._prebuffer[-100:]
                 continue
 
             # Forward chunk to Sarvam STT
+            #
+            # FIX (Bug 1): The Sarvam STT SDK transcribe() method maps its
+            # "audio" parameter to AudioData.data (the base64 payload).
+            # The WebSocket AsyncAPI spec (WebSocket doc, AudioDataSampleRate
+            # schema, lines 466–486) defines sample_rate as a STRING enum:
+            #   enum: ['16000', '22050', '24000']
+            # and explicitly states "8kHz is only supported via connection
+            # parameter, not in AudioData messages."
+            #
+            # Therefore:
+            #   1. Do NOT pass sample_rate in the per-message transcribe() call.
+            #      The connection-level sample_rate=16000 declared in connect()
+            #      is the correct and only place to set this.
+            #   2. The SDK's internal default for the encoding field is "audio/wav"
+            #      which is the only valid AudioDataEncoding value. Since we set
+            #      input_audio_codec="pcm_s16le" at connection time, the server
+            #      already knows the codec. The per-message encoding field does
+            #      not need to be set.
+            #
+            # Passing sample_rate=16000 (Python int) in the per-message call
+            # causes the SDK to send the integer 16000 on the wire, which does
+            # not match the string enum "16000", potentially causing the server
+            # to silently reject or misprocess the audio message.
             try:
-                b64_audio = base64.b64encode(chunk).decode("utf-8")
+                b64_audio = self._pcm_to_wav_base64(chunk)
                 logger.critical(
-                    f"[{self.call_id}] FORCED SEND TO STT "
-                    f"rms={chunk_rms} "
-                    f"bytes={len(pcm_16k)}"
+                    f"[{self.call_id}] SEND TO STT "
+                    f"rms={chunk_rms:.1f} "
+                    f"bytes={len(chunk)}"
+                )
+                logger.critical(
+                    f"[{self.call_id}] STT SEND CHUNK | "
+                    f"len_chunk={len(chunk)} | rms={chunk_rms:.1f} | "
+                    f"encoding=audio/wav | sample_rate=16000 | "
+                    f"base64_preview={b64_audio[:80]}..."  # first 80 chars
                 )
                 await self.sarvam_stt_ws.transcribe(
                     audio=b64_audio,
-                    sample_rate=16000
+                    encoding="audio/wav",    # required
+                    sample_rate="16000"      # must be string, matching the connection
+                )
+                logger.info(
+                    f"audio payload: {b64_audio}"
                 )
                 self._stt_chunks_sent += 1
-                
+
+                if self._stt_chunks_sent == 0:
+                    logger.critical(f"[{self.call_id}] 🚀 FIRST AUDIO CHUNK SENT TO STT | rms={chunk_rms:.1f} len={len(chunk)} raw_header={base64.b64encode(chunk[:44]).decode('ascii')}")
 
                 if self._stt_chunks_sent % 50 == 0:
                     logger.info(
@@ -439,15 +589,14 @@ class CallHandler:
                         f"chunks_sent={self._stt_chunks_sent} | "
                         f"rms={chunk_rms:.1f}"
                     )
-                    
+
             except Exception as e:
                 logger.warning(
                     f"[{self.call_id}] STT send error: {type(e).__name__}: {e}"
                 )
                 asyncio.create_task(self._reconnect_stt())
-                # Put chunk back so it doesn't get lost
                 self._prebuffer.insert(0, chunk)
-                break  # stop sending until reconnected
+                break
 
     # ─────────────────────────────────────────────────────────────────────────
     # Call start — speak greeting
@@ -475,19 +624,7 @@ class CallHandler:
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _start_sarvam_stt(self) -> None:
-        """
-        Open Sarvam streaming STT WebSocket and keep it alive for the call.
 
-        Connection params:
-          model=saaras:v3        — latest, best accuracy
-          mode=transcribe        — output in Tamil (source language)
-          language_code=ta-IN    — Tamil
-          sample_rate=16000      — we upsample mulaw 8k → PCM 16k before sending
-          input_audio_codec=pcm_s16le  — raw signed 16-bit little-endian PCM
-          high_vad_sensitivity=True    — triggers on quieter speech
-          vad_signals=True             — receive speech_start / speech_end events
-        """
-        # Start utterance processor once per call
         asyncio.create_task(self._utterance_processor())
 
         if not config.SARVAM_API_KEY:
@@ -503,19 +640,22 @@ class CallHandler:
                 model="saaras:v3",
                 mode="transcribe",
                 language_code="ta-IN",
-                sample_rate=16000,
+                sample_rate="16000",
                 input_audio_codec="pcm_s16le",
                 high_vad_sensitivity=True,
                 vad_signals=True,
             ) as ws:
                 self.sarvam_stt_ws = ws
                 self.stt_ready = True
+                
                 logger.info(f"[{self.call_id}] ✅ STT CONNECTED & READY")
+                logger.info(f"[{self.call_id}] STT connection opened, remote={ws._connection.remote_address if hasattr(ws,'_connection') else 'unknown'}")
+                # Also log the exact parameters sent
+                logger.info(f"[{self.call_id}] STT connect params: model=saaras:v3, language_code=ta-IN, sample_rate=16000, input_audio_codec=pcm_s16le")
 
-                # Start reader task first — must be running before we send audio
                 reader_task = asyncio.create_task(self._sarvam_stt_reader())
 
-                # Flush any audio that arrived before STT was ready
+                # Flush prebuffered audio
                 if self._prebuffer:
                     logger.info(
                         f"[{self.call_id}] 🔄 Flushing {len(self._prebuffer)} prebuffered chunks"
@@ -524,17 +664,22 @@ class CallHandler:
                         if self.call_ended:
                             break
                         try:
-                            b64_audio = base64.b64encode(chunk).decode("utf-8")
+                            b64_audio = self._pcm_to_wav_base64(chunk)
                             await self.sarvam_stt_ws.transcribe(
                                 audio=b64_audio,
-                                sample_rate=16000
+                                encoding="audio/wav",
+                                sample_rate="16000"
                             )
+                            # Tiny sleep to avoid overwhelming server with burst
+                            await asyncio.sleep(0.01)
                         except Exception as e:
                             logger.warning(f"[{self.call_id}] Prebuffer flush error: {e}")
                             break
                     self._prebuffer.clear()
 
-                # Keep the async-with block alive until call ends
+                if hasattr(ws, '_connection') and ws._connection.closed:
+                    logger.critical(f"STT WS closed with code {ws._connection.close_code}, reason {ws._connection.close_reason}")
+
                 while not self.call_ended:
                     await asyncio.sleep(0.1)
 
@@ -560,21 +705,7 @@ class CallHandler:
             asyncio.create_task(self._start_sarvam_stt())
 
     async def _sarvam_stt_reader(self) -> None:
-        """
-        Read all events from the Sarvam STT WebSocket.
 
-        Saaras v3 event types (with vad_signals=True):
-          speech_start  — VAD detected speech onset
-          events        — heartbeat / keepalive (text is empty, this is normal)
-          speech_end    — VAD detected silence / end of utterance
-          transcript    — final recognised text for the utterance
-
-        The sequence for one utterance is always:
-          speech_start → [events...] → speech_end → transcript
-
-        If transcript never arrives after speech_end, we use _last_transcript
-        (the most recent partial/events text) as a fallback.
-        """
         try:
             async for message in self.sarvam_stt_ws:
                 if self.call_ended:
@@ -582,62 +713,58 @@ class CallHandler:
 
                 logger.critical(f"[{self.call_id}] RAW STT MESSAGE: {message}")
 
-                # Normalise: handle both dict and object responses
-                if isinstance(message, dict):
-                    msg_type = message.get("type", "")
-                    # Saaras v3 uses "transcript" key; legacy models use "text"
-                    text = (
-                        message.get("transcript")
-                        or message.get("text")
-                        or ""
-                    ).strip()
-                    is_final = message.get("is_final", False)
-                else:
-                    msg_type = getattr(message, "type", "")
-                    text = (
-                        getattr(message, "transcript", None)
-                        or getattr(message, "text", None)
-                        or ""
-                    ).strip()
-                    is_final = getattr(message, "is_final", False)
-
+                # Parse using the corrected envelope-aware parser
+                event_name, text = _parse_sarvam_stt_message(message)
+                
                 logger.info(
                     f"[{self.call_id}] STT EVENT | "
-                    f"type={msg_type!r} | final={is_final} | text={text!r}"
+                    f"event={event_name!r} | text={text!r}"
                 )
 
                 # ── speech_start: VAD triggered ──────────────────────────────
-                if msg_type == "speech_start":
+                if event_name == "speech_start":
                     self._speech_active = True
-                    logger.info(f"[{self.call_id}] 🎤 Speech started (VAD)")
+                    self._speech_start_time = time.time()
+                    logger.info(f"[{self.call_id}] 🎤 Speech started (VAD START_SPEECH)")
+                    logger.info(f"🎤 Speech timing [{self._speech_start_time}]")
 
-                    if self.session.tts_playing:
-                        logger.info(f"[{self.call_id}] 🔴 BARGE-IN → flushing TTS queue")
+                    now = time.time()
+
+                    # prevent repeated flush storms
+                    if (
+                        self.session.tts_playing
+                        and (now - self._last_barge_in) > 1.5
+                    ):
+                        self._last_barge_in = now
+
+                        logger.info(
+                            f"[{self.call_id}] 🔴 REAL BARGE-IN DETECTED → flushing TTS"
+                        )
+
+                        try:
+                            await self.ws.send_text(json.dumps({
+                                # "event": "clearAudio",
+                                "streamId": self.stream_sid
+                            }))
+                        except Exception as e:
+                            logger.warning(
+                                f"[{self.call_id}] clearAudio failed: {e}"
+                            )
+
                         self.session.tts_playing = False
                         await session_save(self.session)
-                        await self.tts_queue.put(None)  # sentinel = flush
 
-                # ── events: keepalive heartbeat ──────────────────────────────
-                # These fire continuously while audio is being received.
-                # Empty text is normal — Sarvam emits these even during silence.
-                # If text is present, it is an intermediate (partial) result.
-                elif msg_type == "events":
-                    if text:
-                        self._last_transcript = text
-                        logger.debug(f"[{self.call_id}] PARTIAL: {text!r}")
-                    # No action needed for empty events — they confirm WS is alive
-
-                # ── partial: intermediate result (some SDK versions) ──────────
-                elif msg_type == "partial":
-                    if text:
-                        self._last_transcript = text
-                        logger.debug(f"[{self.call_id}] PARTIAL: {text!r}")
+                        # ONLY clear CURRENT playback
+                        # await self.tts_queue.put(None)
 
                 # ── transcript: FINAL result ─────────────────────────────────
-                elif msg_type in SARVAM_STT_TRANSCRIPT_TYPES:
+                elif event_name == "transcript":
                     if not text:
                         logger.debug(f"[{self.call_id}] Empty transcript — ignoring")
                         continue
+
+                    if self._stt_timeout_task and not self._stt_timeout_task.done():
+                        self._stt_timeout_task.cancel()
 
                     logger.info(f"[{self.call_id}] ✅ FINAL TRANSCRIPT: {text!r}")
                     self._speech_active = False
@@ -646,14 +773,24 @@ class CallHandler:
                     self.utterance_ready.set()
 
                 # ── speech_end: VAD silence detected ─────────────────────────
-                elif msg_type == "speech_end":
+                elif event_name == "speech_end":
                     self._speech_active = False
-                    logger.info(f"[{self.call_id}] 🔇 Speech ended (VAD)")
+                    logger.info(f"[{self.call_id}] 🔇 Speech ended (VAD END_SPEECH)")
+                    speech_duration = time.time() - self._speech_start_time
 
-                    # Fallback: if transcript hasn't arrived yet but we have a partial,
-                    # use it. The final transcript may arrive a moment later — we
-                    # also handle it above so there's no double-fire risk because
-                    # utterance_ready.clear() is called in _utterance_processor.
+                    logger.info(
+                        f"[{self.call_id}] speech_duration={speech_duration:.2f}s"
+                    )
+
+                    # Ignore tiny bursts (AI echo / click / noise)
+                    if speech_duration < 0.4:
+                        logger.info(
+                            f"[{self.call_id}] Ignoring short speech burst"
+                        )
+                        self._last_transcript = ""
+                        continue
+
+                    # Fallback: use partial if final transcript hasn't arrived yet
                     if self._last_transcript:
                         logger.warning(
                             f"[{self.call_id}] ⚠️ Using partial as final fallback: "
@@ -663,18 +800,25 @@ class CallHandler:
                         self.utterance_ready.set()
                         self._last_transcript = ""
 
+                # ── events: heartbeat / other ────────────────────────────────
+                elif event_name == "events":
+                    # Heartbeat or unrecognised signal_type — no action needed
+                    logger.debug(f"[{self.call_id}] STT heartbeat event")
+
                 # ── error: Sarvam sent an error event ───────────────────────
-                elif msg_type == "error":
-                    logger.error(f"[{self.call_id}] ❌ STT ERROR EVENT: {message}")
+                elif event_name == "error":
+                    logger.error(f"[{self.call_id}] ❌ STT ERROR EVENT: {text}")
 
                 else:
-                    # Log unknown types — helps catch new event types from Sarvam
                     logger.warning(
-                        f"[{self.call_id}] Unknown STT event type: {msg_type!r} | "
-                        f"full={message}"
+                        f"[{self.call_id}] Unknown parsed STT event: {event_name!r} | "
+                        f"raw={message}"
                     )
 
         except Exception as e:
+            logger.critical(f"[{self.call_id}] STT reader CRASHED: {e}", exc_info=True)
+            logger.critical(f"[{self.call_id}] STT reader exception: {type(e).__name__}: {e}")
+            
             if not self.call_ended:
                 logger.warning(
                     f"[{self.call_id}] ⚠️ STT reader dropped: {type(e).__name__}: {e}",
@@ -683,6 +827,98 @@ class CallHandler:
                 self.stt_ready = False
                 self.sarvam_stt_ws = None
                 asyncio.create_task(self._reconnect_stt())
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # STT Tiered Fallback Logic (Tiers 1, 2, 3)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _start_tier1_timeout(self) -> None:
+        """Tier 1: Wait for transcript. If not received within short window, proceed to fallback."""
+        if self._stt_timeout_task and not self._stt_timeout_task.done():
+            self._stt_timeout_task.cancel()
+        
+        buffer_copy = self._stt_audio_buffer
+        self._stt_audio_buffer = b""
+        self._stt_timeout_task = asyncio.create_task(self._tier1_timeout_worker(buffer_copy))
+
+    async def _tier1_timeout_worker(self, audio_data: bytes) -> None:
+        try:
+            # 1.5 second wait for normal streaming STT to return
+            await asyncio.sleep(1.5)
+            logger.warning(f"[{self.call_id}] ⚠️ Tier 1 Timeout: No valid STT response received.")
+            
+            # Trigger both Tier 2 and Tier 3 concurrently
+            asyncio.create_task(self._trigger_tier2_fallback())
+            asyncio.create_task(self._trigger_tier3_retry(audio_data))
+        except asyncio.CancelledError:
+            logger.debug(f"[{self.call_id}] Tier 1 timeout cancelled (transcript received).")
+
+    async def _trigger_tier2_fallback(self) -> None:
+        """Tier 2: Generate and speak a polite apology."""
+        logger.info(f"[{self.call_id}] 🛡️ Tier 2: Generating 'I'm Sorry' prompt fallback.")
+        
+        apology_text = "மன்னிக்கவும், நீங்கள் சொன்னது சரியாக கேட்கவில்லை. மீண்டும் ஒரு முறை சொல்ல முடியுமா?"
+        
+        system_prompt = (
+            "SYSTEM: You are a voice agent. You did not hear the caller clearly "
+            "due to a technical issue. Generate a generic, professional, and polite "
+            "apology prompt in Tamil asking the caller to repeat themselves. "
+            "Keep it brief (under 10 seconds of audio). "
+            "RESPOND STRICTLY IN TAMIL TEXT ONLY. DO NOT output any English text, translation, or pronunciations."
+        )
+        
+        try:
+            if config.LLM_PROVIDER == "groq":
+                import groq
+                client = groq.AsyncGroq(api_key=config.GROQ_API_KEY)
+                resp = await client.chat.completions.create(
+                    model=config.GROQ_MODEL,
+                    messages=[{"role": "system", "content": system_prompt}],
+                    temperature=0.3,
+                    max_tokens=100
+                )
+                apology_text = resp.choices[0].message.content.strip()
+            else:
+                import google.generativeai as genai
+                model = genai.GenerativeModel(config.GEMINI_MODEL)
+                resp = await asyncio.to_thread(
+                    model.generate_content,
+                    system_prompt
+                )
+                apology_text = resp.text.strip()
+        except Exception as e:
+            logger.error(f"[{self.call_id}] LLM apology generation failed: {e}")
+            
+        logger.info(f"[{self.call_id}] Tier 2 Fallback text: {apology_text}")
+        await self._speak(apology_text)
+
+    async def _trigger_tier3_retry(self, audio_data: bytes) -> None:
+        """Tier 3: In the background, retry STT using the REST API."""
+        from app.modules.voice_agent.services import sarvam_stt_rest
+        logger.info(f"[{self.call_id}] 🔄 Tier 3 Retry: Sending {len(audio_data)} bytes to REST STT.")
+        try:
+            transcript = await sarvam_stt_rest(audio_data, 16000)
+            if transcript and transcript.strip():
+                logger.info(f"[{self.call_id}] ✅ Tier 3 Success: Got transcript: {transcript!r}")
+                
+                # Interrupt the Tier 2 fallback TTS
+                now = time.time()
+                self._last_barge_in = now
+                self.session.tts_playing = False
+                await session_save(self.session)
+                
+                try:
+                    await self.ws.send_text(json.dumps({"streamId": self.stream_sid}))
+                except Exception as ex:
+                    logger.warning(f"[{self.call_id}] clearAudio for Tier 3 failed: {ex}")
+                
+                # Deliver the real response
+                self.utterance_buffer = transcript.strip()
+                self.utterance_ready.set()
+            else:
+                logger.warning(f"[{self.call_id}] ❌ Tier 3 Failed: Empty transcript returned.")
+        except Exception as e:
+            logger.error(f"[{self.call_id}] Tier 3 Error: {e}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Utterance processor — LLM → script advance → speak
@@ -713,7 +949,6 @@ class CallHandler:
             self.session.transcript_full += f"\nLead: {text}"
             await session_save(self.session)
 
-            # ── LLM ──────────────────────────────────────────────────────────
             result = await llm_respond(self.session, self.script, self.company)
 
             speech       = result.get("speech", "")
@@ -745,7 +980,6 @@ class CallHandler:
             self.session.transcript_full += f"\nAgent: {speech}"
             await session_save(self.session)
 
-            # ── Route to state machine ────────────────────────────────────────
             if (
                 "interview_requested" in self.session.intent_flags
                 and self.session.state != CallState.SCHEDULING
@@ -764,7 +998,7 @@ class CallHandler:
                 await self._speak(speech)
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Scheduling — offer interview slots
+    # Scheduling
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _handle_scheduling(self, pre_speech: str) -> None:
@@ -832,14 +1066,10 @@ class CallHandler:
         await self._end_call()
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TTS — speak text → convert to mulaw → queue for sending
+    # TTS
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _speak(self, text: str) -> None:
-        """
-        Fetch TTS audio from Sarvam (PCM16 @ 8kHz),
-        convert to µ-law, enqueue for _tts_sender.
-        """
         if not text or self.call_ended:
             return
 
@@ -870,7 +1100,7 @@ class CallHandler:
             await session_save(self.session)
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TTS sender — drain queue → write mulaw chunks to Vobiz WS
+    # TTS sender
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _tts_sender(self) -> None:
@@ -879,8 +1109,6 @@ class CallHandler:
 
         µ-law: 1 byte/sample × 8000 samples/sec = 8000 bytes/sec
         40ms chunk = 8000 × 0.040 = 320 bytes per chunk.
-
-        Waits for stream_sid before sending — Vobiz rejects frames before start.
         """
         try:
             await asyncio.wait_for(self._stream_sid_ready.wait(), timeout=30.0)
@@ -898,17 +1126,14 @@ class CallHandler:
             try:
                 audio = await asyncio.wait_for(self.tts_queue.get(), timeout=1.0)
 
-                # None sentinel = barge-in flush
                 if audio is None:
-                    # Drain any remaining queued audio
-                    while not self.tts_queue.empty():
-                        try:
-                            self.tts_queue.get_nowait()
-                        except asyncio.QueueEmpty:
-                            break
+                    logger.info(
+                        f"[{self.call_id}] TTS interrupted by barge-in"
+                    )
+
                     self.session.tts_playing = False
                     await session_save(self.session)
-                    logger.info(f"[{self.call_id}] TTS queue flushed (barge-in)")
+
                     continue
 
                 loop = asyncio.get_event_loop()
@@ -917,7 +1142,6 @@ class CallHandler:
                 for i in range(0, len(audio), CHUNK_SIZE):
                     if self.call_ended:
                         break
-                    # Stop sending if barge-in sentinel arrived
                     if self.tts_queue.qsize() > 0:
                         try:
                             peek = self.tts_queue.queue[0]
@@ -938,7 +1162,7 @@ class CallHandler:
                             },
                         }))
 
-                        next_send_time += 0.04  # 40ms pacing
+                        next_send_time += 0.04
                         now = loop.time()
                         await asyncio.sleep(max(0, next_send_time - now))
 
@@ -958,7 +1182,7 @@ class CallHandler:
                 break
 
     # ─────────────────────────────────────────────────────────────────────────
-    # End call — idempotent
+    # End call
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _end_call(self) -> None:
@@ -974,7 +1198,6 @@ class CallHandler:
 
         self._stream_sid_ready.set()
 
-        # Close audio dump file
         if self._mulaw_dump and not self._mulaw_dump.closed:
             try:
                 self._mulaw_dump.close()
@@ -982,7 +1205,6 @@ class CallHandler:
             except Exception:
                 pass
 
-        # Close Sarvam STT WS gracefully
         if self.sarvam_stt_ws and not self.simulation_mode:
             try:
                 await self.sarvam_stt_ws.close()
@@ -998,7 +1220,7 @@ class CallHandler:
             pass
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Post-call — update DB, calendar, SMS
+    # Post-call
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _post_call_actions(self) -> None:
@@ -1013,7 +1235,6 @@ class CallHandler:
             "score": session.score_confidence,
         }
 
-        # Case 1: Interview scheduled
         if "interview_requested" in session.intent_flags and session.proposed_slots:
             from datetime import datetime as dt
             slot_idx = min(self._chosen_slot_index, len(session.proposed_slots) - 1)
@@ -1033,7 +1254,6 @@ class CallHandler:
             )
             logger.info(f"[{self.call_id}] Interview @ {slot.isoformat()}")
 
-        # Case 2: Warm / callback
         elif session.lead_score == "warm" or "callback_requested" in session.intent_flags:
             from datetime import datetime as dt, timedelta
             recall_at = dt.utcnow() + timedelta(hours=config.RECALL_AFTER_HOURS)
