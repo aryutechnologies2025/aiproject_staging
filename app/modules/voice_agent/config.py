@@ -71,3 +71,4 @@ MAX_CONCURRENT_CALLS      = int(os.getenv("MAX_CONCURRENT_CALLS", "5"))
 # ── Paths ─────────────────────────────────────────────────────────────────────
 UPLOADS_DIR           = os.getenv("UPLOADS_DIR", "./uploads")
 PUBLIC_BASE_URL       = os.getenv("PUBLIC_BASE_URL", "https://landscape-scrubber-unsaved.ngrok-free.dev")
+ENABLE_CAMPAIGN_SCHEDULER = False

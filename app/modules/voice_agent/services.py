@@ -1,22 +1,5 @@
 """
 services.py — Core AI services
-
-Audio contract:
-  sarvam_tts()  → returns raw LINEAR16 PCM bytes at 8kHz (NOT mulaw, NOT base64)
-  sarvam_stt_rest() → REST fallback, wraps PCM16 bytes in WAV and posts to Sarvam
-
-  call_handler._speak() converts TTS output: PCM16 → audioop.lin2ulaw() → mulaw → Vobiz.
-  Do NOT change sarvam_tts() encoding to "mulaw" — Sarvam's mulaw output quality
-  is lower than converting ourselves via audioop.lin2ulaw().
-
-STT event contract (saaras:v3 with vad_signals=True):
-  type="speech_start"  → VAD detected onset of speech
-  type="events"        → keepalive heartbeat (text may be empty — this is normal)
-  type="speech_end"    → VAD detected end of utterance / silence
-  type="transcript"    → final recognised text for the utterance
-
-  SARVAM_STT_TRANSCRIPT_TYPES and SARVAM_STT_PARTIAL_TYPES are imported by
-  call_handler so both modules stay in sync on event-type strings.
 """
 
 import asyncio

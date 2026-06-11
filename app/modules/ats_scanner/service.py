@@ -149,6 +149,10 @@ Return ONLY this JSON structure with no markdown fences, no extra text:
 }}"""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PURE HELPERS  (stateless, no class dependency)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _safe(value: Any) -> str:
     if value is None:
         return ""
@@ -228,28 +232,19 @@ def _clean_name(raw: str) -> str:
     return raw.strip()
 
 
-def _extract_name_from_raw_text(raw_text: str) -> str:
-    if not raw_text:
-        return ""
-    for line in raw_text.split("\n")[:15]:
-        s = line.strip()
-        if not s or len(s) > 50:
-            continue
-        if re.search(r"[\d@|]", s):
-            continue
-        words = s.split()
-        if len(words) < 1 or len(words) > 4:
-            continue
-        if s[0].isupper() and not s.isupper():
-            lower = s.lower()
-            if not any(t in lower for t in _SUBTITLE_TOKENS):
-                return s
-    return ""
-
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTACT EXTRACTION  — reads from canonical JSON fields first
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _build_contact_from_resume(resume: Dict) -> Dict:
-    nested   = resume.get("contact") or {}
-    raw_text = _safe(resume.get("raw_text") or resume.get("_raw_text", ""))
+    """
+    Extract contact info from the canonical parsed JSON.
+    The header dict (from Resume Builder) is the primary source.
+    Regex over raw_text is used ONLY as a last-resort fallback for
+    fields that couldn't be parsed (e.g. phone split across a table).
+    """
+    header   = resume.get("header") or {}
+    raw_text = _safe(resume.get("raw_text", ""))
 
     def _first(*sources):
         for s in sources:
@@ -258,23 +253,61 @@ def _build_contact_from_resume(resume: Dict) -> Dict:
                 return v
         return ""
 
-    name = (
-        _clean_name(_first(nested.get("name"), resume.get("name"))) or
-        _extract_name_from_raw_text(raw_text)
+    # Prefer structured header; fall back to top-level flat keys; then regex
+    name_raw = _first(
+        header.get("name") if isinstance(header, dict) else None,
+        resume.get("name"),
+    )
+    name = _clean_name(name_raw)
+
+    email_val = _first(
+        header.get("email") if isinstance(header, dict) else None,
+        resume.get("email"),
+    )
+    if not email_val and raw_text:
+        m = EMAIL_RE.search(raw_text)
+        email_val = m.group(0).strip() if m else ""
+
+    phone_val = _first(
+        header.get("phone") if isinstance(header, dict) else None,
+        resume.get("phone"),
+    )
+    if not phone_val and raw_text:
+        m = PHONE_RE.search(raw_text)
+        phone_val = m.group(0).strip() if m else ""
+
+    location_val = _first(
+        header.get("location") if isinstance(header, dict) else None,
+        resume.get("location"),
     )
 
-    email_match    = EMAIL_RE.search(raw_text)
-    phone_match    = PHONE_RE.search(raw_text)
-    linkedin_match = LINKEDIN_RE.search(raw_text)
-    github_match   = GITHUB_RE.search(raw_text)
+    # LinkedIn / GitHub from the header "link" field or flat keys
+    link_blob = _first(
+        header.get("link") if isinstance(header, dict) else None,
+        resume.get("linkedin"),
+    )
+    linkedin_val = ""
+    github_val   = ""
+    for fragment in re.split(r"[,\s]+", link_blob):
+        if LINKEDIN_RE.search(fragment):
+            linkedin_val = fragment.strip()
+        elif GITHUB_RE.search(fragment):
+            github_val = fragment.strip()
+
+    if not linkedin_val:
+        m = LINKEDIN_RE.search(raw_text)
+        linkedin_val = m.group(0).strip() if m else ""
+    if not github_val:
+        m = GITHUB_RE.search(raw_text)
+        github_val = m.group(0).strip() if m else ""
 
     return {
         "name":     name,
-        "email":    _first(nested.get("email"),    resume.get("email"),    email_match    and email_match.group(0)),
-        "phone":    _first(nested.get("phone"),    resume.get("phone"),    phone_match    and phone_match.group(0)),
-        "location": _first(nested.get("location"), resume.get("location")),
-        "linkedin": _first(nested.get("linkedin"), resume.get("linkedin"), linkedin_match and linkedin_match.group(0)),
-        "github":   _first(nested.get("github"),   resume.get("github"),   github_match   and github_match.group(0)),
+        "email":    email_val,
+        "phone":    phone_val,
+        "location": location_val,
+        "linkedin": linkedin_val,
+        "github":   github_val,
     }
 
 
@@ -351,87 +384,72 @@ def _build_contact_section_proxy(contact: Dict) -> _DictProxy:
         "ats_tips":       ats_tips,
         "improvements":   [f"Add {m}" for m in missing] + quality,
         "rewrite_examples": [],
-        "current_status": ["good"] if score >= 70 else (["needs_improvement"] if score >= 40 else ["critical"]),
-        "complete":       not missing,
+        "current_status": (
+            ["good"] if score >= 70
+            else (["needs_improvement"] if score >= 40 else ["critical"])
+        ),
+        "complete": not missing,
     }
     return _DictProxy(data)
 
 
-def _recover_education_from_text(raw_text: str) -> List[Dict]:
-    DEGREE_RE = re.compile(
-        r"(Bachelor[^,\n|]{0,60}|B\.?[ESTech]{1,5}\.?[^,\n|]{0,40}|"
-        r"Master[^,\n|]{0,60}|M\.?[ESTech]{1,5}\.?[^,\n|]{0,40}|"
-        r"Ph\.?D\.?[^,\n|]{0,40}|MBA[^,\n|]{0,30}|"
-        r"B\.?Sc\.?[^,\n|]{0,40}|M\.?Sc\.?[^,\n|]{0,40}|"
-        r"Associate[^,\n|]{0,40}|Diploma[^,\n|]{0,40})",
-        re.IGNORECASE,
-    )
-    INST_RE = re.compile(
-        r"([\w\s&'\-\.]+(?:University|College|Institute|School|Academy|Engineering College)[\w\s&'\-\.]{0,40})",
-        re.IGNORECASE,
-    )
-    YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
-    CGPA_RE = re.compile(r"(?:CGPA|GPA)[:\s]*([0-9]\.[0-9]{1,2})", re.IGNORECASE)
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION ACCESSORS  — all read from structured JSON, never from raw text
+# ─────────────────────────────────────────────────────────────────────────────
 
-    entries = []
-    for m in DEGREE_RE.finditer(raw_text):
-        degree = m.group(0).strip().rstrip(",;|")
-        start  = max(0, m.start() - 50)
-        end    = min(len(raw_text), m.end() + 400)
-        snip   = raw_text[start:end]
-
-        institution = ""
-        im = INST_RE.search(snip)
-        if im:
-            institution = im.group(1).strip()
-
-        year = ""
-        ym = YEAR_RE.search(snip)
-        if ym:
-            year = ym.group(0)
-
-        gpa = ""
-        gm = CGPA_RE.search(snip)
-        if gm:
-            gpa = gm.group(1)
-
-        if degree or institution:
-            entries.append({
-                "degree":      degree,
-                "institution": institution,
-                "college":     institution,
-                "year":        year,
-                "gpa":         gpa,
-            })
-            break
-
-    return entries
+def _get_summary(resume: Dict) -> str:
+    """Return the summary string regardless of whether it is nested or flat."""
+    raw = resume.get("summary")
+    if isinstance(raw, dict):
+        return _safe(raw.get("summary", ""))
+    return _safe(raw)
 
 
-def _enrich_resume(resume: Dict) -> Dict:
-    r = dict(resume)
+def _get_education(resume: Dict) -> List[Dict]:
+    edu = resume.get("education") or []
+    if not isinstance(edu, list):
+        return []
+    result = []
+    for e in edu:
+        if isinstance(e, dict) and (e.get("degree") or e.get("institution") or e.get("college")):
+            result.append(e)
+        elif isinstance(e, str) and e.strip():
+            result.append({"raw_text": e})
+    return result
 
-    raw_text = _safe(r.get("raw_text") or r.get("_raw_text", ""))
-    clean_n  = _clean_name(_safe(r.get("name")))
-    if not clean_n and raw_text:
-        clean_n = _extract_name_from_raw_text(raw_text)
-    if clean_n:
-        r["name"] = clean_n
 
-    education = r.get("education") or []
-    has_valid = (
-        isinstance(education, list) and
-        any(isinstance(e, dict) and (e.get("degree") or e.get("institution"))
-            for e in education)
-    )
-    if not has_valid and raw_text:
-        recovered = _recover_education_from_text(raw_text)
-        if recovered:
-            r["education"] = recovered
-            logger.info(f"Education recovered from raw_text: {recovered}")
+def _get_skills(resume: Dict) -> List[str]:
+    skills = resume.get("skills") or []
+    if not isinstance(skills, list):
+        return []
+    return [_safe(s) for s in skills if _safe(s)]
 
-    return r
 
+def _get_experience(resume: Dict) -> List[Dict]:
+    exp = resume.get("experience") or []
+    if not isinstance(exp, list):
+        return []
+    return [e for e in exp if isinstance(e, dict)]
+
+
+def _get_projects(resume: Dict) -> List[Dict]:
+    proj = resume.get("projects") or []
+    if not isinstance(proj, list):
+        return []
+    return proj
+
+
+def _get_certifications(resume: Dict) -> List:
+    return resume.get("certifications") or []
+
+
+def _get_languages(resume: Dict) -> List:
+    return resume.get("languages") or []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCORING DIMENSIONS  — operate on structured JSON only
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _parse_date_to_months(raw: str) -> Optional[int]:
     raw = _safe(raw).lower()
@@ -474,20 +492,41 @@ def _has_weak_opener(text: str) -> bool:
 
 
 def _resume_flat_text(resume: Dict) -> str:
+    """Build a searchable text blob from structured fields only."""
     parts: List[str] = []
-    for key in ("summary", "skills", "raw_text", "raw_resume"):
-        v = resume.get(key)
-        if isinstance(v, str):
-            parts.append(v)
-    for exp in (resume.get("experience") or []):
-        if isinstance(exp, dict):
-            parts.append(_safe(exp.get("title")))
-            parts.append(_safe(exp.get("company")))
-            for b in (exp.get("bullets") or []):
-                parts.append(_safe(b))
-    for s in (resume.get("skills") or []):
-        parts.append(_safe(s))
-    return " ".join(parts).lower()
+
+    summary = _get_summary(resume)
+    if summary:
+        parts.append(summary)
+
+    for s in _get_skills(resume):
+        parts.append(s)
+
+    for exp in _get_experience(resume):
+        parts.append(_safe(exp.get("title")))
+        parts.append(_safe(exp.get("company")))
+        for b in (exp.get("bullets") or []):
+            parts.append(_safe(b))
+
+    for proj in _get_projects(resume):
+        parts.append(_safe(proj.get("title") or proj.get("name", "")))
+        for b in (proj.get("bullets") or []):
+            parts.append(_safe(b))
+        for t in (proj.get("technologies") or []):
+            parts.append(_safe(t))
+
+    for cert in _get_certifications(resume):
+        if isinstance(cert, dict):
+            parts.append(_safe(cert.get("name") or cert.get("title", "")))
+        else:
+            parts.append(_safe(cert))
+
+    # raw_text is only appended for density/length purposes, not section detection
+    raw = resume.get("raw_text", "")
+    if raw:
+        parts.append(_safe(raw))
+
+    return " ".join(p for p in parts if p).lower()
 
 
 def _known_skills_set() -> Set[str]:
@@ -502,12 +541,12 @@ _KNOWN_SKILLS: Set[str] = _known_skills_set()
 
 
 def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
-    resume_text        = _resume_flat_text(resume)
-    resume_skills_raw  = [_safe(s).lower() for s in (resume.get("skills") or [])]
-    resume_skills_set  = {_REV_SYN.get(s, s) for s in resume_skills_raw} | set(resume_skills_raw)
+    resume_text       = _resume_flat_text(resume)
+    skills_raw        = _get_skills(resume)
+    resume_skills_set = {_REV_SYN.get(s.lower(), s.lower()) for s in skills_raw} | {s.lower() for s in skills_raw}
 
     if not job_description or not job_description.strip():
-        skill_count = len(resume_skills_raw)
+        skill_count = len(skills_raw)
         raw = _clamp(100.0 / (1.0 + math.exp(-0.2 * (skill_count - 12))))
         return {
             "raw_score": raw, "weight": 0.30,
@@ -516,10 +555,10 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
             "bonuses":   ([f"{skill_count} skills listed"] if skill_count >= 8 else []),
         }
 
-    jd_lower  = job_description.lower()
-    jd_words  = re.findall(r"\b[\w\+#\.]+\b", jd_lower)
+    jd_lower   = job_description.lower()
+    jd_words   = re.findall(r"\b[\w\+#\.]+\b", jd_lower)
     jd_bigrams = [f"{jd_words[i]} {jd_words[i+1]}" for i in range(len(jd_words) - 1)]
-    jd_tokens = list(set(jd_words + jd_bigrams))
+    jd_tokens  = list(set(jd_words + jd_bigrams))
 
     freq: Dict[str, int] = {}
     for tok in jd_tokens:
@@ -528,7 +567,7 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
             freq[canon] = freq.get(canon, 0) + jd_lower.count(tok)
 
     if not freq:
-        skill_count = len(resume_skills_raw)
+        skill_count = len(skills_raw)
         raw = _clamp(100.0 / (1.0 + math.exp(-0.18 * (skill_count - 10))))
         return {
             "raw_score": raw, "weight": 0.30,
@@ -567,21 +606,21 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
         raw = min(raw + 5, 100)
 
     return {
-        "raw_score":        raw,
-        "weight":           0.30,
+        "raw_score":          raw,
+        "weight":             0.30,
         "jd_skills_detected": len(freq),
-        "matched":          len(matched_skills),
-        "match_ratio":      round(match_ratio, 3),
-        "missing_critical": missing_critical,
-        "keyword_density":  round(density, 4),
-        "penalties":        [f'Missing critical keyword: "{s}"' for s in missing_critical[:5]],
-        "bonuses":          [f'Matched: "{s}"' for s in matched_skills[:5]],
+        "matched":            len(matched_skills),
+        "match_ratio":        round(match_ratio, 3),
+        "missing_critical":   missing_critical,
+        "keyword_density":    round(density, 4),
+        "penalties":          [f'Missing critical keyword: "{s}"' for s in missing_critical[:5]],
+        "bonuses":            [f'Matched: "{s}"' for s in matched_skills[:5]],
     }
 
 
 def _dim_experience(resume: Dict) -> Dict:
-    experience = resume.get("experience") or []
-    if not isinstance(experience, list) or not experience:
+    experience = _get_experience(resume)
+    if not experience:
         return {
             "raw_score": 0.0, "weight": 0.25,
             "total_months": 0, "roles": 0,
@@ -595,16 +634,20 @@ def _dim_experience(resume: Dict) -> Dict:
     bonuses:   List[str] = []
 
     for idx, exp in enumerate(experience):
-        if not isinstance(exp, dict):
-            continue
-        title   = _safe(exp.get("title"))
-        company = _safe(exp.get("company"))
-        start   = _safe(exp.get("start_date"))
-        end     = _safe(exp.get("end_date"))
+        # Support both "title"/"position" keys from different parser outputs
+        title   = _safe(exp.get("title") or exp.get("position", ""))
+        company = _safe(exp.get("company", ""))
+        start   = _safe(exp.get("start_date") or exp.get("fromYear", ""))
+        end     = _safe(exp.get("end_date") or exp.get("toYear", ""))
+
+        # isOngoing flag from Resume Builder schema
+        if exp.get("isOngoing"):
+            end = "present"
+
         bullets = exp.get("bullets") or []
 
         dur = _duration_months(start, end)
-        if dur == 0 and start:
+        if dur == 0 and (start or exp.get("isOngoing")):
             dur = 12
         total_months += dur
 
@@ -612,13 +655,13 @@ def _dim_experience(resume: Dict) -> Dict:
         if complete:
             complete_roles += 1
         else:
-            missing = []
-            if not title:   missing.append("title")
-            if not company: missing.append("company")
-            if not start:   missing.append("dates")
-            if not bullets: missing.append("bullets")
-            if missing:
-                penalties.append(f"Role {idx+1}: missing {', '.join(missing)}")
+            missing_parts = []
+            if not title:   missing_parts.append("title")
+            if not company: missing_parts.append("company")
+            if not start:   missing_parts.append("dates")
+            if not bullets: missing_parts.append("bullets")
+            if missing_parts:
+                penalties.append(f"Role {idx+1}: missing {', '.join(missing_parts)}")
 
         title_lower = title.lower()
         if any(t in title_lower for t in ("senior", "lead", "principal", "head", "director", "vp", "chief", "manager")):
@@ -640,29 +683,28 @@ def _dim_experience(resume: Dict) -> Dict:
     raw              = _clamp(dur_score + role_bonus * completeness + completeness_pts)
 
     return {
-        "raw_score":       raw,
-        "weight":          0.25,
-        "total_months":    total_months,
-        "total_years":     round(total_months / 12, 1),
-        "roles":           role_count,
-        "complete_roles":  complete_roles,
+        "raw_score":        raw,
+        "weight":           0.25,
+        "total_months":     total_months,
+        "total_years":      round(total_months / 12, 1),
+        "roles":            role_count,
+        "complete_roles":   complete_roles,
         "completeness_pct": round(completeness * 100),
-        "penalties":       penalties,
-        "bonuses":         bonuses,
+        "penalties":        penalties,
+        "bonuses":          bonuses,
     }
 
 
 def _dim_quality(resume: Dict) -> Dict:
-    experience = resume.get("experience") or []
-    summary    = _safe(resume.get("summary"))
-    skills     = resume.get("skills") or []
+    experience = _get_experience(resume)
+    summary    = _get_summary(resume)
+    skills     = _get_skills(resume)
 
     all_bullets: List[str] = []
     for exp in experience:
-        if isinstance(exp, dict):
-            for b in (exp.get("bullets") or []):
-                if _safe(b):
-                    all_bullets.append(_safe(b))
+        for b in (exp.get("bullets") or []):
+            if _safe(b):
+                all_bullets.append(_safe(b))
 
     total_bullets = len(all_bullets)
     strong_count  = 0
@@ -715,33 +757,39 @@ def _dim_quality(resume: Dict) -> Dict:
         "teamwork", "adaptability", "hardworking", "detail oriented",
         "fast learner", "quick learner", "team player",
     }
-    specific_count = sum(1 for s in skills
-                         if _safe(s).lower() not in generic_terms and len(_safe(s)) > 2)
+    specific_count = sum(
+        1 for s in skills
+        if s.lower() not in generic_terms and len(s) > 2
+    )
     specificity_score = _clamp(min(specific_count * 1.5, 15.0))
 
     raw = _clamp(bullet_score * 0.60 + summary_score + specificity_score)
 
     return {
-        "raw_score":          raw,
-        "weight":             0.20,
-        "total_bullets":      total_bullets,
-        "strong_verb_pct":    round(strong_count / max(total_bullets, 1) * 100),
-        "metric_pct":         round(metric_count / max(total_bullets, 1) * 100),
-        "weak_opener_pct":    round(weak_count   / max(total_bullets, 1) * 100),
-        "summary_score":      round(summary_score),
-        "specificity_score":  round(specificity_score),
-        "penalties":          penalties,
-        "bonuses":            bonuses,
+        "raw_score":         raw,
+        "weight":            0.20,
+        "total_bullets":     total_bullets,
+        "strong_verb_pct":   round(strong_count / max(total_bullets, 1) * 100),
+        "metric_pct":        round(metric_count / max(total_bullets, 1) * 100),
+        "weak_opener_pct":   round(weak_count   / max(total_bullets, 1) * 100),
+        "summary_score":     round(summary_score),
+        "specificity_score": round(specificity_score),
+        "penalties":         penalties,
+        "bonuses":           bonuses,
     }
 
 
 def _dim_structure(resume: Dict) -> Dict:
+    """
+    Evaluate section completeness from canonical JSON.
+    Sections are present if their structured lists/strings are non-empty.
+    """
     earned   = 0.0
     max_pts  = 85.0
     penalties: List[str] = []
     bonuses:   List[str] = []
 
-    summary = _safe(resume.get("summary"))
+    summary = _get_summary(resume)
     if summary and len(summary.split()) >= 15:
         earned += 20
         bonuses.append("Professional summary present")
@@ -751,28 +799,29 @@ def _dim_structure(resume: Dict) -> Dict:
     else:
         penalties.append("Professional summary missing")
 
-    exp = resume.get("experience") or []
-    if isinstance(exp, list) and len(exp) > 0:
+    experience = _get_experience(resume)
+    if experience:
         earned += 20
+        bonuses.append(f"{len(experience)} experience entry/entries")
     else:
         penalties.append("Work experience section missing")
 
-    skills = resume.get("skills") or []
-    if isinstance(skills, list) and len(skills) >= 5:
+    skills = _get_skills(resume)
+    if len(skills) >= 5:
         earned += 20
-    elif isinstance(skills, list) and 0 < len(skills) < 5:
+        bonuses.append(f"{len(skills)} skills listed")
+    elif skills:
         earned += 10
         penalties.append(f"Too few skills ({len(skills)} — add at least 5)")
     else:
         penalties.append("Skills section missing or empty")
 
-    edu = resume.get("education") or []
-    if isinstance(edu, list) and len(edu) > 0:
-        has_valid = any(
-            isinstance(e, dict) and (e.get("degree") or e.get("institution"))
-            for e in edu
-        )
-        earned += 20 if has_valid else 10
+    education = _get_education(resume)
+    if education:
+        earned += 20
+        bonuses.append(f"{len(education)} education entry/entries")
+    else:
+        penalties.append("Education section missing")
 
     contact = _build_contact_from_resume(resume)
     if contact.get("email"):
@@ -781,19 +830,23 @@ def _dim_structure(resume: Dict) -> Dict:
     else:
         penalties.append("Email address missing")
 
-    proj = resume.get("projects") or []
-    if isinstance(proj, list) and len(proj) > 0:
-        bonuses.append(f"{len(proj)} project(s) listed")
+    projects = _get_projects(resume)
+    if projects:
+        bonuses.append(f"{len(projects)} project(s) listed")
 
     raw = _clamp((earned / max_pts) * 100)
     return {
-        "raw_score": raw, "weight": 0.15,
-        "pts_earned": round(earned), "pts_max": round(max_pts),
-        "penalties": penalties, "bonuses": bonuses,
+        "raw_score":  raw,
+        "weight":     0.15,
+        "pts_earned": round(earned),
+        "pts_max":    round(max_pts),
+        "penalties":  penalties,
+        "bonuses":    bonuses,
     }
 
 
 def _dim_format(resume: Dict) -> Dict:
+    """Format/ATS compliance uses raw extraction metadata only."""
     score    = 100.0
     penalties: List[str] = []
     bonuses:   List[str] = []
@@ -826,17 +879,17 @@ def _dim_format(resume: Dict) -> Dict:
 
 def _apply_hard_caps(score: float, resume: Dict) -> Tuple[float, List[str]]:
     applied: List[str] = []
-    exp    = resume.get("experience") or []
-    skills = resume.get("skills")    or []
+    exp     = _get_experience(resume)
+    skills  = _get_skills(resume)
     contact = _build_contact_from_resume(resume)
     email   = contact.get("email", "")
 
-    if not (isinstance(exp, list) and len(exp) > 0):
+    if not exp:
         if score > _HARD_CAPS["no_experience"]:
             score = float(_HARD_CAPS["no_experience"])
             applied.append(f"No work experience — score capped at {_HARD_CAPS['no_experience']}")
 
-    if not (isinstance(skills, list) and len(skills) >= 1):
+    if not skills:
         if score > _HARD_CAPS["no_skills"]:
             score = float(_HARD_CAPS["no_skills"])
             applied.append(f"No skills section — score capped at {_HARD_CAPS['no_skills']}")
@@ -912,11 +965,11 @@ def _score_explanation(
 ) -> Dict:
     return {
         "resume_quality_score": {
-            "score":            rule_score,
-            "grade":            _grade(rule_score),
-            "what_it_means":    "How well-written the resume is: structure, formatting, action verbs, bullet quality.",
-            "interpretation":   (
-                "Excellent resume writing quality."    if rule_score >= 85 else
+            "score":          rule_score,
+            "grade":          _grade(rule_score),
+            "what_it_means":  "How well-written the resume is: structure, formatting, action verbs, bullet quality.",
+            "interpretation": (
+                "Excellent resume writing quality."     if rule_score >= 85 else
                 "Good quality with minor improvements." if rule_score >= 70 else
                 "Quality issues that need addressing."
             ),
@@ -941,6 +994,10 @@ def _score_explanation(
         "dimension_breakdown": dim_breakdown,
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON REPAIR  (for AI response parsing)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _strip_markdown_fences(text: str) -> str:
     text = text.strip()
@@ -1070,6 +1127,10 @@ def _extract_fields_by_regex(text: str) -> Dict:
     return result
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN SERVICE
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ATSScannerService:
 
     def __init__(self) -> None:
@@ -1086,13 +1147,12 @@ class ATSScannerService:
     ) -> Dict:
         logger.info("=== ATS Scan v5 Starting ===")
 
-        resume        = _enrich_resume(resume)
         contact_built = _build_contact_from_resume(resume)
         logger.info(
-            f"  name='{resume.get('name')}' "
-            f"edu={len(resume.get('education') or [])} "
-            f"exp={len(resume.get('experience') or [])} "
-            f"skills={len(resume.get('skills') or [])}"
+            f"  name='{contact_built.get('name')}' "
+            f"edu={len(_get_education(resume))} "
+            f"exp={len(_get_experience(resume))} "
+            f"skills={len(_get_skills(resume))}"
         )
 
         logger.info("[Stage 1] ATSRulesEngine")
@@ -1170,43 +1230,42 @@ class ATSScannerService:
         keyword_analysis, db,
     ) -> Dict:
         contact  = _build_contact_from_resume(resume)
-        name     = _safe_for_prompt(contact.get("name") or resume.get("name"), 60)
+        name     = _safe_for_prompt(contact.get("name") or "", 60)
         industry = (
             keyword_analysis.detected_industry if keyword_analysis
             else self.keyword_engine.detect_industry(resume)
         )
-        summary = _safe_for_prompt(resume.get("summary"), 250)
+        summary = _safe_for_prompt(_get_summary(resume), 250)
         skills  = _safe_for_prompt(
-            ", ".join([_safe(s) for s in (resume.get("skills") or [])[:15]]), 200
+            ", ".join(_get_skills(resume)[:15]), 200
         )
 
         exp_lines: List[str] = []
-        for exp in (resume.get("experience") or [])[:3]:
-            if isinstance(exp, dict):
-                for b in (exp.get("bullets") or [])[:2]:
-                    clean = _safe_for_prompt(b, 120)
-                    if clean:
-                        exp_lines.append(clean)
+        for exp in _get_experience(resume)[:3]:
+            for b in (exp.get("bullets") or [])[:2]:
+                clean = _safe_for_prompt(b, 120)
+                if clean:
+                    exp_lines.append(clean)
         experience_bullets = "; ".join(exp_lines[:6]) or "Not provided"
 
         edu_parts: List[str] = []
-        for edu in (resume.get("education") or [])[:2]:
+        for edu in _get_education(resume)[:2]:
             if isinstance(edu, dict):
-                d = _safe_for_prompt(edu.get("degree"), 60)
-                i = _safe_for_prompt(edu.get("institution") or edu.get("college"), 80)
-                y = _safe_for_prompt(edu.get("year"), 10)
+                d = _safe_for_prompt(edu.get("degree", ""), 60)
+                i = _safe_for_prompt(edu.get("institution") or edu.get("college", ""), 80)
+                y = _safe_for_prompt(edu.get("year", ""), 10)
                 if d or i:
                     edu_parts.append(f"{d} at {i} ({y})".strip())
         education = "; ".join(edu_parts) or "Not provided"
 
         certs = ", ".join([
-            _safe_for_prompt(c.get("name") if isinstance(c, dict) else c, 60)
-            for c in (resume.get("certifications") or [])[:5] if c
+            _safe_for_prompt(c.get("name") or c.get("title", "") if isinstance(c, dict) else c, 60)
+            for c in _get_certifications(resume)[:5] if c
         ]) or "None"
 
         projects = ", ".join([
-            _safe_for_prompt(p.get("name") or p.get("title") if isinstance(p, dict) else p, 60)
-            for p in (resume.get("projects") or [])[:3] if p
+            _safe_for_prompt(p.get("name") or p.get("title", "") if isinstance(p, dict) else p, 60)
+            for p in _get_projects(resume)[:3] if p
         ]) or "None"
 
         additional = ", ".join([
@@ -1453,11 +1512,10 @@ class ATSScannerService:
 
     @staticmethod
     def _guess_target_role(resume: Dict) -> Optional[str]:
-        exp = resume.get("experience") or []
-        if isinstance(exp, list) and exp:
-            first = exp[0]
-            if isinstance(first, dict):
-                return _safe(first.get("title") or first.get("job_title"))
+        for exp in _get_experience(resume)[:1]:
+            title = _safe(exp.get("title") or exp.get("position", ""))
+            if title:
+                return title
         return None
 
 

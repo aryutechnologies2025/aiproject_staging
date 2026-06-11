@@ -94,21 +94,22 @@ async def run_recall_check() -> None:
 
 
 def setup_scheduler() -> AsyncIOScheduler:
-    scheduler.add_job(
-        run_all_companies_batch,
-        CronTrigger(hour="9-18", minute="*/15", timezone="Asia/Kolkata"),
-        id="call_batch",
-        replace_existing=True,
-        max_instances=1,
-    )
-    scheduler.add_job(
-        run_recall_check,
-        IntervalTrigger(minutes=10),
-        id="recall_check",
-        replace_existing=True,
-        max_instances=1,
-    )
-    return scheduler
+    if config.ENABLE_CAMPAIGN_SCHEDULER:
+        scheduler.add_job(
+            run_all_companies_batch,
+            CronTrigger(hour="9-18", minute="*/15", timezone="Asia/Kolkata"),
+            id="call_batch",
+            replace_existing=True,
+            max_instances=1,
+        )
+        scheduler.add_job(
+            run_recall_check,
+            IntervalTrigger(minutes=10),
+            id="recall_check",
+            replace_existing=True,
+            max_instances=1,
+        )
+        return scheduler
 
 
 async def trigger_immediate_call(lead: LeadData) -> bool:

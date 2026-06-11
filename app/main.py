@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from app.api.v1.resume_builder import resume_builder
 from app.modules.ats_scanner import router as ats_routes
 from app.modules.voice_agent.router import router as voice_agent_router
-from app.modules.voice_agent.scheduler import setup_scheduler
+# from app.modules.voice_agent.scheduler import setup_scheduler
 from app.modules.voice_agent import database as db
 from app.core.database import Base, engine
 from app.api.v1 import (
@@ -45,33 +45,33 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # LIFESPAN MANAGEMENT (Replaces @app.on_event("startup"))
 # ─────────────────────────────────────────────────────────────────────────────
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 1. Initialize Database Tables safely
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # 1. Initialize Database Tables safely
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
         
-    # 2. Voice Agent DB & Scheduler
-    await db.init_db()
-    scheduler = setup_scheduler()
-    scheduler.start()
+#     # 2. Voice Agent DB & Scheduler
+#     await db.init_db()
+#     scheduler = setup_scheduler()
+#     scheduler.start()
  
-    yield # App runs here
+#     yield # App runs here
  
-    # 3. Graceful Shutdown
-    scheduler.shutdown(wait=False)
+#     # 3. Graceful Shutdown
+#     scheduler.shutdown(wait=False)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # APP INITIALIZATION
 # ─────────────────────────────────────────────────────────────────────────────
 # Only expose Swagger/Redoc docs if we are explicitly NOT in production
 app = FastAPI(
-    title="Aryu Academy AI Bot", 
+    title="Aryu Academy", 
     version="1.0.0",
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
-    lifespan=lifespan
+    # lifespan=lifespan
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
