@@ -34,45 +34,42 @@ def _clean_bullets(response: str) -> list:
 
 
 async def suggest_experience(data: dict, db: AsyncSession) -> dict:
-    job_title = data.get("job_title", "")
-    company = data.get("company", "")
-    duration = data.get("duration", "")
-    location = data.get("location", "")
-    description = data.get("description", "")
-    tone = data.get("tone", "professional")
+    job_title = data.get("job_title", "").strip()
+    company = data.get("company", "").strip()
+    duration = data.get("duration", "").strip()
+    location = data.get("location", "").strip()
+    tone = data.get("tone", "professional").strip()
 
-    user_prompt = f"""[CRITICAL INTEGRITY CONSTRAINT]
-You are an expert multi-industry resume writer. Your task is to distill the raw job description provided below into concise, high-impact, ATS-optimized accomplishment statements. Do NOT invent metrics or titles. Do NOT use IT jargon if the candidate is in a non-tech field.
+    user_prompt = f"""
+You are an expert ATS resume writer and career coach.
 
-ROLE DATA:
+Generate 5 high-quality, ATS-friendly resume experience bullet points for the following role.
+
+Candidate Information:
 - Job Title: {job_title}
-- Organization: {company}
-- Tenure/Duration: {duration}
-- Location: {location}
-- Raw Description/Tasks: {description}
-- Target Tone: {tone}
+- Company: {company}
+- Duration: {duration or "Not specified"}
+- Location: {location or "Not specified"}
 
-EXECUTION RULES:
-1. NO personal pronouns allowed (No: I, me, my, we, our).
-2. Follow the universal formula: [Strong Action Verb] + [Core Task/Responsibility] + [Measurable Business/Operational Impact].
-3. Prioritize concise, clear sentence structures over wordy explanations.
-4. Output exactly 3 to 5 high-quality bullets maximum. One bullet per line.
+The user has NOT provided a job description.
 
-UNIVERSAL REFERENCE PATTERNS:
+Your responsibility is to infer the most common and realistic responsibilities and achievements for this role based on industry standards.
 
-Example 1 (Corporate / Operations / Admin):
-Raw Input: "I managed the daily schedules for the office, organized client files, and helped reduce office supply spending over the year."
-Output: Coordinated daily administrative workflows and calendar management for senior executive teams.
-Output: Restructured physical and digital client data archiving systems, improving retrieval times.
-Output: Audited vendor contracts and optimized office inventory pipelines, reducing annual operational expenditure.
+Rules:
 
-Example 2 (Education / Teaching):
-Raw Input: "I was a teacher handling 30 students. I changed the lesson plans and grades went up quite a bit."
-Output: Executed comprehensive curriculum delivery tailored to diverse learning styles for groups of 30+ students.
-Output: Innovated custom interactive lesson frameworks, resulting in measurable improvements in quarterly student performance metrics.
-
-YOUR TASK:
-Transform the Raw Description/Tasks provided above into 3 to 5 clean, distinct accomplishment lines matching the layout of the reference patterns. Do not output anything else. No introduction, no markdown punctuation symbols, no bullet characters (*, -, •) at line starts."""
+1. Generate exactly 5 bullets.
+2. Begin every bullet with a strong action verb.
+3. Make every bullet resume-ready.
+4. Keep each bullet between 15 and 30 words.
+5. Use ATS-friendly language.
+6. Do NOT use first-person pronouns.
+7. Do NOT fabricate impossible achievements.
+8. Do NOT invent unrealistic percentages or revenue figures.
+9. Include realistic operational responsibilities expected for this role.
+10. Use company context only if naturally applicable.
+11. Return ONLY the bullet statements.
+12. Do not include markdown, numbering, or explanations.
+"""
 
     response = await call_llm(
         user_message=user_prompt,
@@ -290,7 +287,80 @@ Data:
         "quality_notes": "Education bullets generated"
     }
 
+async def suggest_project(data: dict, db: AsyncSession) -> dict:
+    project_title = data.get("project_title", "").strip()
+    tech_stack = data.get("tech_stack", [])
 
+    if isinstance(tech_stack, list):
+        tech_stack_str = ", ".join(tech_stack)
+    else:
+        tech_stack_str = str(tech_stack).strip()
+
+    user_prompt = f"""
+You are an expert ATS resume writer and senior software architect.
+
+Generate a professional resume-ready project description.
+
+Project Information:
+- Project Title: {project_title}
+- Technologies: {tech_stack_str or "Not specified"}
+
+The user has NOT provided a project description.
+
+Your responsibility is to infer the most realistic functionality,
+features, architecture, and business purpose of this project based
+on its title and technology stack.
+
+Rules:
+
+1. Generate exactly 5 concise resume bullet points.
+2. Begin every bullet with a strong action verb.
+3. Make every bullet ATS-friendly.
+4. Keep every bullet between 15 and 30 words.
+5. Mention technologies naturally where appropriate.
+6. Do NOT use first-person pronouns.
+7. Do NOT invent impossible metrics.
+8. Do NOT invent fake users or revenue.
+9. Focus on implementation, architecture, optimization, integrations,
+   APIs, security, scalability, and user experience.
+10. Return ONLY the bullet statements.
+11. Do not return markdown, numbering, or explanations.
+"""
+
+    response = await call_llm(
+        user_message=user_prompt,
+        agent_name="resume_builder",
+        db=db,
+    )
+
+    raw_lines = response.strip().split("\n")
+    bullets = []
+
+    for line in raw_lines:
+        cleaned = (
+            line.strip()
+            .strip("*")
+            .strip("-")
+            .strip("•")
+            .strip('"')
+            .strip("'")
+            .strip()
+        )
+
+        if cleaned.lower().startswith("output:"):
+            cleaned = cleaned[7:].strip()
+
+        if cleaned:
+            bullets.append(cleaned)
+
+    return {
+        "project_description": "\n".join(bullets),
+        "count": len(bullets),
+        "quality_notes": (
+            "AI-generated ATS-optimized project description based on "
+            "project title and technology stack."
+        ),
+    }
 
 def build_ats_resume_json_prompt(
     job_title: str,
