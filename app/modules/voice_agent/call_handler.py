@@ -281,18 +281,6 @@ class CallHandler:
             except Exception as e:
                 logger.warning(f"[{self.call_id}] Could not open audio dump: {e}")
 
-    @staticmethod
-    def _pcm_to_wav_base64(pcm_data: bytes, sample_rate: int = 16000) -> str:
-        """Wrap raw PCM16 mono audio in a WAV container and return base64 string."""
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)          # 16‑bit
-            wf.setframerate(sample_rate)
-            wf.writeframes(pcm_data)
-        buf.seek(0)
-        return base64.b64encode(buf.read()).decode("utf-8")
-
     # ─────────────────────────────────────────────────────────────────────────
     # Entry point
     # ─────────────────────────────────────────────────────────────────────────
@@ -558,23 +546,18 @@ class CallHandler:
             # not match the string enum "16000", potentially causing the server
             # to silently reject or misprocess the audio message.
             try:
-                b64_audio = self._pcm_to_wav_base64(chunk)
+                b64_audio = base64.b64encode(chunk).decode("utf-8")
                 logger.critical(
                     f"[{self.call_id}] SEND TO STT "
                     f"rms={chunk_rms:.1f} "
                     f"bytes={len(chunk)}"
                 )
                 logger.critical(
-                    f"[{self.call_id}] STT SEND CHUNK | "
+                    f"[{self.call_id}] STT SEND CHUNK (RAW PCM) | "
                     f"len_chunk={len(chunk)} | rms={chunk_rms:.1f} | "
-                    f"encoding=audio/wav | sample_rate=16000 | "
-                    f"base64_preview={b64_audio[:80]}..."  # first 80 chars
+                    f"base64_preview={b64_audio[:80]}..."
                 )
-                await self.sarvam_stt_ws.transcribe(
-                    audio=b64_audio,
-                    encoding="audio/wav",    # required
-                    sample_rate="16000"      # must be string, matching the connection
-                )
+                await self.sarvam_stt_ws.transcribe(audio=b64_audio)
                 logger.info(
                     f"audio payload: {b64_audio}"
                 )
@@ -658,18 +641,16 @@ class CallHandler:
                 # Flush prebuffered audio
                 if self._prebuffer:
                     logger.info(
-                        f"[{self.call_id}] 🔄 Flushing {len(self._prebuffer)} prebuffered chunks"
+                        f"[{self.call_id}] 🔄 Flushing {len(self._prebuffer)} prebuffered chunks (RAW PCM)"
                     )
                     for chunk in self._prebuffer:
                         if self.call_ended:
                             break
                         try:
-                            b64_audio = self._pcm_to_wav_base64(chunk)
-                            await self.sarvam_stt_ws.transcribe(
-                                audio=b64_audio,
-                                encoding="audio/wav",
-                                sample_rate="16000"
-                            )
+                            # FIX: Send raw PCM16 bytes directly as base64
+                            b64_audio = base64.b64encode(chunk).decode("utf-8")
+                            await self.sarvam_stt_ws.transcribe(audio=b64_audio)
+                            
                             # Tiny sleep to avoid overwhelming server with burst
                             await asyncio.sleep(0.01)
                         except Exception as e:

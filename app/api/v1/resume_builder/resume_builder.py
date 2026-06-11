@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from app.modules.resume_builder.service import (
     suggest_experience,
     suggest_summary,
+    suggest_project,
     build_skills_prompt,
     suggest_education,
     generate_ats_resume_json,
@@ -66,6 +67,41 @@ async def generate_experience(
         logger.error(f"Experience generation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate experience bullets")
 
+@router.post("/project")
+async def generate_project(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate ATS-friendly project description.
+    """
+
+    try:
+        if not data.get("project_title"):
+            raise HTTPException(
+                status_code=400,
+                detail="project_title is required",
+            )
+
+        logger.info(
+            f"Generating project description for {data.get('project_title')}"
+        )
+
+        return await suggest_project(data, db)
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(
+            f"Project generation error: {e}",
+            exc_info=True,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate project description",
+        )
 
 @router.post("/summary")
 async def generate_summary(

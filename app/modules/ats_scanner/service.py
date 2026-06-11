@@ -1,3 +1,29 @@
+"""
+ATS Scanner Service v6.0
+────────────────────────────────────────────────────────────────────────────
+All scoring functions now consume a single NormalizedResume object produced
+by ats_normalizer.normalize_resume().
+
+Changes from v5:
+  BUG 1  – _dim_experience now reads NormalizedExperience.title / .company /
+             .start_date / .end_date; no longer silently fails when parser
+             uses "position" or "fromYear".
+  BUG 2  – _dim_quality reads NormalizedExperience.bullets which normalizer
+             builds from any known field (bullets/description/responsibilities).
+  BUG 3  – Skill count comes from len(nr.skills) which is the deduplicated
+             canonical list; raw-text regex matching never contributes to count.
+  BUG 4  – Contact feedback is built from NormalizedContact; recommends
+             adding only actually-missing fields.
+  BUG 5  – Contact section state (is_present, score, status) is always
+             internally consistent.
+  BUG 6  – Certifications promoted from education entries flow through via
+             normalizer; scorer reads nr.certifications.
+  BUG 7  – Project score derived from len(nr.projects) > 0.
+  BUG 8  – Language section: score > 0 whenever languages list is non-empty.
+  BUG 9  – Hard caps check len(nr.experience) not dim score; mapping failure
+             can never trigger a false cap.
+"""
+
 from __future__ import annotations
 
 import json
@@ -10,28 +36,24 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.ats_scanner.utils.ats_rules_advanced import ATSRulesEngine, SeverityLevel
-from app.modules.ats_scanner.utils.ats_keyword_engine import KeywordEngine, KeywordAnalysis, UNIVERSAL_SKILLS
+from app.modules.ats_scanner.utils.ats_keyword_engine import (
+    KeywordEngine, KeywordAnalysis, UNIVERSAL_SKILLS,
+)
 from app.modules.ats_scanner.utils.ats_feedback_generator import (
-    DetailedFeedbackGenerator,
-    ComprehensiveFeedback,
-    GLOBAL_ATS_TACTICS,
-    RECRUITER_TIPS,
+    DetailedFeedbackGenerator, ComprehensiveFeedback,
+    GLOBAL_ATS_TACTICS, RECRUITER_TIPS,
+)
+from app.modules.ats_scanner.utils.ats_normalizer import (
+    NormalizedResume, NormalizedContact,
+    normalize_resume,
 )
 from app.utils.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
 
-EMAIL_RE    = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", re.I)
-PHONE_RE    = re.compile(r"(\+\d{1,3}[\s\-]?)?\(?\d{3,5}\)?[\s\-]?\d{3,5}[\s\-]?\d{4,6}")
-LINKEDIN_RE = re.compile(r"linkedin\.com/in/[\w\-]+", re.I)
-GITHUB_RE   = re.compile(r"github\.com/[\w\-]+", re.I)
-
-_SUBTITLE_TOKENS = {
-    "full stack", "software engineer", "mern", "developer", "manager",
-    "agile", "delivery", "performance", "optimization", "stack", "frontend",
-    "backend", "engineer", "architect", "analyst", "consultant", "specialist",
-    "designer", "director", "officer", "lead", "head of",
-}
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
 
 _MONTH_MAP: Dict[str, int] = {
     "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
@@ -49,6 +71,8 @@ _STRONG_VERBS: Set[str] = {
     "implemented", "deployed", "integrated", "established", "released",
     "transformed", "modernized", "reformed", "restructured", "negotiated",
     "generated", "secured", "raised", "grew", "drove", "cut", "saved",
+    "executed", "planned", "coordinated", "monitored", "tracked",
+    "conducted", "supported", "created", "prepared", "managed",
 }
 
 _WEAK_OPENERS: Set[str] = {
@@ -66,36 +90,8 @@ _METRIC_PATS: List[re.Pattern] = [
     re.compile(r"\b\d[\d,]*\s*(?:million|billion|thousand|M|B|K)\b", re.I),
 ]
 
-_SYNONYMS: Dict[str, Set[str]] = {
-    "javascript":       {"js", "ecmascript", "es6"},
-    "typescript":       {"ts"},
-    "python":           {"python3", "py"},
-    "c#":               {"csharp", "dotnet", ".net"},
-    "c++":              {"cpp"},
-    "node.js":          {"node", "nodejs"},
-    "react":            {"reactjs", "react.js"},
-    "vue":              {"vuejs", "vue.js"},
-    "angular":          {"angularjs"},
-    "postgresql":       {"postgres"},
-    "kubernetes":       {"k8s"},
-    "machine learning": {"ml"},
-    "artificial intelligence": {"ai"},
-    "natural language processing": {"nlp"},
-    "registered nurse": {"rn"},
-    "electronic health records": {"ehr", "emr"},
-    "certified public accountant": {"cpa"},
-    "chartered financial analyst": {"cfa"},
-    "search engine optimization": {"seo"},
-    "project management professional": {"pmp"},
-    "enterprise resource planning": {"erp"},
-    "customer relationship management": {"crm"},
-}
-
-_REV_SYN: Dict[str, str] = {}
-for _can, _vars in _SYNONYMS.items():
-    for _v in _vars:
-        _REV_SYN[_v.lower()] = _can.lower()
-
+# Hard caps are now keyed by condition label → cap value
+# They are applied ONLY when the normalized model confirms the condition.
 _HARD_CAPS: Dict[str, int] = {
     "no_experience": 40,
     "no_skills":     50,
@@ -149,6 +145,10 @@ Return ONLY this JSON structure with no markdown fences, no extra text:
 }}"""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# UTILITY HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _safe(value: Any) -> str:
     if value is None:
         return ""
@@ -160,16 +160,6 @@ def _safe_for_prompt(value: Any, max_len: int = 200) -> str:
     text = text.replace("\n", " ").replace("\r", " ").replace("\\", "")
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
-
-
-def _is_present(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, str):
-        return len(value.strip()) > 0
-    if isinstance(value, (list, dict)):
-        return len(value) > 0
-    return bool(value)
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
@@ -218,247 +208,6 @@ def _ats_verdict(score: int) -> str:
     return "Very high ATS rejection risk — major revision required before applying."
 
 
-def _clean_name(raw: str) -> str:
-    if not raw:
-        return ""
-    lower = raw.lower()
-    hits  = sum(1 for t in _SUBTITLE_TOKENS if t in lower)
-    if hits >= 2 or "|" in raw or len(raw) > 60:
-        return ""
-    return raw.strip()
-
-
-def _extract_name_from_raw_text(raw_text: str) -> str:
-    if not raw_text:
-        return ""
-    for line in raw_text.split("\n")[:15]:
-        s = line.strip()
-        if not s or len(s) > 50:
-            continue
-        if re.search(r"[\d@|]", s):
-            continue
-        words = s.split()
-        if len(words) < 1 or len(words) > 4:
-            continue
-        if s[0].isupper() and not s.isupper():
-            lower = s.lower()
-            if not any(t in lower for t in _SUBTITLE_TOKENS):
-                return s
-    return ""
-
-
-def _build_contact_from_resume(resume: Dict) -> Dict:
-    nested   = resume.get("contact") or {}
-    raw_text = _safe(resume.get("raw_text") or resume.get("_raw_text", ""))
-
-    def _first(*sources):
-        for s in sources:
-            v = _safe(s)
-            if v:
-                return v
-        return ""
-
-    name = (
-        _clean_name(_first(nested.get("name"), resume.get("name"))) or
-        _extract_name_from_raw_text(raw_text)
-    )
-
-    email_match    = EMAIL_RE.search(raw_text)
-    phone_match    = PHONE_RE.search(raw_text)
-    linkedin_match = LINKEDIN_RE.search(raw_text)
-    github_match   = GITHUB_RE.search(raw_text)
-
-    return {
-        "name":     name,
-        "email":    _first(nested.get("email"),    resume.get("email"),    email_match    and email_match.group(0)),
-        "phone":    _first(nested.get("phone"),    resume.get("phone"),    phone_match    and phone_match.group(0)),
-        "location": _first(nested.get("location"), resume.get("location")),
-        "linkedin": _first(nested.get("linkedin"), resume.get("linkedin"), linkedin_match and linkedin_match.group(0)),
-        "github":   _first(nested.get("github"),   resume.get("github"),   github_match   and github_match.group(0)),
-    }
-
-
-def _score_contact(contact: Dict) -> Tuple[int, List[str], List[str], List[str]]:
-    score     = 100
-    missing   = []
-    quality   = []
-    strengths = []
-
-    if not contact.get("name"):
-        missing.append("Full name")
-        score -= 25
-    else:
-        strengths.append(f"Name present: {contact['name']}")
-
-    if not contact.get("email"):
-        missing.append("Email address")
-        score -= 25
-    else:
-        if re.search(r"@(hotmail|yahoo|rediffmail|ymail)\.", contact["email"], re.I):
-            quality.append(f"Unprofessional email: {contact['email']} — use Gmail or custom domain")
-        else:
-            strengths.append(f"Professional email: {contact['email']}")
-
-    if not contact.get("phone"):
-        missing.append("Phone number")
-        score -= 15
-    else:
-        strengths.append("Phone number present")
-
-    if not contact.get("location"):
-        quality.append("Location missing — many ATS filter by city/country")
-        score -= 10
-
-    if not contact.get("linkedin"):
-        quality.append("No LinkedIn URL — 90% of recruiters check LinkedIn before contacting")
-        score -= 5
-
-    if contact.get("github"):
-        strengths.append("GitHub profile linked")
-
-    return max(score, 0), missing, quality, strengths
-
-
-class _DictProxy:
-    def __init__(self, d: Dict) -> None:
-        self._d = d
-
-    def __getattr__(self, name: str):
-        try:
-            return self._d[name]
-        except KeyError:
-            return None
-
-    def get(self, key, default=None):
-        return self._d.get(key, default)
-
-
-def _build_contact_section_proxy(contact: Dict) -> _DictProxy:
-    score, missing, quality, strengths = _score_contact(contact)
-    ats_tips = [
-        "Keep contact info in the resume body — NOT a header/footer.",
-        "Use City, State/Country only — not your full street address.",
-        "Always include a country code in your phone number.",
-        "Add your LinkedIn URL — recruiters verify before scheduling interviews.",
-        "Professional email format: firstname.lastname@gmail.com",
-    ]
-    data = {
-        "section_name":   "contact",
-        "current_score":  score,
-        "missing_fields": missing,
-        "quality_issues": quality,
-        "strengths":      strengths,
-        "ats_tips":       ats_tips,
-        "improvements":   [f"Add {m}" for m in missing] + quality,
-        "rewrite_examples": [],
-        "current_status": ["good"] if score >= 70 else (["needs_improvement"] if score >= 40 else ["critical"]),
-        "complete":       not missing,
-    }
-    return _DictProxy(data)
-
-
-def _recover_education_from_text(raw_text: str) -> List[Dict]:
-    DEGREE_RE = re.compile(
-        r"(Bachelor[^,\n|]{0,60}|B\.?[ESTech]{1,5}\.?[^,\n|]{0,40}|"
-        r"Master[^,\n|]{0,60}|M\.?[ESTech]{1,5}\.?[^,\n|]{0,40}|"
-        r"Ph\.?D\.?[^,\n|]{0,40}|MBA[^,\n|]{0,30}|"
-        r"B\.?Sc\.?[^,\n|]{0,40}|M\.?Sc\.?[^,\n|]{0,40}|"
-        r"Associate[^,\n|]{0,40}|Diploma[^,\n|]{0,40})",
-        re.IGNORECASE,
-    )
-    INST_RE = re.compile(
-        r"([\w\s&'\-\.]+(?:University|College|Institute|School|Academy|Engineering College)[\w\s&'\-\.]{0,40})",
-        re.IGNORECASE,
-    )
-    YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
-    CGPA_RE = re.compile(r"(?:CGPA|GPA)[:\s]*([0-9]\.[0-9]{1,2})", re.IGNORECASE)
-
-    entries = []
-    for m in DEGREE_RE.finditer(raw_text):
-        degree = m.group(0).strip().rstrip(",;|")
-        start  = max(0, m.start() - 50)
-        end    = min(len(raw_text), m.end() + 400)
-        snip   = raw_text[start:end]
-
-        institution = ""
-        im = INST_RE.search(snip)
-        if im:
-            institution = im.group(1).strip()
-
-        year = ""
-        ym = YEAR_RE.search(snip)
-        if ym:
-            year = ym.group(0)
-
-        gpa = ""
-        gm = CGPA_RE.search(snip)
-        if gm:
-            gpa = gm.group(1)
-
-        if degree or institution:
-            entries.append({
-                "degree":      degree,
-                "institution": institution,
-                "college":     institution,
-                "year":        year,
-                "gpa":         gpa,
-            })
-            break
-
-    return entries
-
-
-def _enrich_resume(resume: Dict) -> Dict:
-    r = dict(resume)
-
-    raw_text = _safe(r.get("raw_text") or r.get("_raw_text", ""))
-    clean_n  = _clean_name(_safe(r.get("name")))
-    if not clean_n and raw_text:
-        clean_n = _extract_name_from_raw_text(raw_text)
-    if clean_n:
-        r["name"] = clean_n
-
-    education = r.get("education") or []
-    has_valid = (
-        isinstance(education, list) and
-        any(isinstance(e, dict) and (e.get("degree") or e.get("institution"))
-            for e in education)
-    )
-    if not has_valid and raw_text:
-        recovered = _recover_education_from_text(raw_text)
-        if recovered:
-            r["education"] = recovered
-            logger.info(f"Education recovered from raw_text: {recovered}")
-
-    return r
-
-
-def _parse_date_to_months(raw: str) -> Optional[int]:
-    raw = _safe(raw).lower()
-    if not raw or re.match(r"present|current|now|till", raw, re.I):
-        return 12 * 2026 + 6
-
-    for abbr, num in _MONTH_MAP.items():
-        if abbr in raw:
-            ym = re.search(r"(19|20)\d{2}", raw)
-            if ym:
-                return int(ym.group(0)) * 12 + num
-
-    ym = re.search(r"(19|20)\d{2}", raw)
-    if ym:
-        return int(ym.group(0)) * 12 + 6
-
-    return None
-
-
-def _duration_months(start: str, end: str) -> int:
-    s = _parse_date_to_months(start)
-    e = _parse_date_to_months(end)
-    if s is None or e is None:
-        return 0
-    return max(0, e - s)
-
-
 def _has_metric(text: str) -> bool:
     return any(p.search(text) for p in _METRIC_PATS)
 
@@ -473,62 +222,224 @@ def _has_weak_opener(text: str) -> bool:
     return any(lower.startswith(w) for w in _WEAK_OPENERS)
 
 
-def _resume_flat_text(resume: Dict) -> str:
-    parts: List[str] = []
-    for key in ("summary", "skills", "raw_text", "raw_resume"):
-        v = resume.get(key)
-        if isinstance(v, str):
-            parts.append(v)
-    for exp in (resume.get("experience") or []):
-        if isinstance(exp, dict):
-            parts.append(_safe(exp.get("title")))
-            parts.append(_safe(exp.get("company")))
-            for b in (exp.get("bullets") or []):
-                parts.append(_safe(b))
-    for s in (resume.get("skills") or []):
-        parts.append(_safe(s))
-    return " ".join(parts).lower()
+# ─────────────────────────────────────────────────────────────────────────────
+# DATE PARSING
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _parse_date_to_months(raw: str) -> Optional[int]:
+    raw = _safe(raw).lower()
+    if not raw or re.match(r"present|current|now|till", raw, re.I):
+        return 12 * 2026 + 6          # "now" → June 2026
+
+    for abbr, num in _MONTH_MAP.items():
+        if abbr in raw:
+            ym = re.search(r"(19|20)\d{2}", raw)
+            if ym:
+                return int(ym.group(0)) * 12 + num
+
+    ym = re.search(r"(19|20)\d{2}", raw)
+    if ym:
+        return int(ym.group(0)) * 12 + 6   # year only → mid-year
+
+    return None
 
 
-def _known_skills_set() -> Set[str]:
-    known: Set[str] = set()
-    for cats in UNIVERSAL_SKILLS.values():
-        for skills in cats.values():
-            known.update(s.lower() for s in skills)
-    return known
+def _duration_months(start: str, end: str) -> int:
+    s = _parse_date_to_months(start)
+    e = _parse_date_to_months(end)
+    if s is None or e is None:
+        return 0
+    return max(0, e - s)
 
 
-_KNOWN_SKILLS: Set[str] = _known_skills_set()
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTACT SCORING  (operates on NormalizedContact)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _score_contact(contact: NormalizedContact) -> Tuple[int, List[str], List[str], List[str]]:
+    """
+    Score the contact section from the canonical NormalizedContact object.
+
+    Returns (score, missing_fields, quality_issues, strengths).
+    All feedback reflects ACTUAL parsed values — never contradicts them.
+    """
+    score     = 100
+    missing:   List[str] = []
+    quality:   List[str] = []
+    strengths: List[str] = []
+
+    if not contact.name:
+        missing.append("Full name")
+        score -= 25
+    else:
+        strengths.append(f"Name present: {contact.name}")
+
+    if not contact.email:
+        missing.append("Email address")
+        score -= 25
+    else:
+        if re.search(r"@(hotmail|yahoo|rediffmail|ymail)\.", contact.email, re.I):
+            quality.append(f"Unprofessional email domain: {contact.email} — consider Gmail or custom domain")
+        else:
+            strengths.append(f"Professional email: {contact.email}")
+
+    if not contact.phone:
+        missing.append("Phone number")
+        score -= 15
+    else:
+        strengths.append("Phone number present")
+
+    if not contact.location:
+        quality.append("Location missing — many ATS filter by city/country")
+        score -= 10
+    else:
+        strengths.append(f"Location: {contact.location}")
+
+    if not contact.linkedin:
+        quality.append("No LinkedIn URL — 90% of recruiters check LinkedIn before contacting")
+        score -= 5
+    else:
+        strengths.append(f"LinkedIn linked: {contact.linkedin}")
+
+    if contact.github:
+        strengths.append(f"GitHub profile linked: {contact.github}")
+
+    return max(score, 0), missing, quality, strengths
 
 
-def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
-    resume_text        = _resume_flat_text(resume)
-    resume_skills_raw  = [_safe(s).lower() for s in (resume.get("skills") or [])]
-    resume_skills_set  = {_REV_SYN.get(s, s) for s in resume_skills_raw} | set(resume_skills_raw)
+class _DictProxy:
+    """Thin dict wrapper that also supports attribute access."""
+    def __init__(self, d: Dict) -> None:
+        self._d = d
+
+    def __getattr__(self, name: str):
+        try:
+            return self._d[name]
+        except KeyError:
+            return None
+
+    def get(self, key, default=None):
+        return self._d.get(key, default)
+
+
+def _build_contact_section_proxy(contact: NormalizedContact) -> _DictProxy:
+    """
+    Build the SectionAnalysis-compatible proxy for the contact section.
+    score/status/is_present are all derived from the SAME contact object
+    so they are always internally consistent (BUG 5).
+    """
+    score, missing, quality, strengths = _score_contact(contact)
+    ats_tips = [
+        "Keep contact info in the resume body — NOT a header/footer.",
+        "Use City, State/Country only — not your full street address.",
+        "Always include a country code in your phone number.",
+        "Add your LinkedIn URL — recruiters verify before scheduling interviews.",
+        "Professional email format: firstname.lastname@gmail.com",
+    ]
+
+    # is_present = True when at least name or email is present
+    is_present = bool(contact.name or contact.email)
+    status     = "missing" if not is_present else _status_from_score(score)
+
+    data = {
+        "section_name":   "contact",
+        "current_score":  score,
+        "missing_fields": missing,
+        "quality_issues": quality,
+        "strengths":      strengths,
+        "ats_tips":       ats_tips,
+        "improvements":   [f"Add {m}" for m in missing] + quality,
+        "rewrite_examples": [],
+        "current_status": [status],
+        "complete":       not missing,
+        # These are used by DetailedFeedbackGenerator
+        "is_present":     is_present,
+        "is_complete":    not missing,
+    }
+    return _DictProxy(data)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KEYWORD DIMENSION  (BUG 3 — only count deduplicated canonical skills)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_KNOWN_SKILLS_SET: Set[str] = set()
+for _cats in UNIVERSAL_SKILLS.values():
+    for _skills in _cats.values():
+        _KNOWN_SKILLS_SET.update(s.lower() for s in _skills)
+
+_SYNONYMS: Dict[str, Set[str]] = {
+    "javascript":       {"js", "ecmascript", "es6"},
+    "typescript":       {"ts"},
+    "python":           {"python3", "py"},
+    "c#":               {"csharp", "dotnet", ".net"},
+    "c++":              {"cpp"},
+    "node.js":          {"node", "nodejs"},
+    "react":            {"reactjs", "react.js"},
+    "vue":              {"vuejs", "vue.js"},
+    "angular":          {"angularjs"},
+    "postgresql":       {"postgres"},
+    "kubernetes":       {"k8s"},
+    "machine learning": {"ml"},
+    "artificial intelligence": {"ai"},
+    "natural language processing": {"nlp"},
+    "registered nurse": {"rn"},
+    "electronic health records": {"ehr", "emr"},
+    "certified public accountant": {"cpa"},
+    "chartered financial analyst": {"cfa"},
+    "search engine optimization": {"seo"},
+    "project management professional": {"pmp"},
+    "enterprise resource planning": {"erp"},
+    "customer relationship management": {"crm"},
+    "social media marketing": {"smm"},
+}
+
+_REV_SYN: Dict[str, str] = {}
+for _can, _vars in _SYNONYMS.items():
+    for _v in _vars:
+        _REV_SYN[_v.lower()] = _can.lower()
+
+
+def _dim_keyword(nr: NormalizedResume, job_description: Optional[str]) -> Dict:
+    """
+    Keyword / skill density dimension.
+
+    Skill count = len(nr.skills) — the already-deduplicated canonical list.
+    NO additional regex scanning of raw_text.  This eliminates inflation.
+    """
+    skill_count = len(nr.skills)
+    # Build a set of canonical lowercase skill names for matching
+    resume_skills_set: Set[str] = set()
+    for s in nr.skills:
+        lower = s.lower()
+        resume_skills_set.add(lower)
+        # Also add canonical synonym mapping
+        canon = _REV_SYN.get(lower, lower)
+        resume_skills_set.add(canon)
 
     if not job_description or not job_description.strip():
-        skill_count = len(resume_skills_raw)
         raw = _clamp(100.0 / (1.0 + math.exp(-0.2 * (skill_count - 12))))
         return {
-            "raw_score": raw, "weight": 0.30,
-            "skill_count": skill_count, "jd_provided": False,
-            "penalties": (["No job description provided"] if skill_count < 5 else []),
-            "bonuses":   ([f"{skill_count} skills listed"] if skill_count >= 8 else []),
+            "raw_score":   raw,
+            "weight":      0.30,
+            "skill_count": skill_count,
+            "jd_provided": False,
+            "penalties":   (["No job description provided"] if skill_count < 5 else []),
+            "bonuses":     ([f"{skill_count} skills listed"] if skill_count >= 8 else []),
         }
 
     jd_lower  = job_description.lower()
     jd_words  = re.findall(r"\b[\w\+#\.]+\b", jd_lower)
     jd_bigrams = [f"{jd_words[i]} {jd_words[i+1]}" for i in range(len(jd_words) - 1)]
-    jd_tokens = list(set(jd_words + jd_bigrams))
+    jd_tokens  = list(set(jd_words + jd_bigrams))
 
     freq: Dict[str, int] = {}
     for tok in jd_tokens:
         canon = _REV_SYN.get(tok, tok)
-        if canon in _KNOWN_SKILLS or tok in _KNOWN_SKILLS:
+        if canon in _KNOWN_SKILLS_SET or tok in _KNOWN_SKILLS_SET:
             freq[canon] = freq.get(canon, 0) + jd_lower.count(tok)
 
     if not freq:
-        skill_count = len(resume_skills_raw)
         raw = _clamp(100.0 / (1.0 + math.exp(-0.18 * (skill_count - 10))))
         return {
             "raw_score": raw, "weight": 0.30,
@@ -544,12 +455,10 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
     for skill, cnt in freq.items():
         w = 1.0 + math.log(max(cnt, 1))
         total_weight += w
-        found = False
-        if skill in resume_skills_set or skill in resume_text:
-            found = True
-        else:
+        found = skill in resume_skills_set
+        if not found:
             for var in _SYNONYMS.get(skill, set()):
-                if var.lower() in resume_skills_set or var.lower() in resume_text:
+                if var.lower() in resume_skills_set:
                     found = True
                     break
         if found:
@@ -561,8 +470,8 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
     match_ratio = matched_weight / total_weight if total_weight > 0 else 0.0
     raw = _clamp(match_ratio * 100)
 
-    words_in_resume = len(resume_text.split())
-    density = len(resume_skills_set) / max(words_in_resume, 1)
+    total_words = len(nr.raw_text.split()) if nr.raw_text else 1
+    density = skill_count / max(total_words, 1)
     if density > 0.06:
         raw = min(raw + 5, 100)
 
@@ -572,6 +481,7 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
         "jd_skills_detected": len(freq),
         "matched":          len(matched_skills),
         "match_ratio":      round(match_ratio, 3),
+        "skill_count":      skill_count,
         "missing_critical": missing_critical,
         "keyword_density":  round(density, 4),
         "penalties":        [f'Missing critical keyword: "{s}"' for s in missing_critical[:5]],
@@ -579,9 +489,20 @@ def _dim_keyword(resume: Dict, job_description: Optional[str]) -> Dict:
     }
 
 
-def _dim_experience(resume: Dict) -> Dict:
-    experience = resume.get("experience") or []
-    if not isinstance(experience, list) or not experience:
+# ─────────────────────────────────────────────────────────────────────────────
+# EXPERIENCE DIMENSION  (BUG 1 + BUG 9)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _dim_experience(nr: NormalizedResume) -> Dict:
+    """
+    Score work experience from NormalizedResume.
+
+    NormalizedExperience always has .title / .company / .start_date /
+    .end_date / .bullets — regardless of which parser produced the input.
+    The hard cap check in _apply_hard_caps() uses nr.has_experience,
+    not this score, eliminating false-cap BUG 9.
+    """
+    if not nr.has_experience:
         return {
             "raw_score": 0.0, "weight": 0.25,
             "total_months": 0, "roles": 0,
@@ -590,39 +511,31 @@ def _dim_experience(resume: Dict) -> Dict:
 
     total_months   = 0
     complete_roles = 0
-    role_count     = len(experience)
+    role_count     = len(nr.experience)
     penalties: List[str] = []
     bonuses:   List[str] = []
 
-    for idx, exp in enumerate(experience):
-        if not isinstance(exp, dict):
-            continue
-        title   = _safe(exp.get("title"))
-        company = _safe(exp.get("company"))
-        start   = _safe(exp.get("start_date"))
-        end     = _safe(exp.get("end_date"))
-        bullets = exp.get("bullets") or []
-
-        dur = _duration_months(start, end)
-        if dur == 0 and start:
-            dur = 12
+    for idx, exp in enumerate(nr.experience):
+        dur = _duration_months(exp.start_date, exp.end_date)
+        if dur == 0 and exp.start_date:
+            dur = 12              # assume ~1 year if start is given but end unclear
         total_months += dur
 
-        complete = bool(title and company and (start or dur > 0) and bullets)
+        complete = bool(exp.title and exp.company and exp.bullets)
         if complete:
             complete_roles += 1
         else:
-            missing = []
-            if not title:   missing.append("title")
-            if not company: missing.append("company")
-            if not start:   missing.append("dates")
-            if not bullets: missing.append("bullets")
-            if missing:
-                penalties.append(f"Role {idx+1}: missing {', '.join(missing)}")
+            miss = []
+            if not exp.title:   miss.append("title")
+            if not exp.company: miss.append("company")
+            if not exp.bullets: miss.append("bullets")
+            if miss:
+                label = exp.title or exp.company or f"Role {idx+1}"
+                penalties.append(f"{label}: missing {', '.join(miss)}")
 
-        title_lower = title.lower()
+        title_lower = exp.title.lower()
         if any(t in title_lower for t in ("senior", "lead", "principal", "head", "director", "vp", "chief", "manager")):
-            bonuses.append(f"Senior role: {title}")
+            bonuses.append(f"Senior role: {exp.title}")
 
     if total_months == 0:
         dur_score = 0.0
@@ -640,29 +553,30 @@ def _dim_experience(resume: Dict) -> Dict:
     raw              = _clamp(dur_score + role_bonus * completeness + completeness_pts)
 
     return {
-        "raw_score":       raw,
-        "weight":          0.25,
-        "total_months":    total_months,
-        "total_years":     round(total_months / 12, 1),
-        "roles":           role_count,
-        "complete_roles":  complete_roles,
+        "raw_score":        raw,
+        "weight":           0.25,
+        "total_months":     total_months,
+        "total_years":      round(total_months / 12, 1),
+        "roles":            role_count,
+        "complete_roles":   complete_roles,
         "completeness_pct": round(completeness * 100),
-        "penalties":       penalties,
-        "bonuses":         bonuses,
+        "penalties":        penalties,
+        "bonuses":          bonuses,
     }
 
 
-def _dim_quality(resume: Dict) -> Dict:
-    experience = resume.get("experience") or []
-    summary    = _safe(resume.get("summary"))
-    skills     = resume.get("skills") or []
+# ─────────────────────────────────────────────────────────────────────────────
+# QUALITY DIMENSION  (BUG 2 — reads normalized bullets)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    all_bullets: List[str] = []
-    for exp in experience:
-        if isinstance(exp, dict):
-            for b in (exp.get("bullets") or []):
-                if _safe(b):
-                    all_bullets.append(_safe(b))
+def _dim_quality(nr: NormalizedResume) -> Dict:
+    """
+    Score content quality (bullet strength, summary depth, skill specificity).
+
+    nr.all_bullets aggregates bullets from ALL normalized experience entries.
+    nr.summary is always a plain string.
+    """
+    all_bullets = nr.all_bullets     # List[str] — normalized field
 
     total_bullets = len(all_bullets)
     strong_count  = 0
@@ -689,24 +603,24 @@ def _dim_quality(resume: Dict) -> Dict:
             bonuses.append(f"{int(metric_ratio * 100)}% of bullets contain measurable results")
         elif metric_ratio < 0.2:
             penalties.append(f"Only {int(metric_ratio * 100)}% of bullets have metrics — add numbers")
-
         if weak_ratio > 0.3:
             penalties.append(f"{int(weak_ratio * 100)}% of bullets start with weak openers")
 
+    # nr.summary is always a plain string after normalization
     summary_score = 0.0
-    if not summary:
+    if not nr.summary:
         penalties.append("Professional summary missing")
     else:
-        words = len(summary.split())
+        words = len(nr.summary.split())
         if words < 20:
             summary_score = 8.0
             penalties.append(f"Summary too brief ({words} words)")
         elif words > 150:
             summary_score = 15.0
-            penalties.append("Summary too long — trim to 50-80 words")
+            penalties.append("Summary too long — trim to 50–80 words")
         else:
             summary_score = 20.0
-        if _has_metric(summary):
+        if _has_metric(nr.summary):
             summary_score = min(summary_score + 5.0, 25.0)
             bonuses.append("Summary contains quantified achievement")
 
@@ -715,133 +629,152 @@ def _dim_quality(resume: Dict) -> Dict:
         "teamwork", "adaptability", "hardworking", "detail oriented",
         "fast learner", "quick learner", "team player",
     }
-    specific_count = sum(1 for s in skills
-                         if _safe(s).lower() not in generic_terms and len(_safe(s)) > 2)
+    specific_count = sum(
+        1 for s in nr.skills
+        if s.lower() not in generic_terms and len(s) > 2
+    )
     specificity_score = _clamp(min(specific_count * 1.5, 15.0))
 
     raw = _clamp(bullet_score * 0.60 + summary_score + specificity_score)
 
     return {
-        "raw_score":          raw,
-        "weight":             0.20,
-        "total_bullets":      total_bullets,
-        "strong_verb_pct":    round(strong_count / max(total_bullets, 1) * 100),
-        "metric_pct":         round(metric_count / max(total_bullets, 1) * 100),
-        "weak_opener_pct":    round(weak_count   / max(total_bullets, 1) * 100),
-        "summary_score":      round(summary_score),
-        "specificity_score":  round(specificity_score),
-        "penalties":          penalties,
-        "bonuses":            bonuses,
+        "raw_score":         raw,
+        "weight":            0.20,
+        "total_bullets":     total_bullets,
+        "strong_verb_pct":   round(strong_count / max(total_bullets, 1) * 100),
+        "metric_pct":        round(metric_count / max(total_bullets, 1) * 100),
+        "weak_opener_pct":   round(weak_count   / max(total_bullets, 1) * 100),
+        "summary_score":     round(summary_score),
+        "specificity_score": round(specificity_score),
+        "penalties":         penalties,
+        "bonuses":           bonuses,
     }
 
 
-def _dim_structure(resume: Dict) -> Dict:
+# ─────────────────────────────────────────────────────────────────────────────
+# STRUCTURE DIMENSION  (BUG 7, BUG 8 — projects/languages contribute)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _dim_structure(nr: NormalizedResume) -> Dict:
     earned   = 0.0
     max_pts  = 85.0
     penalties: List[str] = []
     bonuses:   List[str] = []
 
-    summary = _safe(resume.get("summary"))
-    if summary and len(summary.split()) >= 15:
+    # Summary (20 pts)
+    if nr.has_summary and len(nr.summary.split()) >= 15:
         earned += 20
         bonuses.append("Professional summary present")
-    elif summary:
+    elif nr.has_summary:
         earned += 10
         penalties.append("Summary present but too brief")
     else:
         penalties.append("Professional summary missing")
 
-    exp = resume.get("experience") or []
-    if isinstance(exp, list) and len(exp) > 0:
+    # Experience (20 pts)
+    if nr.has_experience:
         earned += 20
+        bonuses.append(f"{len(nr.experience)} work experience role(s) present")
     else:
         penalties.append("Work experience section missing")
 
-    skills = resume.get("skills") or []
-    if isinstance(skills, list) and len(skills) >= 5:
+    # Skills (20 pts)
+    skill_count = len(nr.skills)
+    if skill_count >= 5:
         earned += 20
-    elif isinstance(skills, list) and 0 < len(skills) < 5:
+        bonuses.append(f"{skill_count} skills listed")
+    elif skill_count > 0:
         earned += 10
-        penalties.append(f"Too few skills ({len(skills)} — add at least 5)")
+        penalties.append(f"Too few skills ({skill_count} — add at least 5)")
     else:
         penalties.append("Skills section missing or empty")
 
-    edu = resume.get("education") or []
-    if isinstance(edu, list) and len(edu) > 0:
-        has_valid = any(
-            isinstance(e, dict) and (e.get("degree") or e.get("institution"))
-            for e in edu
-        )
-        earned += 20 if has_valid else 10
+    # Education (15 pts)
+    if nr.has_education:
+        earned += 15
+        bonuses.append(f"{len(nr.education)} education entr(ies) present")
+    else:
+        penalties.append("Education section not found")
 
-    contact = _build_contact_from_resume(resume)
-    if contact.get("email"):
+    # Contact email (5 pts)
+    if nr.has_contact_email:
         earned += 5
         bonuses.append("Email present")
     else:
         penalties.append("Email address missing")
 
-    proj = resume.get("projects") or []
-    if isinstance(proj, list) and len(proj) > 0:
-        bonuses.append(f"{len(proj)} project(s) listed")
+    # Projects — small bonus (5 pts)  BUG 7
+    if nr.has_projects:
+        earned += 5
+        bonuses.append(f"{len(nr.projects)} project(s) present")
 
     raw = _clamp((earned / max_pts) * 100)
     return {
-        "raw_score": raw, "weight": 0.15,
-        "pts_earned": round(earned), "pts_max": round(max_pts),
-        "penalties": penalties, "bonuses": bonuses,
+        "raw_score":  raw,
+        "weight":     0.15,
+        "pts_earned": round(earned),
+        "pts_max":    round(max_pts),
+        "penalties":  penalties,
+        "bonuses":    bonuses,
     }
 
 
-def _dim_format(resume: Dict) -> Dict:
+# ─────────────────────────────────────────────────────────────────────────────
+# FORMAT DIMENSION
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _dim_format(resume_raw: Dict, nr: NormalizedResume) -> Dict:
     score    = 100.0
     penalties: List[str] = []
     bonuses:   List[str] = []
 
-    if resume.get("uses_table") or resume.get("has_tables"):
+    if resume_raw.get("uses_table") or resume_raw.get("has_tables"):
         score -= 15
         penalties.append("Tables detected — ATS cannot parse table content")
-
-    if resume.get("uses_columns") or resume.get("multi_column"):
+    if resume_raw.get("uses_columns") or resume_raw.get("multi_column"):
         score -= 12
         penalties.append("Multi-column layout — ATS reads columns out of order")
-
-    if resume.get("has_images") or resume.get("uses_graphics"):
+    if resume_raw.get("has_images") or resume_raw.get("uses_graphics"):
         score -= 8
         penalties.append("Images/graphics detected — ATS cannot read visual elements")
 
-    contact = _build_contact_from_resume(resume)
-    if contact.get("linkedin"):
+    if nr.contact.linkedin:
         bonuses.append("LinkedIn profile linked")
         score = min(score + 3, 100)
-    if contact.get("github"):
+    if nr.contact.github:
         bonuses.append("GitHub profile linked")
         score = min(score + 2, 100)
 
     return {
-        "raw_score": _clamp(score), "weight": 0.10,
-        "penalties": penalties, "bonuses": bonuses,
+        "raw_score": _clamp(score),
+        "weight":    0.10,
+        "penalties": penalties,
+        "bonuses":   bonuses,
     }
 
 
-def _apply_hard_caps(score: float, resume: Dict) -> Tuple[float, List[str]]:
-    applied: List[str] = []
-    exp    = resume.get("experience") or []
-    skills = resume.get("skills")    or []
-    contact = _build_contact_from_resume(resume)
-    email   = contact.get("email", "")
+# ─────────────────────────────────────────────────────────────────────────────
+# HARD CAPS  (BUG 9 — check normalized model, NOT dimension scores)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    if not (isinstance(exp, list) and len(exp) > 0):
+def _apply_hard_caps(score: float, nr: NormalizedResume) -> Tuple[float, List[str]]:
+    """
+    Apply hard caps ONLY when the NORMALIZED model confirms the condition.
+    A mapping failure in a dimension can no longer trigger a false cap.
+    """
+    applied: List[str] = []
+
+    if not nr.has_experience:
         if score > _HARD_CAPS["no_experience"]:
             score = float(_HARD_CAPS["no_experience"])
             applied.append(f"No work experience — score capped at {_HARD_CAPS['no_experience']}")
 
-    if not (isinstance(skills, list) and len(skills) >= 1):
+    if not nr.has_skills:
         if score > _HARD_CAPS["no_skills"]:
             score = float(_HARD_CAPS["no_skills"])
             applied.append(f"No skills section — score capped at {_HARD_CAPS['no_skills']}")
 
-    if not email:
+    if not nr.has_contact_email:
         if score > _HARD_CAPS["no_email"]:
             score = float(_HARD_CAPS["no_email"])
             applied.append(f"Missing email — score capped at {_HARD_CAPS['no_email']}")
@@ -849,16 +782,21 @@ def _apply_hard_caps(score: float, resume: Dict) -> Tuple[float, List[str]]:
     return score, applied
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# COMBINED DYNAMIC SCORE
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _calculate_dynamic_score(
-    resume:          Dict,
+    resume_raw:      Dict,
+    nr:              NormalizedResume,
     job_description: Optional[str],
     ai_insights:     Dict,
 ) -> Tuple[int, Dict]:
-    d_kw      = _dim_keyword(resume, job_description)
-    d_exp     = _dim_experience(resume)
-    d_quality = _dim_quality(resume)
-    d_struct  = _dim_structure(resume)
-    d_format  = _dim_format(resume)
+    d_kw      = _dim_keyword(nr, job_description)
+    d_exp     = _dim_experience(nr)
+    d_quality = _dim_quality(nr)
+    d_struct  = _dim_structure(nr)
+    d_format  = _dim_format(resume_raw, nr)
 
     raw_weighted = (
         d_kw["raw_score"]      * d_kw["weight"]      +
@@ -887,7 +825,7 @@ def _calculate_dynamic_score(
                 ai_bonus = int((sum(vals) / len(vals) - 70) * 0.08)
 
     raw_with_ai = raw_weighted + ai_bonus
-    capped, caps_applied = _apply_hard_caps(raw_with_ai, resume)
+    capped, caps_applied = _apply_hard_caps(raw_with_ai, nr)
     final = max(0, min(100, round(capped)))
 
     breakdown = {
@@ -903,6 +841,51 @@ def _calculate_dynamic_score(
     return final, breakdown
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION SCORES FOR FEEDBACK GENERATOR
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_section_scores(nr: NormalizedResume) -> Dict[str, int]:
+    """
+    Build per-section scores consumed by DetailedFeedbackGenerator.
+    Scores for sections not handled by ATSRulesEngine (projects, languages,
+    certifications) are derived directly from normalized presence.
+    Fixes BUG 7 (projects) and BUG 8 (languages).
+    """
+    def _presence_score(present: bool, count: int = 0) -> int:
+        """
+        Returns a score that reflects actual presence.
+        Never returns 0 when the section exists (BUG 8).
+        """
+        if not present:
+            return 0
+        if count >= 3:
+            return 85
+        if count >= 1:
+            return 70
+        return 70
+
+    return {
+        "contact":         0,    # overwritten below from _score_contact
+        "summary":         85 if nr.has_summary and len(nr.summary.split()) >= 20 else (40 if nr.has_summary else 0),
+        "experience":      0,    # will be overwritten from rules engine + dim
+        "education":       85 if nr.has_education else 0,
+        "skills":          85 if len(nr.skills) >= 8 else (60 if nr.has_skills else 0),
+        "projects":        _presence_score(nr.has_projects, len(nr.projects)),
+        "certifications":  _presence_score(nr.has_certifications, len(nr.certifications)),
+        "languages":       _presence_score(nr.has_languages, len(nr.languages)),
+        "volunteer":       _presence_score(bool(nr.volunteer), len(nr.volunteer)),
+        "publications":    _presence_score(bool(nr.publications), len(nr.publications)),
+        "awards":          _presence_score(bool(nr.awards), len(nr.awards)),
+        "hobbies":         _presence_score(bool(nr.hobbies), len(nr.hobbies)),
+        "references":      0,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCORE EXPLANATION
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _score_explanation(
     rule_score:    int,
     keyword_score: int,
@@ -912,19 +895,19 @@ def _score_explanation(
 ) -> Dict:
     return {
         "resume_quality_score": {
-            "score":            rule_score,
-            "grade":            _grade(rule_score),
-            "what_it_means":    "How well-written the resume is: structure, formatting, action verbs, bullet quality.",
-            "interpretation":   (
-                "Excellent resume writing quality."    if rule_score >= 85 else
+            "score":          rule_score,
+            "grade":          _grade(rule_score),
+            "what_it_means":  "How well-written the resume is: structure, formatting, action verbs, bullet quality.",
+            "interpretation": (
+                "Excellent resume writing quality."     if rule_score >= 85 else
                 "Good quality with minor improvements." if rule_score >= 70 else
                 "Quality issues that need addressing."
             ),
         },
         "keyword_match_score": {
-            "score":         keyword_score if has_jd else None,
-            "grade":         _grade(keyword_score) if has_jd else "N/A (no JD provided)",
-            "what_it_means": "How many keywords from the job description appear in the resume.",
+            "score":          keyword_score if has_jd else None,
+            "grade":          _grade(keyword_score) if has_jd else "N/A (no JD provided)",
+            "what_it_means":  "How many keywords from the job description appear in the resume.",
             "interpretation": (
                 "Not calculated — provide a job description to measure keyword match." if not has_jd else
                 "High keyword alignment."              if keyword_score >= 70 else
@@ -933,14 +916,18 @@ def _score_explanation(
             ),
         },
         "final_ats_score": {
-            "score":         final_score,
-            "grade":         _grade(final_score),
-            "what_it_means": "Multi-dimensional score: keyword density 30% + experience depth 25% + achievement quality 20% + structure 15% + format 10%.",
+            "score":          final_score,
+            "grade":          _grade(final_score),
+            "what_it_means":  "Multi-dimensional score: keyword density 30% + experience depth 25% + achievement quality 20% + structure 15% + format 10%.",
             "interpretation": _ats_verdict(final_score),
         },
         "dimension_breakdown": dim_breakdown,
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON PARSING HELPERS (for AI response)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _strip_markdown_fences(text: str) -> str:
     text = text.strip()
@@ -969,8 +956,7 @@ def _extract_json_object(text: str) -> str:
             continue
         if in_string:
             continue
-        if ch == "{":
-            depth += 1
+        if ch == "{":   depth += 1
         elif ch == "}":
             depth -= 1
             if depth == 0:
@@ -980,9 +966,9 @@ def _extract_json_object(text: str) -> str:
 
 
 def _escape_newlines_in_strings(text: str) -> str:
-    result:      List[str] = []
-    in_string    = False
-    escape_next  = False
+    result: List[str] = []
+    in_string   = False
+    escape_next = False
     for ch in text:
         if escape_next:
             escape_next = False
@@ -1022,26 +1008,22 @@ def _try_parse_json(text: str) -> Optional[Dict]:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-
     cleaned = _strip_markdown_fences(text)
     cleaned = _extract_json_object(cleaned)
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
-
     repaired = _repair_json(cleaned)
     try:
         return json.loads(repaired)
     except json.JSONDecodeError:
         pass
-
     try:
         swapped = re.sub(r"(?<![\\])'", '"', repaired)
         return json.loads(swapped)
     except Exception:
         pass
-
     return None
 
 
@@ -1051,14 +1033,12 @@ def _extract_fields_by_regex(text: str) -> Dict:
         m = re.search(rf'"{field}"\s*:\s*"([^"{{}}[\]]*)"', text)
         if m:
             result[field] = m.group(1).strip()
-
     for field in ("content_strengths", "ats_passing_tactics", "priority_action_plan"):
         m = re.search(rf'"{field}"\s*:\s*\[([^\]]*)\]', text, re.DOTALL)
         if m:
             items = re.findall(r'"([^"]*)"', m.group(1))
             if items:
                 result[field] = items
-
     section_scores = {}
     for sec in ("summary", "experience", "skills", "education"):
         m = re.search(rf'"{sec}"\s*:\s*\{{\s*"score"\s*:\s*(\d+)', text)
@@ -1066,9 +1046,12 @@ def _extract_fields_by_regex(text: str) -> Dict:
             section_scores[sec] = {"score": int(m.group(1)), "verdict": ""}
     if section_scores:
         result["ai_section_scores"] = section_scores
-
     return result
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN SERVICE CLASS
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ATSScannerService:
 
@@ -1084,20 +1067,24 @@ class ATSScannerService:
         db:              Optional[AsyncSession] = None,
         include_ai:      bool = True,
     ) -> Dict:
-        logger.info("=== ATS Scan v5 Starting ===")
+        logger.info("=== ATS Scan v6 Starting ===")
 
-        resume        = _enrich_resume(resume)
-        contact_built = _build_contact_from_resume(resume)
+        # ── 0. Normalize — single source of truth for all downstream ─────────
+        nr = normalize_resume(resume)
         logger.info(
-            f"  name='{resume.get('name')}' "
-            f"edu={len(resume.get('education') or [])} "
-            f"exp={len(resume.get('experience') or [])} "
-            f"skills={len(resume.get('skills') or [])}"
+            f"  name='{nr.contact.name}' "
+            f"edu={len(nr.education)} exp={len(nr.experience)} "
+            f"skills={len(nr.skills)} certs={len(nr.certifications)} "
+            f"proj={len(nr.projects)} langs={len(nr.languages)}"
         )
 
+        # ── 1. Rules engine (format/structure checks) ─────────────────────────
         logger.info("[Stage 1] ATSRulesEngine")
-        rules_score = self.rules_engine.analyze(resume)
+        # Build a rules-compatible dict from the normalized model
+        rules_input = _nr_to_rules_dict(nr, resume)
+        rules_score = self.rules_engine.analyze(rules_input)
 
+        # ── 2. Keyword engine ─────────────────────────────────────────────────
         logger.info("[Stage 2] KeywordEngine")
         keyword_analysis: Optional[KeywordAnalysis] = None
         keyword_score = 0
@@ -1105,41 +1092,56 @@ class ATSScannerService:
 
         if has_jd:
             try:
-                keyword_analysis = self.keyword_engine.match_skills(resume, job_description)
+                # Build a flat resume dict the keyword engine can consume
+                kw_input = _nr_to_keyword_dict(nr)
+                keyword_analysis = self.keyword_engine.match_skills(kw_input, job_description)
                 keyword_score    = self.keyword_engine.calculate_keyword_score(keyword_analysis)
                 logger.info(f"  match={keyword_analysis.match_percentage}% score={keyword_score}")
             except Exception as e:
                 logger.warning(f"  Keyword engine error: {e}")
 
+        # ── 3. AI analysis ────────────────────────────────────────────────────
         ai_insights: Dict = {}
         if include_ai and db:
             logger.info("[Stage 3] AI analysis")
             try:
                 ai_insights = await self._run_ai_analysis(
-                    resume, job_description, rules_score.total_score,
+                    nr, resume, job_description,
+                    rules_score.total_score,
                     keyword_analysis, db,
                 )
-                logger.info(f"  AI success={ai_insights.get('success')} partial={ai_insights.get('partial', False)}")
+                logger.info(f"  AI success={ai_insights.get('success')}")
             except Exception as e:
                 logger.warning(f"  AI failed (graceful fallback): {e}")
                 ai_insights = {"success": False, "error": str(e)}
 
+        # ── 3.5. Dynamic multi-dimensional scoring ────────────────────────────
         logger.info("[Stage 3.5] Dynamic multi-dimensional scoring")
-        final_score, dim_breakdown = _calculate_dynamic_score(resume, job_description, ai_insights)
+        final_score, dim_breakdown = _calculate_dynamic_score(
+            resume, nr, job_description, ai_insights
+        )
         logger.info(f"  final={final_score}")
 
+        # ── 4. Feedback generation ────────────────────────────────────────────
         logger.info("[Stage 4] Feedback generation")
-        rules_score.section_issues["contact"] = _build_contact_section_proxy(contact_built)
 
-        section_scores: Dict[str, int] = {}
-        for s in [
-            "contact", "summary", "experience", "education", "skills",
-            "projects", "certifications", "languages", "volunteer",
-            "publications", "awards", "hobbies", "references",
-        ]:
-            sa = rules_score.section_issues.get(s)
-            section_scores[s] = getattr(sa, "current_score", 0) if sa else 0
+        # Build section scores entirely from normalized data
+        section_scores = _build_section_scores(nr)
 
+        # Overwrite contact score from canonical contact scorer
+        contact_score, _, _, _ = _score_contact(nr.contact)
+        section_scores["contact"] = contact_score
+
+        # Overwrite experience from rules engine (it inspects normalized input)
+        rules_score.section_issues["contact"] = _build_contact_section_proxy(nr.contact)
+        for sn in ("summary", "experience", "education", "skills"):
+            sa = rules_score.section_issues.get(sn)
+            if sa:
+                rs = getattr(sa, "current_score", 0)
+                if rs > 0:
+                    section_scores[sn] = max(section_scores[sn], rs)
+
+        # Blend AI section scores
         if ai_insights.get("success") and ai_insights.get("ai_section_scores"):
             for sec, ai_data in ai_insights["ai_section_scores"].items():
                 if isinstance(ai_data, dict) and "score" in ai_data:
@@ -1147,87 +1149,78 @@ class ATSScannerService:
                     a_s = int(ai_data.get("score", r_s))
                     section_scores[sec] = int(r_s * 0.6 + a_s * 0.4)
 
+        # Build a resume dict the feedback generator can inspect
+        feedback_resume = _nr_to_feedback_dict(nr)
+
         detailed_feedback = self.feedback_generator.generate_detailed_feedback(
             ats_score         = final_score,
             section_scores    = section_scores,
-            resume            = resume,
+            resume            = feedback_resume,
             ats_issues        = rules_score.all_issues,
             section_analyses  = rules_score.section_issues,
         )
 
+        # ── 5. Assemble response ──────────────────────────────────────────────
         logger.info("[Stage 5] Assembling response")
         response = self._build_response(
             rules_score, keyword_analysis, keyword_score, final_score,
-            detailed_feedback, ai_insights, resume,
-            section_scores, contact_built, has_jd, dim_breakdown,
+            detailed_feedback, ai_insights, nr, section_scores,
+            has_jd, dim_breakdown,
         )
         logger.info(f"=== Scan complete — final={final_score}/100 ===")
         return response
 
+    # ── AI analysis ───────────────────────────────────────────────────────────
+
     async def _run_ai_analysis(
         self,
-        resume, job_description, ats_score,
-        keyword_analysis, db,
+        nr:              NormalizedResume,
+        resume_raw:      Dict,
+        job_description: Optional[str],
+        ats_score:       int,
+        keyword_analysis: Optional[KeywordAnalysis],
+        db,
     ) -> Dict:
-        contact  = _build_contact_from_resume(resume)
-        name     = _safe_for_prompt(contact.get("name") or resume.get("name"), 60)
         industry = (
             keyword_analysis.detected_industry if keyword_analysis
-            else self.keyword_engine.detect_industry(resume)
-        )
-        summary = _safe_for_prompt(resume.get("summary"), 250)
-        skills  = _safe_for_prompt(
-            ", ".join([_safe(s) for s in (resume.get("skills") or [])[:15]]), 200
+            else self.keyword_engine.detect_industry(_nr_to_keyword_dict(nr))
         )
 
         exp_lines: List[str] = []
-        for exp in (resume.get("experience") or [])[:3]:
-            if isinstance(exp, dict):
-                for b in (exp.get("bullets") or [])[:2]:
-                    clean = _safe_for_prompt(b, 120)
-                    if clean:
-                        exp_lines.append(clean)
+        for exp in nr.experience[:3]:
+            for b in exp.bullets[:2]:
+                clean = _safe_for_prompt(b, 120)
+                if clean:
+                    exp_lines.append(clean)
         experience_bullets = "; ".join(exp_lines[:6]) or "Not provided"
 
         edu_parts: List[str] = []
-        for edu in (resume.get("education") or [])[:2]:
-            if isinstance(edu, dict):
-                d = _safe_for_prompt(edu.get("degree"), 60)
-                i = _safe_for_prompt(edu.get("institution") or edu.get("college"), 80)
-                y = _safe_for_prompt(edu.get("year"), 10)
-                if d or i:
-                    edu_parts.append(f"{d} at {i} ({y})".strip())
+        for edu in nr.education[:2]:
+            d = _safe_for_prompt(edu.degree, 60)
+            i = _safe_for_prompt(edu.institution, 80)
+            y = _safe_for_prompt(edu.year, 10)
+            if d or i:
+                edu_parts.append(f"{d} at {i} ({y})".strip())
         education = "; ".join(edu_parts) or "Not provided"
 
-        certs = ", ".join([
-            _safe_for_prompt(c.get("name") if isinstance(c, dict) else c, 60)
-            for c in (resume.get("certifications") or [])[:5] if c
-        ]) or "None"
-
-        projects = ", ".join([
-            _safe_for_prompt(p.get("name") or p.get("title") if isinstance(p, dict) else p, 60)
-            for p in (resume.get("projects") or [])[:3] if p
-        ]) or "None"
-
-        additional = ", ".join([
-            s for s in ["languages", "volunteer", "publications", "awards", "hobbies"]
-            if _is_present(resume.get(s))
-        ]) or "None"
-
-        jd_text = _safe_for_prompt(job_description or "Not provided", 600)
+        certs  = ", ".join(_safe_for_prompt(c.title, 60) for c in nr.certifications[:5]) or "None"
+        projs  = ", ".join(_safe_for_prompt(p.title, 60) for p in nr.projects[:3]) or "None"
+        addl   = ", ".join(s for s in ["languages", "volunteer", "publications", "awards"]
+                           if getattr(nr, s)) or "None"
+        target = nr.experience[0].title if nr.experience else "Not specified"
 
         prompt = AI_ANALYSIS_PROMPT.format(
-            name                = name or "Candidate",
-            target_role         = _safe_for_prompt(resume.get("target_role") or self._guess_target_role(resume) or "Not specified", 60),
+            name                = _safe_for_prompt(nr.contact.name, 60) or "Candidate",
+            target_role         = _safe_for_prompt(target, 60),
             industry            = _safe_for_prompt(industry, 40),
-            summary             = summary or "Not provided",
-            skills              = skills  or "Not provided",
+            summary             = _safe_for_prompt(nr.summary, 250) or "Not provided",
+            skills              = _safe_for_prompt(", ".join(nr.skills[:15]), 200) or "Not provided",
             experience_bullets  = experience_bullets,
             education           = education,
             certifications      = certs,
-            projects            = projects,
-            additional_sections = additional,
-            job_description     = jd_text,
+            projects            = projs,
+            additional_sections = addl,
+            job_description     = _safe_for_prompt(job_description or "Not provided", 600),
             ats_score           = ats_score,
         )
 
@@ -1237,13 +1230,10 @@ class ATSScannerService:
     def _parse_ai_response(self, raw: str) -> Dict:
         if not raw or not raw.strip():
             return {"success": False, "error": "Empty AI response"}
-
         parsed = _try_parse_json(raw)
         if parsed and isinstance(parsed, dict):
             parsed["success"] = True
-            logger.info("AI JSON parsed successfully")
             return parsed
-
         logger.warning("Full JSON parse failed — extracting partial fields via regex")
         partial = _extract_fields_by_regex(raw)
         if partial:
@@ -1254,8 +1244,9 @@ class ATSScannerService:
             )
             partial["partial"] = True
             return partial
-
         return {"success": False, "error": "AI response could not be parsed", "raw": raw[:200]}
+
+    # ── Response assembly ─────────────────────────────────────────────────────
 
     def _build_response(
         self,
@@ -1265,9 +1256,8 @@ class ATSScannerService:
         final_score:      int,
         detailed_feedback: ComprehensiveFeedback,
         ai_insights:       Dict,
-        resume:            Dict,
+        nr:                NormalizedResume,
         section_scores:    Dict[str, int],
-        contact_built:     Dict,
         has_jd:            bool,
         dim_breakdown:     Dict,
     ) -> Dict:
@@ -1342,9 +1332,9 @@ class ATSScannerService:
                 "reason": ai_insights.get("error", "AI analysis not enabled."),
             }
 
-        grade         = _grade(final_score)
-        status        = _status_from_score(final_score)
-        contact_score, _, _, _ = _score_contact(contact_built)
+        grade  = _grade(final_score)
+        status = _status_from_score(final_score)
+        contact_score, _, _, _ = _score_contact(nr.contact)
 
         return {
             "ats_score":      final_score,
@@ -1370,12 +1360,12 @@ class ATSScannerService:
                 rules_score.total_score, keyword_score, final_score, has_jd, dim_breakdown
             ),
             "contact_detected": {
-                "name":     contact_built.get("name"),
-                "email":    contact_built.get("email"),
-                "phone":    contact_built.get("phone"),
-                "location": contact_built.get("location"),
-                "linkedin": contact_built.get("linkedin"),
-                "github":   contact_built.get("github"),
+                "name":     nr.contact.name,
+                "email":    nr.contact.email,
+                "phone":    nr.contact.phone,
+                "location": nr.contact.location,
+                "linkedin": nr.contact.linkedin,
+                "github":   nr.contact.github,
                 "score":    contact_score,
                 "status":   _status_from_score(contact_score),
             },
@@ -1451,15 +1441,143 @@ class ATSScannerService:
             steps.append("Ready to apply — tailor keywords to each specific job posting")
         return steps
 
-    @staticmethod
-    def _guess_target_role(resume: Dict) -> Optional[str]:
-        exp = resume.get("experience") or []
-        if isinstance(exp, list) and exp:
-            first = exp[0]
-            if isinstance(first, dict):
-                return _safe(first.get("title") or first.get("job_title"))
-        return None
 
+# ─────────────────────────────────────────────────────────────────────────────
+# BRIDGE FUNCTIONS  (NormalizedResume → legacy dict shapes for sub-components)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _nr_to_rules_dict(nr: NormalizedResume, raw: Dict) -> Dict:
+    """
+    Build a dict the ATSRulesEngine can consume.
+    Uses normalized data so the rules engine always has valid field names.
+    """
+    return {
+        "name":     nr.contact.name,
+        "email":    nr.contact.email,
+        "phone":    nr.contact.phone,
+        "location": nr.contact.location,
+        "summary":  nr.summary,
+        "skills":   nr.skills,
+        "experience": [
+            {
+                "title":      e.title,
+                "company":    e.company,
+                "location":   e.location,
+                "start_date": e.start_date,
+                "end_date":   e.end_date,
+                "bullets":    e.bullets,
+            }
+            for e in nr.experience
+        ],
+        "education": [
+            {
+                "degree":      e.degree,
+                "institution": e.institution,
+                "college":     e.institution,
+                "year":        e.year,
+                "gpa":         e.gpa,
+            }
+            for e in nr.education
+        ],
+        "certifications": [
+            {"title": c.title, "issuer": c.issuer, "year": c.year}
+            for c in nr.certifications
+        ],
+        "projects": [
+            {"title": p.title, "description": p.description}
+            for p in nr.projects
+        ],
+        "languages":    nr.languages,
+        "awards":       nr.awards,
+        "volunteer":    nr.volunteer,
+        "publications": nr.publications,
+        # Pass-through format metadata from raw dict
+        "uses_table":   raw.get("uses_table") or raw.get("has_tables", False),
+        "uses_columns": raw.get("uses_columns") or raw.get("multi_column", False),
+        "has_images":   raw.get("has_images", False),
+        "file_type":    raw.get("file_type", ""),
+        "font":         raw.get("font", ""),
+    }
+
+
+def _nr_to_keyword_dict(nr: NormalizedResume) -> Dict:
+    """Build the dict shape KeywordEngine.match_skills() expects."""
+    return {
+        "summary": nr.summary,
+        "skills":  nr.skills,
+        "experience": [
+            {
+                "title":   e.title,
+                "company": e.company,
+                "bullets": e.bullets,
+            }
+            for e in nr.experience
+        ],
+        "education": [
+            {"degree": e.degree, "institution": e.institution}
+            for e in nr.education
+        ],
+        "certifications": [c.title for c in nr.certifications],
+        "projects": [p.title for p in nr.projects],
+    }
+
+
+def _nr_to_feedback_dict(nr: NormalizedResume) -> Dict:
+    """Build the dict DetailedFeedbackGenerator.generate_detailed_feedback() reads."""
+    return {
+        "name":     nr.contact.name,
+        "email":    nr.contact.email,
+        "phone":    nr.contact.phone,
+        "location": nr.contact.location,
+        "linkedin": nr.contact.linkedin,
+        "github":   nr.contact.github,
+        "summary":  nr.summary,
+        "skills":   nr.skills,
+        "experience": [
+            {
+                "title":      e.title,
+                "company":    e.company,
+                "location":   e.location,
+                "start_date": e.start_date,
+                "end_date":   e.end_date,
+                "bullets":    e.bullets,
+            }
+            for e in nr.experience
+        ],
+        "education": [
+            {
+                "degree":      e.degree,
+                "institution": e.institution,
+                "college":     e.institution,
+                "year":        e.year,
+            }
+            for e in nr.education
+        ],
+        "certifications": [
+            {"title": c.title, "name": c.title, "issuer": c.issuer, "year": c.year}
+            for c in nr.certifications
+        ],
+        "projects": [
+            {
+                "title":        p.title,
+                "description":  p.description,
+                "technologies": p.technologies,
+                "bullets":      p.bullets,
+                "url":          p.url,
+            }
+            for p in nr.projects
+        ],
+        "languages":    nr.languages,
+        "awards":       nr.awards,
+        "volunteer":    nr.volunteer,
+        "publications": nr.publications,
+        "hobbies":      nr.hobbies,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BACKWARD-COMPATIBLE STANDALONE FUNCTION
+# ─────────────────────────────────────────────────────────────────────────────
 
 async def create_ats_scan(
     resume:          Dict,
