@@ -1,28 +1,3 @@
-"""
-ATS Feedback Generator v4.0
-────────────────────────────────────────────────────────────────────────────
-Generates ATS-passing suggestions designed to get the resume through
-automated screening AND impress the human recruiter after.
-
-Changes from v3:
-  BUG 4  – Contact feedback recommends adding ONLY fields that are actually
-             missing, never fields already present.
-  BUG 5  – is_present / status / score are always internally consistent:
-             • is_present=True  → status ≠ "missing"
-             • is_present=False → score = 0
-             • score > 0        → is_present = True
-  BUG 7  – Project section is_present=True whenever the section_score > 0,
-             feedback does NOT recommend adding projects if they exist.
-  BUG 8  – Language section status is derived from score, not hardcoded.
-
-For every section it produces:
-  • What to add (with examples) — ONLY for genuinely absent fields
-  • What to remove (padding/ATS-unfriendly elements)
-  • How to rewrite (before → after)
-  • Prioritised quick wins
-  • An improvement roadmap sorted by impact/effort ratio
-────────────────────────────────────────────────────────────────────────────
-"""
 
 from __future__ import annotations
 
@@ -215,6 +190,40 @@ SECTION_TEMPLATES: Dict[str, Dict] = {
             {"issue": "Missing dates",
              "example": "Marketing Coordinator | ABC Corp",
              "fix":     "Marketing Coordinator | ABC Corp | Jun 2021 – Dec 2023",
+             "impact":  10},
+        ],
+    },
+
+    # v4.1 — fresher-specific template used in place of "experience" when
+    # candidate_type == "fresher" AND no experience entries exist.
+    "experience_fresher": {
+        "add_items": [
+            {"element": "Any internship, training, or apprenticeship",
+             "why":     "Internships are treated as valid experience and signal job-readiness",
+             "impact":  12,
+             "example": "Marketing Intern | StartupCo | Jun 2025 - Aug 2025"},
+            {"element": "Freelance or self-employed work",
+             "why":     "Freelance/contract work counts as real experience for ATS and recruiters",
+             "impact":  10,
+             "example": "Freelance Graphic Designer | Self-employed | 2024 - Present"},
+            {"element": "Academic, personal, or capstone projects with outcomes",
+             "why":     "Projects substitute for work history when paired with measurable results",
+             "impact":  12,
+             "example": "Built a task-tracker app (React, Firebase) used by 50+ classmates"},
+            {"element": "Relevant certifications",
+             "why":     "Certifications reinforce skill claims when work history is thin",
+             "impact":  8,
+             "example": "Google Data Analytics Certificate | Coursera | 2025"},
+            {"element": "Volunteer or hackathon participation",
+             "why":     "Demonstrates initiative and teamwork without requiring paid work history",
+             "impact":  6,
+             "example": "Participated in [University] Hackathon 2025 — built a campus-navigation app"},
+        ],
+        "remove_items": [],
+        "quality_items": [
+            {"issue": "Project with no outcome",
+             "example": "Built a web app for task management",
+             "fix":     "Built task management app (React, Firebase) adopted by 3 teams; reduced missed deadlines by 45%",
              "impact":  10},
         ],
     },
@@ -439,8 +448,9 @@ class DetailedFeedbackGenerator:
         resume:           Dict,
         ats_issues:       List,
         section_analyses: Dict = None,
+        candidate_type:    str = "experienced",
     ) -> ComprehensiveFeedback:
-        logger.info(f"Generating detailed feedback — overall score: {ats_score}")
+        logger.info(f"Generating detailed feedback — overall score: {ats_score}, candidate_type={candidate_type}")
 
         section_feedback: Dict[str, SectionFeedback] = {}
 
@@ -451,7 +461,7 @@ class DetailedFeedbackGenerator:
             analysis      = (section_analyses or {}).get(section)
 
             feedback = self._build_section_feedback(
-                section, score, section_data, issues_for_sec, analysis, resume
+                section, score, section_data, issues_for_sec, analysis, resume, candidate_type
             )
             section_feedback[section] = feedback
 
@@ -491,6 +501,7 @@ class DetailedFeedbackGenerator:
         issues:       List,
         analysis=None,
         resume:       Dict = None,
+        candidate_type: str = "experienced",
     ) -> SectionFeedback:
         """
         Build SectionFeedback with guaranteed internal consistency:
@@ -502,8 +513,19 @@ class DetailedFeedbackGenerator:
         BUG 5: is_present / status / score are mutually consistent.
         BUG 7: projects — is_present=True when score > 0.
         BUG 8: languages — status derived from score, never "missing" when present.
+
+        v4.1: for section == "experience" with candidate_type == "fresher"
+        and no data present, swap in the fresher-appropriate template and
+        cap status at "needs_improvement" instead of "critical"/"missing".
         """
-        template     = SECTION_TEMPLATES.get(section, {})
+        is_fresher_no_exp = (
+            section == "experience"
+            and candidate_type == "fresher"
+            and not self._is_present(data)
+        )
+
+        template_key = "experience_fresher" if is_fresher_no_exp else section
+        template     = SECTION_TEMPLATES.get(template_key, SECTION_TEMPLATES.get(section, {}))
         add_items    = template.get("add_items", [])
         remove_items = template.get("remove_items", [])
         quality_items = template.get("quality_items", [])
@@ -618,7 +640,12 @@ class DetailedFeedbackGenerator:
                     "after":  "Bachelor of Engineering (Computer Science) | VIT University | May 2020",
                 },
             }
-            if section in _template_rewrites:
+            if is_fresher_no_exp:
+                rewrites = [{
+                    "before": "No work experience listed",
+                    "after":  "Marketing Intern | StartupCo | Jun 2025 - Aug 2025\n• Assisted in running social media campaigns reaching 10K+ users",
+                }]
+            elif section in _template_rewrites:
                 rewrites = [_template_rewrites[section]]
 
         # ── Impact potential ──────────────────────────────────────────────────
@@ -629,7 +656,12 @@ class DetailedFeedbackGenerator:
         # ── BUG 5: derive target_score and status from the SAME score ─────────
         target_score  = min(score + impact_potential, 95)
         # is_present=False → status="missing"; otherwise → threshold-based
-        status        = "missing" if not is_present else (self._status(score) if score > 0 else "missing")
+        # v4.1: fresher-with-no-experience is never "missing"/"critical" —
+        # it's a normal, expected state, capped at "needs_improvement".
+        if is_fresher_no_exp:
+            status = "needs_improvement"
+        else:
+            status = "missing" if not is_present else (self._status(score) if score > 0 else "missing")
         quality_level = "high" if score >= 80 else ("medium" if score >= 55 else "low")
 
         # ── Strengths ─────────────────────────────────────────────────────────

@@ -1,9 +1,3 @@
-"""
-ATS Rules Engine v3 — validates canonical JSON produced by the Resume Builder parser.
-All section presence checks operate on structured list/string fields.
-Raw text is NEVER used to determine whether a section exists.
-"""
-
 import re
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
@@ -185,6 +179,16 @@ def _get_experience_list(resume: Dict) -> List[Dict]:
     return [e for e in exp if isinstance(e, dict)]
 
 
+def _get_projects_count(resume: Dict) -> int:
+    proj = resume.get("projects") or []
+    return len(proj) if isinstance(proj, list) else 0
+
+
+def _get_certifications_count(resume: Dict) -> int:
+    certs = resume.get("certifications") or []
+    return len(certs) if isinstance(certs, list) else 0
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ATS RULES ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
@@ -197,12 +201,12 @@ class ATSRulesEngine:
         self.section_issues: Dict[str, SectionIssue] = {}
         self.strengths:      List[str] = []
 
-    def analyze(self, resume: Dict) -> ORSScore:
+    def analyze(self, resume: Dict, candidate_type: str = "experienced") -> ORSScore:
         self.issues         = []
         self.section_issues = {}
         self.strengths      = []
 
-        logger.info("Starting ATS analysis v3 (JSON-based)")
+        logger.info(f"Starting ATS analysis v3.1 (JSON-based) — candidate_type={candidate_type}")
 
         format_score     = self._analyze_format(resume)
         structure_score  = self._analyze_structure(resume)
@@ -212,7 +216,7 @@ class ATSRulesEngine:
 
         self._analyze_summary_section(resume)
         self._analyze_skills_section(resume)
-        self._analyze_experience_section(resume)
+        self._analyze_experience_section(resume, candidate_type)
         self._analyze_education_section(resume)
 
         total_score = self._calculate_weighted_score(
@@ -386,35 +390,69 @@ class ATSRulesEngine:
 
         self.section_issues["skills"] = si
 
-    def _analyze_experience_section(self, resume: Dict) -> None:
+    def _analyze_experience_section(self, resume: Dict, candidate_type: str = "experienced") -> None:
         si = SectionIssue(section_name="experience")
         experience = _get_experience_list(resume)
 
         if not experience:
-            si.missing_fields    = ["Work experience entries"]
-            si.current_status    = ["critical"]
-            si.current_score     = 0
-            si.improvements      = [
-                "Add at least 2-3 work experience entries",
-                "For each: Title, Company, Duration, 3-5 achievement bullets",
-            ]
-            si.specific_suggestions = [{
-                "issue":   "No work experience listed",
-                "current": "[NONE]",
-                "suggestion": (
-                    "Senior Engineer | Tech Company | 2020-Present\n"
-                    "• Led team of 5 engineers, delivering 3 major projects\n"
-                    "• Optimized system performance by 60%, saving $50K annually"
-                ),
-            }]
-            self._add_issue(
-                severity=SeverityLevel.CRITICAL,
-                category=IssueCategory.STRUCTURE,
-                section="experience",
-                message="Work experience section missing",
-                suggestion="Add 2-5 work experience entries with achievements",
-                impact=25,
-            )
+            if candidate_type == "fresher":
+                # v3.1: fresher with no work history is NOT automatically
+                # critical — credit projects/certifications if present and
+                # downgrade severity to medium/low instead of critical.
+                project_count = _get_projects_count(resume)
+                cert_count    = _get_certifications_count(resume)
+                has_alt_proof = project_count > 0 or cert_count > 0
+
+                si.missing_fields = ["Work experience entries (internship/freelance acceptable)"]
+                si.current_status = ["needs_improvement"] if has_alt_proof else ["needs_improvement"]
+                si.current_score  = 55 if has_alt_proof else 35
+                si.improvements   = [
+                    "Add any internship, freelance, training, or apprenticeship experience",
+                    "Highlight academic/personal projects with measurable outcomes",
+                    "List relevant certifications to reinforce skill claims",
+                ]
+                si.specific_suggestions = [{
+                    "issue":   "No formal work experience (fresher profile)",
+                    "current": "[NONE]",
+                    "suggestion": (
+                        "Marketing Intern | StartupCo | Jun 2025 - Aug 2025\n"
+                        "• Assisted in running social media campaigns reaching 10K+ users\n"
+                        "• Analyzed campaign performance data to optimize ad spend"
+                    ),
+                }]
+                self._add_issue(
+                    severity=SeverityLevel.MEDIUM if has_alt_proof else SeverityLevel.LOW,
+                    category=IssueCategory.STRUCTURE,
+                    section="experience",
+                    message="No formal work experience — acceptable for a fresher profile",
+                    suggestion="Add internships, freelance work, or strengthen projects/certifications section",
+                    impact=8 if has_alt_proof else 5,
+                )
+            else:
+                si.missing_fields    = ["Work experience entries"]
+                si.current_status    = ["critical"]
+                si.current_score     = 0
+                si.improvements      = [
+                    "Add at least 2-3 work experience entries",
+                    "For each: Title, Company, Duration, 3-5 achievement bullets",
+                ]
+                si.specific_suggestions = [{
+                    "issue":   "No work experience listed",
+                    "current": "[NONE]",
+                    "suggestion": (
+                        "Senior Engineer | Tech Company | 2020-Present\n"
+                        "• Led team of 5 engineers, delivering 3 major projects\n"
+                        "• Optimized system performance by 60%, saving $50K annually"
+                    ),
+                }]
+                self._add_issue(
+                    severity=SeverityLevel.CRITICAL,
+                    category=IssueCategory.STRUCTURE,
+                    section="experience",
+                    message="Work experience section missing",
+                    suggestion="Add 2-5 work experience entries with achievements",
+                    impact=25,
+                )
         else:
             total_bullets = 0
             weak_bullets  = 0
