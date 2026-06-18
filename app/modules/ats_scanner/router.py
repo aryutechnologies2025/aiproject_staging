@@ -1,5 +1,5 @@
 """
-ATS Scanner Router v5.0 — Unified parsing pipeline (Resume Builder → ATS).
+ATS Scanner Router v6.0 — ATS-native extraction/parsing pipeline.
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import validate_file_security
 from app.core.database import get_db
 from app.modules.ats_scanner.service import ATSScannerService, create_ats_scan
-from app.modules.resume_builder.extractor import extract_with_llamaparse
-from app.modules.resume_builder.parser_service import parse_resume_with_ai
+from app.modules.ats_scanner.utils.ats_extractor import extract_resume_markdown
+from app.modules.ats_scanner.utils.ats_markdown_parser import parse_resume_markdown
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -72,6 +72,10 @@ def _normalise_resume_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalise both flat and nested (header-wrapped) resume schemas
     into a single canonical dict consumed by ATSScannerService.
+
+    The ATS-native markdown parser already produces a flat schema, so this
+    is a no-op pass-through for /scan-file. It still handles nested/header
+    schemas for callers that POST pre-parsed JSON to /scan and /scan-quick.
     """
     header = data.get("header") or {}
     if isinstance(header, dict) and header:
@@ -123,7 +127,7 @@ async def ats_scan(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ENDPOINT 2: File Upload Scan — LlamaParse → Resume Builder → ATS
+# ENDPOINT 2: File Upload Scan — ATS-native extractor → ATS-native parser
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.post("/scan-file")
@@ -135,65 +139,49 @@ async def ats_scan_from_file(
 ):
     """
     Upload PDF or DOCX →
-    LlamaParse extracts structured items →
-    Resume Builder parser builds canonical JSON →
+    ATS Scanner's own extractor (LlamaParse-first, local fallback) produces Markdown →
+    ATS Scanner's own markdown parser builds canonical JSON →
     ATS Scanner scores the canonical JSON.
 
-    Single unified pipeline — no duplicate parsing.
+    Fully ATS-native pipeline — no Resume Builder extraction/parser dependency.
+    AI analysis (when enabled) is performed via the shared Resume Builder
+    AI client (Gemini-first, Groq fallback), the single AI implementation
+    used across the project.
     """
     job_description = _sanitise_text(job_description)
     logger.info(f"ATS file scan: {file.filename}, has_jd={bool(job_description)}")
 
-    # ── Step 1: Read file bytes ──────────────────────────────────────────────
-    await file.seek(0)
-    file_bytes = await file.read()
-    await file.seek(0)
-
-    content_type = file.content_type or (
-        "application/pdf"
-        if (file.filename or "").lower().endswith(".pdf")
-        else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-
-    # ── Step 2: LlamaParse extraction ────────────────────────────────────────
+    # ── Step 1: ATS-native extraction → Markdown ─────────────────────────────
     try:
-        extractor_output = await extract_with_llamaparse(
-            file_bytes, file.filename or "resume.pdf", content_type
-        )
-        if not extractor_output.get("success") or not extractor_output.get("raw_items"):
+        markdown = await extract_resume_markdown(file)
+        if not markdown or len(markdown.strip()) < 30:
             raise HTTPException(
                 status_code=400,
                 detail="Could not extract readable content from the file. "
                        "Ensure the resume is not a scanned image-only PDF.",
             )
-        logger.info(f"LlamaParse extracted {len(extractor_output['raw_items'])} blocks")
+        logger.info(f"ATS extractor produced {len(markdown)} chars of markdown")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Extraction error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to extract file content: {str(e)}")
 
-    # ── Step 3: Resume Builder parser → canonical JSON ───────────────────────
+    # ── Step 2: ATS-native markdown parser → canonical JSON ───────────────────
     try:
-        parse_result = await parse_resume_with_ai(
-            extractor_output=extractor_output,
-            file_bytes=file_bytes,
-            filename=file.filename,
-            content_type=content_type,
-        )
-        if not parse_result.get("success") or not parse_result.get("parsed"):
+        parsed = parse_resume_markdown(markdown)
+        if not parsed:
             raise HTTPException(
                 status_code=400,
                 detail="Resume content could not be parsed. Please check the file format.",
             )
-        parsed = parse_result["parsed"]
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Resume Builder parse error: {e}", exc_info=True)
+        logger.error(f"ATS markdown parse error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to parse resume: {str(e)}")
 
-    # ── Step 4: Normalise schema ─────────────────────────────────────────────
+    # ── Step 3: Normalise schema ─────────────────────────────────────────────
     resume_dict = _normalise_resume_dict(parsed)
 
     logger.info(
@@ -215,7 +203,7 @@ async def ats_scan_from_file(
             detail="Resume content could not be parsed. Please check the file format.",
         )
 
-    # ── Step 5: ATS Scan on canonical JSON ───────────────────────────────────
+    # ── Step 4: ATS Scan on canonical JSON ───────────────────────────────────
     try:
         result = await _scanner.scan(
             resume=resume_dict,
@@ -226,7 +214,7 @@ async def ats_scan_from_file(
         result["meta"] = {
             "source":       "file_upload",
             "source_file":  file.filename,
-            "pipeline":     "llamaparse_resume_builder",
+            "pipeline":     "ats_native_extractor_markdown_parser",
             "parsed_name":  resume_dict.get("name"),
             "exp_count":    len(resume_dict.get("experience") or []),
             "edu_count":    len(resume_dict.get("education") or []),
@@ -310,21 +298,21 @@ async def explain_score(score: int):
 @router.get("/help")
 async def ats_help():
     return {
-        "service": "Universal ATS Scanner v5.0",
-        "version": "5.0.0",
-        "powered_by": "LlamaParse + Resume Builder Parser + Rule Engine + Groq AI",
-        "pipeline": "PDF/DOCX → LlamaParse → Resume Builder Parser → Canonical JSON → ATS Engine",
+        "service": "Universal ATS Scanner v6.0",
+        "version": "6.0.0",
+        "powered_by": "ATS-Native Extractor + ATS Markdown Parser + Rule Engine + Resume Builder AI Client (Gemini/Groq)",
+        "pipeline": "PDF/DOCX → ATS Extractor (Markdown) → ATS Markdown Parser → Canonical JSON → ATS Engine",
         "endpoints": {
             "POST /ats/scan":       "Full AI-powered ATS scan (JSON resume + optional JD)",
-            "POST /ats/scan-file":  "Upload PDF/DOCX — unified Resume Builder pipeline",
+            "POST /ats/scan-file":  "Upload PDF/DOCX — ATS-native extraction + parsing pipeline",
             "POST /ats/scan-quick": "Fast rules-only scan (no AI, <1 second)",
             "GET  /ats/score/{n}":  "Explain a specific ATS score",
         },
         "why_unified_pipeline": (
-            "The ATS Scanner reuses the Resume Builder's LlamaParse + LLM parsing pipeline. "
-            "This eliminates duplicate extraction logic, improves section detection accuracy, "
-            "and ensures education, skills, projects, and certifications are never incorrectly "
-            "reported as missing."
+            "The ATS Scanner uses its own LlamaParse-backed extractor and markdown parser, "
+            "fully decoupled from the Resume Builder module. This removes a cross-module "
+            "dependency, keeps the ATS pipeline self-contained, and shares only the AI client "
+            "layer (Gemini-first, Groq fallback) for LLM-based analysis."
         ),
     }
 

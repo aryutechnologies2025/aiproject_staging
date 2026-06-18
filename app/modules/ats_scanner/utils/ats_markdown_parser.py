@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -181,11 +181,19 @@ BULLET_RE  = re.compile(r"^[\s]*[-*•▶►→✓✔\u2022\u2023]+\s+(.+)$")
 SEP_RE     = re.compile(r"^[-*_=]{3,}$")
 BOLD_H_RE  = re.compile(r"^\*{1,2}([^*]{2,60})\*{1,2}\s*:?\s*$")
 ALLCAPS_RE = re.compile(r"^[A-Z][A-Z\s&/\-]{2,53}[A-Z]$")
-DATE_RANGE = re.compile(
-    r"(?P<start>(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\.?\s?\d{4})"
-    r"\s*[-–to]+\s*"
-    r"(?P<end>(Present|Current|Now|\d{4}))",
-    re.I
+
+# ── Role-keyword detector used to identify which header line is the job
+#    title regardless of line order (Role/Company/Dates can appear in any
+#    sequence, on any number of lines, or pipe-delimited on one line). ─────
+_ROLE_KEYWORDS_RE = re.compile(
+    r"\b(engineer|manager|developer|designer|analyst|specialist|executive|"
+    r"consultant|director|officer|coordinator|administrator|associate|"
+    r"intern|internship|trainee|apprentice|lead|head|architect|scientist|"
+    r"representative|technician|nurse|teacher|professor|recruiter|"
+    r"accountant|auditor|strategist|marketer|writer|editor|researcher|"
+    r"supervisor|assistant|founder|owner|freelancer|freelance|"
+    r"self[\s\-]?employed|graduate engineer trainee|ceo|cto|cfo|coo|"
+    r"president|vp\b|svp|evp|chief)\b", re.I,
 )
 
 
@@ -457,66 +465,151 @@ class ATSMarkdownParser:
                 break
         return " ".join(found)
 
+    # ── EXPERIENCE PARSING ───────────────────────────────────────────────
+    #
+    # v2: block-based parsing. Previously, this method only recognised a
+    # role when (a) the date range appeared on the SAME line as the title
+    # AND (b) the date regex matched bare years / Present-Current-Now only.
+    # Real resumes routinely have:
+    #   - Title, Company, Dates on three SEPARATE lines (any order)
+    #   - "Mon YYYY – Mon YYYY" dates (month on both ends)
+    #   - "Role | Company | Dates" pipe-delimited single lines
+    #   - A blank line between the date line and the bullet list
+    # All four caused the previous implementation to silently drop the
+    # entire entry (and its bullets), producing exp_count == 0.
+    #
+    # Fix: split the section into per-role BLOCKS first (header lines +
+    # bullets), using bullet-transitions / "header already has a date" as
+    # block boundaries — blank lines are ignored for boundary purposes
+    # since they're just visual spacing, not entry separators. Then parse
+    # each block's header lines using DATE_RANGE_RE (which supports
+    # month-year on both ends) and a role-keyword heuristic that finds the
+    # title regardless of which line it's on.
+    # ─────────────────────────────────────────────────────────────────────
+
     def _experience(self, text: str) -> List[Dict]:
         if not text.strip():
             return []
-
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
-        entries = []
-        current = None
-
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            date_match = DATE_RANGE.search(line)
-
-            if date_match:
-                if current:
-                    entries.append(current)
-
-                title = line[:date_match.start()].strip(" |-,")
-
-                current = {
-                    "title":      title,
-                    "company":    "",
-                    "location":   "",
-                    "start_date": date_match.group("start"),
-                    "end_date":   date_match.group("end"),
-                    "bullets":    [],
-                }
-
-                j = i + 1
-                while j < len(lines):
-                    next_line = lines[j]
-                    if DATE_RANGE_RE.search(next_line):
-                        break
-                    if re.match(r"^[•\-–*]", next_line):
-                        break
-                    if not current["company"]:
-                        current["company"] = next_line
-                    elif not current["location"]:
-                        current["location"] = next_line
-                    j += 1
-
-                i = j
-                continue
-
-            if re.match(r"^[•\-–*►▶→✓✔]", line):
-                if current:
-                    clean = re.sub(r'^[•\-–*►▶→✓✔]\s*', '', line)
-                    current["bullets"].append(clean)
-                i += 1
-                continue
-
-            if current and not current["company"] and not re.search(r"\d{4}", line):
-                current["company"] = line
-
-            i += 1
-
-        if current:
-            entries.append(current)
-
+        blocks = self._split_experience_blocks(text.split("\n"))
+        entries: List[Dict] = []
+        for header_lines, bullets in blocks:
+            entry = self._parse_experience_block(header_lines, bullets)
+            if entry:
+                entries.append(entry)
         return entries
+
+    def _split_experience_blocks(
+        self, raw_lines: List[str]
+    ) -> List[Tuple[List[str], List[str]]]:
+        blocks: List[Tuple[List[str], List[str]]] = []
+        header: List[str] = []
+        bullets: List[str] = []
+        header_has_date = False
+
+        def flush():
+            nonlocal header, bullets, header_has_date
+            if header or bullets:
+                blocks.append((header, bullets))
+            header, bullets, header_has_date = [], [], False
+
+        for raw_line in raw_lines:
+            line = raw_line.strip()
+            if not line:
+                continue  # blank lines are spacing, not boundaries
+
+            bm = BULLET_RE.match(line)
+            if bm:
+                bullets.append(bm.group(1).strip())
+                continue
+
+            # Non-bullet (header-type) line
+            if bullets:
+                # Bullets already collected for the current role —
+                # a new header line means a new role is starting.
+                flush()
+                header.append(line)
+            elif header_has_date and header:
+                # Current role's header is already "complete" (has a
+                # date) and no bullets were seen yet — back-to-back
+                # roles listed without bullets.
+                flush()
+                header.append(line)
+            else:
+                header.append(line)
+
+            if DATE_RANGE_RE.search(line):
+                header_has_date = True
+
+        flush()
+        return blocks
+
+    def _parse_experience_block(
+        self, header_lines: List[str], bullets: List[str]
+    ) -> Optional[Dict]:
+        if not header_lines and not bullets:
+            return None
+
+        # Expand pipe-delimited single-line headers: "Role | Company | Dates"
+        expanded: List[str] = []
+        for line in header_lines:
+            if "|" in line:
+                parts = [p.strip() for p in line.split("|") if p.strip()]
+                expanded.extend(parts if parts else [line])
+            else:
+                expanded.append(line)
+
+        start_date = end_date = ""
+        remaining: List[str] = []
+        for line in expanded:
+            if not start_date:
+                dm = DATE_RANGE_RE.search(line)
+                if dm:
+                    start_date = dm.group(1).strip()
+                    end_date   = dm.group(2).strip()
+                    prefix = line[:dm.start()].strip(" |,-")
+                    suffix = line[dm.end():].strip(" |,-")
+                    if prefix:
+                        remaining.append(prefix)
+                    if suffix:
+                        remaining.append(suffix)
+                    continue
+            remaining.append(line)
+
+        # Identify title via role-keyword match (order-independent), then
+        # assign the next leftover lines to company / location.
+        title = company = location = ""
+        for line in remaining[:5]:
+            if not title and _ROLE_KEYWORDS_RE.search(line):
+                title = line
+            elif not company:
+                company = line
+            elif not location:
+                location = line
+
+        # No line matched a role keyword — fall back to positional guess.
+        if not title and remaining:
+            title = remaining[0]
+            if not company:
+                for line in remaining[1:]:
+                    company = line
+                    break
+        elif title and not company:
+            for line in remaining:
+                if line != title:
+                    company = line
+                    break
+
+        if not (title or company or bullets):
+            return None
+
+        return {
+            "title":      title,
+            "company":    company,
+            "location":   location,
+            "start_date": start_date,
+            "end_date":   end_date,
+            "bullets":    bullets,
+        }
 
     def _education(self, sec: str) -> List[Dict[str, Any]]:
         if not sec.strip():
