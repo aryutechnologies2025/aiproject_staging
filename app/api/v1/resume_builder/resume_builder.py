@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
 import tempfile
@@ -189,30 +189,19 @@ async def generate_education(
 
 @router.post("/generate-resume")
 async def generate_resume_json(
-    data: dict,
+    job_title: str = Form(...),
+    job_description: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate complete ATS-optimized resume for specific job posting"""
-    try:
-        job_title = data.get("job_title")
-        job_description = data.get("job_description")
-        
-        if not job_title:
-            raise HTTPException(status_code=400, detail="job_title is required")
-        if not job_description:
-            raise HTTPException(status_code=400, detail="job_description is required")
-        
-        logger.info(f"Generating ATS-optimized resume for {job_title}")
-        result = await generate_ats_resume_json(data, db)
-        
-        logger.info(f"Resume generated successfully for {job_title}")
-        return result
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Resume generation error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Resume generation failed")
+    data = {
+        "job_title": job_title,
+        "job_description": job_description,
+    }
+
+    # Process resume if uploaded
+
+    result = await generate_ats_resume_json(data, db)
+    return result
 
 
 @router.post("/refine")
