@@ -214,6 +214,7 @@ async def ats_scan_from_file(
         result["meta"] = {
             "source":       "file_upload",
             "source_file":  file.filename,
+            "uploaded_file": markdown,
             "pipeline":     "ats_native_extractor_markdown_parser",
             "parsed_name":  resume_dict.get("name"),
             "exp_count":    len(resume_dict.get("experience") or []),

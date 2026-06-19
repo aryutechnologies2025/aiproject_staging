@@ -7,6 +7,7 @@ from typing import Dict, Any
 import json
 import re
 from .extractor import extract_with_llamaparse
+from app.modules.resume_builder.ai_client import call_ai
 import logging
 
 
@@ -399,28 +400,37 @@ REQUIRED JSON FORMAT SPECIFICATION:
 }}"""
 
 
-async def generate_ats_resume_json(data: dict, db: AsyncSession) -> dict:
+async def generate_ats_resume_json(
+    data: dict,
+    db: AsyncSession,
+) -> dict:
     """
-    Generates a complete ATS-optimized resume JSON structure tailored for any target role.
-    Features robust regex filtering to extract pure JSON, bypassing conversational output 
-    or unexpected markdown wrappings from 30B parameter models.
+    Generate an ATS-optimized resume JSON from the provided job details.
     """
-    job_title = data.get("job_title")
-    job_description = data.get("job_description")
-    company = data.get("company", "")
 
-    if not job_title or not job_description:
-        raise HTTPException(status_code=400, detail="job_title and job_description are required")
+    job_title = (data.get("job_title") or "").strip()
+    job_description = (data.get("job_description") or "").strip()
+    company = (data.get("company") or "").strip()
 
-    # Build the specialized, multi-industry ATS optimization prompt
+    if not job_title:
+        raise HTTPException(
+            status_code=400,
+            detail="job_title is required",
+        )
+
+    if not job_description:
+        raise HTTPException(
+            status_code=400,
+            detail="job_description is required",
+        )
+
     user_prompt = build_ats_resume_json_prompt(
         job_title=job_title,
         company=company,
-        job_description=job_description
+        job_description=job_description,
     )
 
     try:
-        # Call your core LLM interaction function
         raw_response = await call_llm(
             user_message=user_prompt,
             agent_name="resume_builder",
@@ -428,45 +438,39 @@ async def generate_ats_resume_json(data: dict, db: AsyncSession) -> dict:
         )
 
         clean = raw_response.strip()
-        
-        # Robust Regex Parsing:
-        # 30B models often enclose JSON in ```json { ... } ``` blocks despite instructions.
-        # This regex looks for the outermost curly braces containing the JSON payload.
-        json_match = re.search(r"(\{.*\})", clean, re.DOTALL)
-        if json_match:
-            clean = json_match.group(1)
-        else:
-            # Fallback manual string trimming if regex couldn't resolve the boundaries
-            if clean.startswith("```json"):
-                clean = clean[7:]
-            elif clean.startswith("```"):
-                clean = clean[3:]
-            if clean.endswith("```"):
-                clean = clean[:-3]
-        
-        clean = clean.strip()
-        
-        # Safely load the clean string into a python dictionary
+
+        # Remove markdown fences
+        clean = re.sub(r"^```(?:json)?", "", clean.strip(), flags=re.IGNORECASE)
+        clean = re.sub(r"```$", "", clean.strip())
+
+        # Extract first JSON object
+        match = re.search(r"\{.*\}", clean, re.DOTALL)
+
+        if match:
+            clean = match.group(0)
+
         result = json.loads(clean)
-        
-        # Post-execution structure validation to ensure no key properties are missing
-        required_keys = ["summary", "experience", "skills", "optimization_notes"]
-        for key in required_keys:
-            if key not in result:
-                result[key] = f"Missing data fallback for {key}" if key != "experience" and key != "skills" else []
+
+        result.setdefault("summary", "")
+        result.setdefault("experience", [])
+        result.setdefault("skills", [])
+        result.setdefault("optimization_notes", "")
 
         return result
-    
-    except json.JSONDecodeError as jde:
-        # Fallback error for invalid JSON configurations or unparseable output syntax
+
+    except json.JSONDecodeError:
         raise HTTPException(
-            status_code=422, 
-            detail="Failed to parse LLM generation into a valid JSON schema. Raw response contained formatting anomalies."
+            status_code=422,
+            detail="LLM returned invalid JSON.",
         )
+
+    except HTTPException:
+        raise
+
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
-            detail=f"ATS resume schema processing failed: {str(e)}"
+            status_code=500,
+            detail=f"ATS resume generation failed: {str(e)}",
         )
 
 
