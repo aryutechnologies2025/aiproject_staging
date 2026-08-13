@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = "sivaarun10/aryu_api:latest"
+        IMAGE = "aryutechnologies2025/aryu_api:latest"
     }
 
     stages {
@@ -26,9 +26,8 @@ pipeline {
                 docker-compose down
                 docker-compose up -d
 
-                # Cleanup
-                docker image prune -af
-                docker builder prune -af
+                # Clean only dangling unused images (DO NOT prune builder cache)
+                docker image prune -f
                 '''
             }
         }

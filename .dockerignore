@@ -44,3 +44,12 @@ models/
 # Misc
 .cache/
 tmp/
+
+# Exclude root garbage / extra requirements
+=1.0
+=1.0.0
+linkedin_cookies.pkl
+structure.txt
+test-ci.txt
+requirements.txt
+uploads/
