@@ -15,19 +15,7 @@ env/
 # Logs
 *.log
 
-# Build / dist
-build/
-dist/
-*.egg-info/
-
-# Node
-node_modules/
-
-# IDE
-.vscode/
-.idea/
-
-# Data / models (CRITICAL for AI projects)
+# Data / models
 data/
 datasets/
 models/
@@ -36,16 +24,7 @@ models/
 *.bin
 *.h5
 
-# Archives
-*.zip
-*.tar
-*.gz
-
-# Misc
-.cache/
-tmp/
-
-# Exclude root garbage / extra requirements
+# Root Garbage & Extra Files
 =1.0
 =1.0.0
 linkedin_cookies.pkl
