@@ -3,15 +3,65 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.llm_client import call_llm
 from app.utils.prompt_service import get_prompt
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import re
-from .extractor import extract_with_llamaparse
+import time
 from app.modules.resume_builder.ai_client import call_ai
+from app.modules.resume_builder.telemetry import log_ai_usage
 import logging
 
-
 logger = logging.getLogger(__name__)
+
+
+async def _call_llm_with_telemetry(
+    *,
+    user_message: str,
+    agent_name: str,
+    db: AsyncSession,
+    operation: str = "suggestion",
+    user_id: Optional[str] = None,
+    request_id: Optional[str] = None,
+) -> str:
+    """Wrapper that records structured telemetry for Ollama LLM calls."""
+    start_time = time.time()
+    input_est_tokens = max(1, len(user_message.split()) * 4 // 3)
+    try:
+        response = await call_llm(
+            user_message=user_message,
+            agent_name=agent_name,
+            db=db,
+        )
+        latency_ms = (time.time() - start_time) * 1000
+        output_est_tokens = max(1, len(response.split()) * 4 // 3) if response else 0
+
+        log_ai_usage(
+            provider="ollama",
+            model="ollama-default",
+            operation=operation,
+            input_tokens=input_est_tokens,
+            output_tokens=output_est_tokens,
+            total_tokens=input_est_tokens + output_est_tokens,
+            latency_ms=latency_ms,
+            status="success",
+            user_id=user_id,
+            request_id=request_id,
+        )
+        return response
+    except Exception as e:
+        latency_ms = (time.time() - start_time) * 1000
+        log_ai_usage(
+            provider="ollama",
+            model="ollama-default",
+            operation=operation,
+            input_tokens=input_est_tokens,
+            latency_ms=latency_ms,
+            status="failed",
+            error_type=type(e).__name__,
+            user_id=user_id,
+            request_id=request_id,
+        )
+        raise
 
 def _strip_leading_symbol(text: str) -> str:
     """Remove leading bullet symbols, dashes, asterisks, dots from a line."""
@@ -72,10 +122,11 @@ Rules:
 12. Do not include markdown, numbering, or explanations.
 """
 
-    response = await call_llm(
+    response = await _call_llm_with_telemetry(
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
+        operation="suggest_experience",
     )
 
     # Standard clean up for variations in 30B model outputs
@@ -184,10 +235,11 @@ Output: Backend Engineering professional with 3+ years of expertise in high-perf
 YOUR TASK:
 Generate the plain-text summary paragraph now based strictly on the CANDIDATE DATA PAYLOAD using the exact structure and text density of the reference patterns above. Do not output anything else. No introduction, no conversational text, no markdown styling."""
 
-    response = await call_llm(
+    response = await _call_llm_with_telemetry(
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
+        operation="suggest_summary",
     )
 
     summary = response.strip()
@@ -274,10 +326,11 @@ Data:
 {formatted_entries}
 """
 
-    response = await call_llm(
+    response = await _call_llm_with_telemetry(
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
+        operation="suggest_education",
     )
 
     bullets = _clean_bullets(response)
@@ -328,10 +381,11 @@ Rules:
 11. Do not return markdown, numbering, or explanations.
 """
 
-    response = await call_llm(
+    response = await _call_llm_with_telemetry(
         user_message=user_prompt,
         agent_name="resume_builder",
         db=db,
+        operation="suggest_project",
     )
 
     raw_lines = response.strip().split("\n")
@@ -431,10 +485,11 @@ async def generate_ats_resume_json(
     )
 
     try:
-        raw_response = await call_llm(
+        raw_response = await _call_llm_with_telemetry(
             user_message=user_prompt,
             agent_name="resume_builder",
             db=db,
+            operation="generate_ats_resume_json",
         )
 
         clean = raw_response.strip()
@@ -516,10 +571,11 @@ REFINEMENT RULES:
 
 OUTPUT: REFINED CONTENT ONLY."""
 
-    response = await call_llm(
+    response = await _call_llm_with_telemetry(
         user_message=prompt,
         agent_name="resume_builder",
         db=db,
+        operation="refine_resume_section",
     )
 
     return {
@@ -855,10 +911,11 @@ async def generate_professional_cv_production(data: Dict[str, Any], db: AsyncSes
         prompt = build_professional_cv_prompt(data, level)
         
         # Call LLM with enhanced prompt
-        response = await call_llm(
+        response = await _call_llm_with_telemetry(
             user_message=prompt,
             agent_name="resume_builder",
             db=db,
+            operation="generate_professional_cv",
         )
         
         if not response or len(response.strip()) < 200:
@@ -902,10 +959,11 @@ async def generate_targeted_cv_production(
         
         prompt = build_targeted_cv_prompt_enhanced(data, job_title, job_description)
         
-        response = await call_llm(
+        response = await _call_llm_with_telemetry(
             user_message=prompt,
             agent_name="resume_builder",
             db=db,
+            operation="generate_targeted_cv",
         )
         
         if not response or len(response.strip()) < 200:
@@ -964,10 +1022,11 @@ async def generate_cv_and_cover_letter_production(
             cv_content
         )
         
-        cover_letter = await call_llm(
+        cover_letter = await _call_llm_with_telemetry(
             user_message=cover_prompt,
             agent_name="resume_builder",
             db=db,
+            operation="generate_cover_letter",
         )
         
         if not cover_letter or len(cover_letter.strip()) < 150:

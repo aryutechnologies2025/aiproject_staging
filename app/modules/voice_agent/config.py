@@ -36,7 +36,7 @@ LLM_PROVIDER          = os.getenv("LLM_PROVIDER", "groq")      # groq | gemini
 GROQ_API_KEY          = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL            = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GEMINI_API_KEY        = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL          = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL          = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 # ── Telephony (Vobiz) ─────────────────────────────────────────────────────────
 VOBIZ_API_KEY         = os.getenv("VOBIZ_API_KEY", "")

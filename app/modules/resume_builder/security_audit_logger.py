@@ -1,17 +1,26 @@
-import logging
-import json
-from datetime import datetime
-from typing import Dict, Any
-import hashlib
+"""
+security_audit_logger.py — Structured Security & Ingestion Audit Event Logger.
 
-logger = logging.getLogger(__name__)
+Provides:
+- Anonymized audit logging for file uploads, rate limit blocks, and suspicious payload attempts.
+- Timezone-aware ISO-8601 UTC timestamps (zero deprecated utcnow calls).
+- SHA-256 pseudonymized identifiers for zero PII leakage.
+"""
+
+import hashlib
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict
+
+logger = logging.getLogger("resume_builder.security_audit")
 
 
 class SecurityAuditLogger:
     """
-    Log security events for monitoring and auditing
+    Emits structured JSON security audit events.
     """
-    
+
     @staticmethod
     def log_file_upload(
         filename: str,
@@ -19,64 +28,63 @@ class SecurityAuditLogger:
         client_ip: str,
         user_id: str,
         status: str,
-        details: str = ""
-    ):
+        details: str = "",
+    ) -> Dict[str, Any]:
         """
-        Log file upload attempt
+        Log file upload attempt with hashed identifiers.
         """
-        
         audit_entry = {
             "event": "file_upload",
-            "timestamp": datetime.utcnow().isoformat(),
-            "filename_hash": hashlib.sha256(filename.encode()).hexdigest()[:8],
-            "file_size": file_size,
-            "client_ip": client_ip,
-            "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest()[:8],
-            "status": status,  # success, failure, blocked
-            "details": details
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "filename_hash": hashlib.sha256(filename.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "file_size_bytes": file_size,
+            "client_ip_hash": hashlib.sha256(client_ip.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "user_id_hash": hashlib.sha256(user_id.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "status": status,
+            "details": details,
         }
-        
-        logger.info(f"AUDIT: {json.dumps(audit_entry)}")
-    
+
+        logger.info(f"AUDIT_UPLOAD: {json.dumps(audit_entry)}")
+        return audit_entry
+
     @staticmethod
     def log_security_violation(
         violation_type: str,
         client_ip: str,
         user_id: str,
-        details: str
-    ):
+        details: str,
+    ) -> Dict[str, Any]:
         """
-        Log security violations
+        Log security violations (rate limits, injection attempts, invalid headers).
         """
-        
         audit_entry = {
             "event": "security_violation",
-            "timestamp": datetime.utcnow().isoformat(),
-            "violation_type": violation_type,  # malware, injection, rate_limit, etc
-            "client_ip": client_ip,
-            "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest()[:8],
-            "details": details
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "violation_type": violation_type,
+            "client_ip_hash": hashlib.sha256(client_ip.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "user_id_hash": hashlib.sha256(user_id.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "details": details,
         }
-        
-        logger.warning(f"SECURITY: {json.dumps(audit_entry)}")
-    
+
+        logger.warning(f"AUDIT_VIOLATION: {json.dumps(audit_entry)}")
+        return audit_entry
+
     @staticmethod
     def log_suspicious_activity(
         activity_type: str,
         client_ip: str,
-        evidence: str
-    ):
+        evidence: str,
+    ) -> Dict[str, Any]:
         """
-        Log suspicious activity
+        Log suspicious payload patterns.
         """
-        
         audit_entry = {
             "event": "suspicious_activity",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "activity_type": activity_type,
-            "client_ip": client_ip,
-            "evidence": evidence
+            "client_ip_hash": hashlib.sha256(client_ip.encode("utf-8", errors="ignore")).hexdigest()[:12],
+            "evidence": evidence,
         }
-        
-        logger.warning(f"SUSPICIOUS: {json.dumps(audit_entry)}")
-        
+
+        logger.warning(f"AUDIT_SUSPICIOUS: {json.dumps(audit_entry)}")
+        return audit_entry

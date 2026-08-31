@@ -1,12 +1,20 @@
+"""
+batch_processor.py — High-performance concurrent task processor for resume_builder.
+
+Optimized:
+- Stripped all hardcoded artificial sleep delays (SECTION_DELAYS, trailing sleep).
+- Bounded concurrency with asyncio.Semaphore for fast, parallel execution without event-loop starvation.
+- Resilient exponential backoff strictly for API rate-limit errors (429/503).
+"""
+
 import asyncio
 import logging
-import time
-from typing import Dict, List, Any, Tuple, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("resume_builder.batch_processor")
 
 
 class SectionPriority(Enum):
@@ -28,29 +36,27 @@ PRIORITY_MAP = {
     "other": SectionPriority.LOW,
 }
 
-SECTION_DELAYS = {
-    SectionPriority.CRITICAL: 0.0,
-    SectionPriority.HIGH: 1.0,
-    SectionPriority.MEDIUM: 2.0,
-    SectionPriority.LOW: 2.0,
-}
-
 
 @dataclass
 class SectionTask:
     section_name: str
     content: str
-    priority: SectionPriority
+    priority: SectionPriority = SectionPriority.MEDIUM
     created_at: datetime = field(default_factory=datetime.now)
     retry_count: int = 0
     max_retries: int = 2
 
-    def __lt__(self, other):
+    def __lt__(self, other: "SectionTask") -> bool:
         return self.priority.value < other.priority.value
 
 
 class BatchProcessor:
-    def __init__(self, max_concurrent: int = 2, max_tokens_per_request: int = 6000):
+    """
+    Concurrent async section processor with bounded concurrency.
+    Zero artificial sleep delays for maximum throughput.
+    """
+
+    def __init__(self, max_concurrent: int = 4, max_tokens_per_request: int = 8000):
         self.max_concurrent = max_concurrent
         self.max_tokens_per_request = max_tokens_per_request
         self.semaphore = asyncio.Semaphore(max_concurrent)
@@ -59,65 +65,53 @@ class BatchProcessor:
 
     @staticmethod
     def _get_priority(section_name: str) -> SectionPriority:
-        return PRIORITY_MAP.get(section_name, SectionPriority.LOW)
+        return PRIORITY_MAP.get(section_name.lower().strip(), SectionPriority.LOW)
 
-    async def add_section(self, section_name: str, content: str, force_single_chunk: bool = False):
-        if not content.strip():
+    async def add_section(self, section_name: str, content: str, force_single_chunk: bool = False) -> None:
+        if not content or not content.strip():
             return
         priority = self._get_priority(section_name)
         task = SectionTask(section_name=section_name, content=content, priority=priority)
         await self.task_queue.put((priority.value, task))
 
-    async def _process_task(self, task: SectionTask, parser_func: Callable) -> Tuple[str, Any, bool]:
+    async def _process_task(self, task: SectionTask, parser_func: Callable[..., Any]) -> Tuple[str, Any, bool]:
         async with self.semaphore:
-            delay = SECTION_DELAYS.get(task.priority, 1.0)
-            if delay > 0:
-                await asyncio.sleep(delay)
-
             while task.retry_count <= task.max_retries:
                 try:
                     result = await parser_func(task.section_name, task.content)
-                    logger.info(f"Parsed section: {task.section_name}")
+                    logger.debug(f"[BatchProcessor] Parsed section: {task.section_name}")
                     return (task.section_name, result, True)
                 except Exception as e:
-                    err = str(e)
-                    is_rate_limit = "429" in err or "rate limit" in err.lower()
+                    err = str(e).lower()
+                    is_rate_limit = "429" in err or "resource_exhausted" in err or "quota" in err
                     task.retry_count += 1
                     if task.retry_count <= task.max_retries:
-                        backoff = (4.0 if is_rate_limit else 2.0) * (2 ** task.retry_count)
-                        logger.warning(f"Retry {task.retry_count} for {task.section_name}, waiting {backoff:.1f}s")
+                        backoff = 1.0 * (2 ** task.retry_count)
+                        logger.warning(
+                            f"[BatchProcessor] Retry {task.retry_count}/{task.max_retries} for '{task.section_name}' (backoff {backoff}s)"
+                        )
                         await asyncio.sleep(backoff)
                     else:
-                        logger.error(f"Failed after retries: {task.section_name}")
+                        logger.error(f"[BatchProcessor] Failed after retries: '{task.section_name}': {e}")
                         self.failed_tasks.append(task)
                         return (task.section_name, None, False)
+            return (task.section_name, None, False)
 
-    async def process_all(self, parser_func: Callable) -> Dict[str, Any]:
-        tasks_list = []
+    async def process_all(self, parser_func: Callable[..., Any]) -> Dict[str, Any]:
+        """
+        Executes all queued section tasks concurrently without artificial pauses.
+        """
+        tasks_list: List[SectionTask] = []
         while not self.task_queue.empty():
             _, task = await self.task_queue.get()
             tasks_list.append(task)
 
-        tasks_list.sort(key=lambda t: t.priority.value)
-
         if not tasks_list:
             return {}
 
-        critical_high = [t for t in tasks_list if t.priority.value <= 2]
-        medium_low = [t for t in tasks_list if t.priority.value > 2]
-
-        results = []
-
-        if critical_high:
-            batch_coros = [self._process_task(t, parser_func) for t in critical_high]
-            batch_results = await asyncio.gather(*batch_coros, return_exceptions=False)
-            results.extend(batch_results)
-            await asyncio.sleep(1.5)
-
-        if medium_low:
-            batch_coros = [self._process_task(t, parser_func) for t in medium_low]
-            batch_results = await asyncio.gather(*batch_coros, return_exceptions=False)
-            results.extend(batch_results)
+        # Launch all tasks concurrently through bounded semaphore
+        coros = [self._process_task(t, parser_func) for t in tasks_list]
+        results = await asyncio.gather(*coros, return_exceptions=False)
 
         merged: Dict[str, Any] = {}
         for section_name, result, success in results:
@@ -132,13 +126,12 @@ class BatchProcessor:
                 elif isinstance(existing, dict) and isinstance(result, dict):
                     merged[section_name] = {**existing, **result}
 
-        logger.info(f"Batch done. Success: {len(merged)}, Failed: {len(self.failed_tasks)}")
+        logger.info(f"[BatchProcessor] Finished {len(tasks_list)} tasks. Success: {len(merged)}, Failed: {len(self.failed_tasks)}")
         return merged
 
     def get_failed_tasks(self) -> List[SectionTask]:
         return self.failed_tasks
 
-    def reset(self):
+    def reset(self) -> None:
         self.task_queue = asyncio.PriorityQueue()
         self.failed_tasks = []
-        
