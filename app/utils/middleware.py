@@ -1,9 +1,7 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import Request, HTTPException
 from fastapi.responses import Response
 from app.utils.crypto_utils import encrypt_json, decrypt_json
 import json
-
-app = FastAPI()
 
 async def encrypt_response_middleware(request: Request, call_next):
     response = await call_next(request)

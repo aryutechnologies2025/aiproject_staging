@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends
 from app.utils.llm_client import call_llm
 from app.utils.language_detect import detect_language
 from app.api.v1.prompt import router as prompt_router
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
@@ -13,7 +12,8 @@ router = APIRouter()
 
 router.include_router(prompt_router)
 
-async def route_message(message: str, user_id: str):
+
+async def route_message(message: str, user_id: str = None, db: AsyncSession = None) -> str:
     msg_lower = message.lower()
     lang = detect_language(message)
 
@@ -29,12 +29,27 @@ async def route_message(message: str, user_id: str):
 
     # 2. Document request → always Qwen
     if re.search(r"(pdf|notes|document|material|file|assignment|syllabus)", msg_lower):
-        return await call_llm("qwen", message, user_id)
+        return await call_llm(
+            user_message=message,
+            agent_name="whatsapp_bot",
+            db=db,
+            model="qwen",
+        )
 
     # 3. Long or multilingual → Qwen
     if len(message.split()) > 30 or lang != "en":
-        return await call_llm("qwen", message, user_id)
+        return await call_llm(
+            user_message=message,
+            agent_name="whatsapp_bot",
+            db=db,
+            model="qwen",
+        )
 
     # 4. General conversation → Llama
-    return await call_llm("llama", message, user_id)
+    return await call_llm(
+        user_message=message,
+        agent_name="whatsapp_bot",
+        db=db,
+        model="llama",
+    )
 

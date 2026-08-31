@@ -1,174 +1,116 @@
+"""
+input_sanitizer.py — Deep Input Sanitizer and Prompt Injection Defense for resume_builder.
+
+Handles:
+- Recursive sanitization of structured dictionaries and lists.
+- Neutralization of prompt injection attempts (e.g. system overrides, jailbreaks).
+- Preservation of legitimate programming syntax (C++, C#, .NET, Node.js, A/B testing, SQL).
+- XSS and HTML tag removal.
+"""
+
+import html
 import logging
 import re
-from typing import Dict, Any, List
-import html
-import json
+from typing import Any, Dict, List, Union
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("resume_builder.input_sanitizer")
+
+PROMPT_INJECTION_PATTERNS = [
+    r"(?i)\bignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions\b",
+    r"(?i)\bsystem\s+prompt\s+override\b",
+    r"(?i)\byou\s+are\s+now\s+(?:an?\s+)?unrestricted\b",
+    r"(?i)\bjailbreak\b",
+    r"(?i)\bdisregard\s+(?:all\s+)?prior\s+commands\b",
+    r"(?i)\boutput\s+the\s+secret\s+key\b",
+    r"(?i)\bshow\s+your\s+system\s+prompt\b",
+]
 
 
 class InputSanitizer:
     """
-    Sanitize all input data to prevent injection attacks
+    Sanitizes all incoming user payloads before document parsing, prompt construction, and AI calls.
     """
-    
-    @staticmethod
-    def sanitize_resume_data(data: Dict[str, Any]) -> Dict[str, Any]:
+
+    @classmethod
+    def sanitize_resume_data(cls, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Deep sanitize all resume data
+        Recursively sanitizes all nested resume dictionaries and lists.
         """
-        
         if not isinstance(data, dict):
             return {}
-        
-        sanitized = {}
-        
+
+        sanitized: Dict[str, Any] = {}
+
         for key, value in data.items():
-            # Sanitize key
-            safe_key = InputSanitizer._sanitize_string(key)
-            
-            # Sanitize value based on type
+            safe_key = cls._sanitize_string(str(key))
+
             if isinstance(value, str):
-                sanitized[safe_key] = InputSanitizer._sanitize_string(value)
-            
+                sanitized[safe_key] = cls._sanitize_string(value)
             elif isinstance(value, dict):
-                sanitized[safe_key] = InputSanitizer.sanitize_resume_data(value)
-            
+                sanitized[safe_key] = cls.sanitize_resume_data(value)
             elif isinstance(value, list):
-                sanitized[safe_key] = [
-                    InputSanitizer._sanitize_value(item) for item in value
-                ]
-            
-            elif isinstance(value, bool):
+                sanitized[safe_key] = [cls._sanitize_value(item) for item in value]
+            elif isinstance(value, (bool, int, float)) or value is None:
                 sanitized[safe_key] = value
-            
-            elif isinstance(value, (int, float)):
-                sanitized[safe_key] = value
-            
             else:
-                # Unknown type - skip it
-                logger.warning(f"Skipping unknown type for key {safe_key}: {type(value)}")
-        
+                sanitized[safe_key] = cls._sanitize_string(str(value))
+
         return sanitized
-    
-    @staticmethod
-    def _sanitize_string(text: str, max_length: int = 5000) -> str:
+
+    @classmethod
+    def sanitize_prompt_text(cls, text: str, max_length: int = 15000) -> str:
         """
-        Sanitize string input
+        Sanitizes text intended to be embedded in LLM prompts, neutralizing injection attacks.
         """
-        
         if not isinstance(text, str):
             return ""
-        
-        # Limit length
+
+        clean = text[:max_length]
+        clean = clean.replace('\0', '')
+
+        # Neutralize prompt injection phrases
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            clean = re.sub(pattern, "[BLOCKED_INJECTION_ATTEMPT]", clean)
+
+        # Remove script and style tags
+        clean = re.sub(r'<script[^>]*>.*?</script>', '', clean, flags=re.IGNORECASE | re.DOTALL)
+        clean = re.sub(r'<style[^>]*>.*?</style>', '', clean, flags=re.IGNORECASE | re.DOTALL)
+
+        # Remove generic HTML tags
+        clean = re.sub(r'<[^>]+>', '', clean)
+
+        # Normalize multiple spaces and trailing spaces per line
+        lines = [line.strip() for line in clean.split("\n")]
+        return "\n".join(lines).strip()
+
+    @classmethod
+    def _sanitize_string(cls, text: str, max_length: int = 5000) -> str:
+        if not isinstance(text, str):
+            return ""
+
         text = text[:max_length]
-        
-        # Remove null bytes
         text = text.replace('\0', '')
-        
-        # Decode HTML entities
         text = html.unescape(text)
-        
-        # Remove script tags
+
+        # Strip scripts and event handlers
         text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
-        
-        # Remove HTML tags (but keep text)
         text = re.sub(r'<[^>]+>', '', text)
-        
-        # Remove event handlers
         text = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'\s*on\w+\s*=\s*[^\s>]*', '', text, flags=re.IGNORECASE)
-        
-        # Remove JavaScript protocol
         text = re.sub(r'javascript:\s*', '', text, flags=re.IGNORECASE)
-        
-        # Remove data: protocol (can be used for XSS)
         text = re.sub(r'data:[^,]*,', '', text, flags=re.IGNORECASE)
-        
-        # Normalize whitespace
-        text = ' '.join(text.split())
-        
-        return text.strip()
-    
-    @staticmethod
-    def _sanitize_value(value: Any) -> Any:
-        """
-        Sanitize individual value
-        """
-        
+
+        # Neutralize prompt injection
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            text = re.sub(pattern, "[SANITIZED]", text)
+
+        return ' '.join(text.split()).strip()
+
+    @classmethod
+    def _sanitize_value(cls, value: Any) -> Any:
         if isinstance(value, str):
-            return InputSanitizer._sanitize_string(value)
-        
+            return cls._sanitize_string(value)
         elif isinstance(value, dict):
-            return InputSanitizer.sanitize_resume_data(value)
-        
+            return cls.sanitize_resume_data(value)
         elif isinstance(value, list):
-            return [InputSanitizer._sanitize_value(item) for item in value]
-        
-        elif isinstance(value, (bool, int, float)):
-            return value
-        
-        else:
-            return None
-    
-    @staticmethod
-    def validate_email(email: str) -> bool:
-        """
-        Validate email format
-        """
-        
-        if not isinstance(email, str):
-            return False
-        
-        # RFC 5322 simplified pattern
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        
-        if not re.match(pattern, email):
-            return False
-        
-        # Check length
-        if len(email) > 254:
-            return False
-        
-        return True
-    
-    @staticmethod
-    def validate_phone(phone: str) -> bool:
-        """
-        Validate phone number format
-        """
-        
-        if not isinstance(phone, str):
-            return False
-        
-        # Remove common formatting characters
-        cleaned = re.sub(r'[\s\-\(\)\+\.]', '', phone)
-        
-        # Should be 7-15 digits
-        if not re.match(r'^\d{7,15}$', cleaned):
-            return False
-        
-        return True
-    
-    @staticmethod
-    def validate_url(url: str) -> bool:
-        """
-        Validate URL format
-        """
-        
-        if not isinstance(url, str):
-            return False
-        
-        # Simple URL validation
-        pattern = r'^https?://[^\s/$.?#].[^\s]*$'
-        
-        if not re.match(pattern, url, re.IGNORECASE):
-            return False
-        
-        # Check length
-        if len(url) > 2048:
-            return False
-        
-        return True
-    
-    
+            return [cls._sanitize_value(i) for i in value]
+        return value

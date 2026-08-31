@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = "sivaarun10/aryu_api:latest"
+        IMAGE_NAME = "aryu_api:staging"
     }
 
     stages {
@@ -17,18 +17,18 @@ pipeline {
                 sh '''
                 cd /mnt/storage/projects/ai-fastapi/aiproject_staging
 
+                # Pull latest changes from git
                 git pull origin main
 
-                # Pull latest image from Docker Hub
-                docker pull $IMAGE
+                # Build Docker image locally with BuildKit enabled
+                DOCKER_BUILDKIT=1 docker build -t $IMAGE_NAME .
 
-                # Restart container
-                docker-compose down
-                docker-compose up -d
+                # Recreate and restart container
+                docker compose down
+                docker compose up -d --build
 
-                # Cleanup
-                docker image prune -af
-                docker builder prune -af
+                # Clean dangling unused images
+                docker image prune -f
                 '''
             }
         }

@@ -12,6 +12,7 @@ from ...modules.hrms_services.hrms_service import (
     describe_task_from_title,
     generate_project_requirements_from_text,
 )
+from sqlalchemy import text
 from app.core.database import get_db
 
 router = APIRouter(prefix="/api/ai/hrms", tags=["HRMS AI"])
@@ -95,9 +96,9 @@ async def employee_response(
 @router.get("/admin/alert-responses")
 async def admin_responses(db: AsyncSession = Depends(get_db)):
     rows = await db.execute(
-        "SELECT employee_name, response, received_at FROM alert_responses ORDER BY received_at DESC"
+        text("SELECT employee_name, response, received_at FROM alert_responses ORDER BY received_at DESC")
     )
-    return rows.fetchall()
+    return [dict(r._mapping) for r in rows.all()]
 
 @router.post("/task")
 async def ai_create_task(payload: dict, db: AsyncSession = Depends(get_db)):
