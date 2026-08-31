@@ -20,7 +20,7 @@ from app.modules.voice_agent import database as db
 from app.core.database import Base, engine
 from app.api.v1 import (
     youtube, admin, health,
-    prompt, suggestion_api, hrms, yura_chat_api,
+    prompt, suggestion_api, yura_chat_api,
 )
 from app.modules.whatsapp_bot.router import router as whatsapp_router
 
@@ -183,7 +183,6 @@ app.include_router(prompt.router,         prefix="/api/v1/prompts",   tags=["Pro
 app.include_router(resume_builder.router, prefix="/api/v1/resume",    tags=["Resume Builder"])
 app.include_router(voice_agent_router,    prefix="/api/v1/voice",     tags=["Voice Agent"])
 app.include_router(suggestion_api.router, prefix="/api/v1/suggest",   tags=["Suggestions AI"])
-app.include_router(hrms.router)
 app.include_router(yura_chat_api.router)
 app.include_router(ats_routes.router,     prefix="/api/v1/ats",       tags=["ATS"])
 
