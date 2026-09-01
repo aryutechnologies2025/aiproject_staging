@@ -31,11 +31,6 @@ COPY --from=builder /install /usr/local
 
 # Copy code
 COPY app ./app
-COPY adapters ./adapters
-COPY inference ./inference
-COPY training ./training
-COPY dataset ./dataset
-COPY hrms_ai ./hrms_ai
 COPY alembic ./alembic
 COPY alembic.ini .
 
