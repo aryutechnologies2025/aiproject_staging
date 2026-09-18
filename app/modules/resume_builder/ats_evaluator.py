@@ -255,7 +255,7 @@ async def evaluate_ats_semantically(
             "target_job_description": job_description or "General Software / Technical Professional",
         }
 
-        raw_json = await client.generate(
+        gen_result = await client.generate(
             prompt=f"Evaluate this resume payload against the role:\n\n{json.dumps(resume_summary_payload)}",
             system_instruction=SEMANTIC_ATS_PROMPT,
             response_schema=SemanticATSBreakdown,
@@ -264,6 +264,7 @@ async def evaluate_ats_semantically(
             request_id=request_id,
         )
 
+        raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
         breakdown = SemanticATSBreakdown.model_validate_json(raw_json)
         breakdown.semantic_score = round(min(20.0, breakdown.role_fit_score + breakdown.narrative_quality_score), 1)
         return breakdown

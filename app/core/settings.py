@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # CORE APP SETTINGS
     # =========================
     ENV: str = "production"
+    INTERNAL_SERVICE_SECRET: Optional[str] = None
 
     # =========================
     # DATABASE

@@ -81,6 +81,7 @@ class ImprovedUniversalResumeParser:
         filename: str = "resume.pdf",
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        operation: str = "resume_parsing_document",
     ) -> Dict[str, Any]:
         """
         Parse raw resume document bytes directly using Gemini document understanding,
@@ -94,17 +95,18 @@ class ImprovedUniversalResumeParser:
                     "Ensure all jobs, dates, skills, and contact details are accurately extracted."
                 )
 
-                raw_json = await client.generate(
+                gen_result = await client.generate(
                     prompt=prompt,
                     system_instruction=EXTRACTION_SYSTEM_PROMPT,
                     response_schema=CanonicalResume,
                     document_bytes=file_bytes,
                     document_mime_type=content_type,
-                    operation="resume_parsing_document",
+                    operation=operation,
                     user_id=user_id,
                     request_id=request_id,
                 )
 
+                raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
@@ -114,6 +116,7 @@ class ImprovedUniversalResumeParser:
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
+                    "usage": gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None,
                 }
 
         except Exception as e:
@@ -139,6 +142,7 @@ class ImprovedUniversalResumeParser:
                 "parsed": legacy_dict,
                 "canonical": canonical.model_dump(),
                 "source": "deterministic_fallback",
+                "usage": None,
             }
         except Exception as fallback_err:
             logger.error(f"[AIParser] Fallback parsing also failed: {fallback_err}", exc_info=True)
@@ -149,6 +153,7 @@ class ImprovedUniversalResumeParser:
         text_content: str,
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        operation: str = "resume_parse",
     ) -> Dict[str, Any]:
         """
         Parse extracted text content using Gemini structured output with deterministic fallback.
@@ -165,15 +170,16 @@ class ImprovedUniversalResumeParser:
                     f"{text_content}"
                 )
 
-                raw_json = await client.generate(
+                gen_result = await client.generate(
                     prompt=prompt,
                     system_instruction=EXTRACTION_SYSTEM_PROMPT,
                     response_schema=CanonicalResume,
-                    operation="resume_parsing_text",
+                    operation=operation,
                     user_id=user_id,
                     request_id=request_id,
                 )
 
+                raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
@@ -182,6 +188,7 @@ class ImprovedUniversalResumeParser:
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
+                    "usage": gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None,
                 }
 
         except Exception as e:
@@ -196,13 +203,19 @@ class ImprovedUniversalResumeParser:
                 "parsed": legacy_dict,
                 "canonical": canonical.model_dump(),
                 "source": "deterministic_fallback",
+                "usage": None,
             }
         except Exception as fallback_err:
             logger.error(f"[AIParser] Fallback parsing failed: {fallback_err}")
             return ImprovedUniversalResumeParser._empty_result()
 
     @staticmethod
-    async def parse(extractor_output: Any) -> Dict[str, Any]:
+    async def parse(
+        extractor_output: Any,
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        operation: str = "resume_parse",
+    ) -> Dict[str, Any]:
         """
         Backward-compatible parse method supporting raw_items lists, text keys, or raw strings.
         """
@@ -225,12 +238,17 @@ class ImprovedUniversalResumeParser:
             elif "content" in extractor_output:
                 text_content = str(extractor_output["content"])
             elif "parsed" in extractor_output and isinstance(extractor_output["parsed"], dict):
-                return {"success": True, "parsed": extractor_output["parsed"], "source": "pre_parsed"}
+                return {"success": True, "parsed": extractor_output["parsed"], "source": "pre_parsed", "usage": None}
 
         if not text_content or len(text_content.strip()) < 10:
             return ImprovedUniversalResumeParser._empty_result()
 
-        result = await ImprovedUniversalResumeParser.parse_text(text_content)
+        result = await ImprovedUniversalResumeParser.parse_text(
+            text_content,
+            user_id=user_id,
+            request_id=request_id,
+            operation=operation,
+        )
 
         # Regex-based contact safety net to ensure zero contact data is missed
         if raw_items:
@@ -261,4 +279,6 @@ class ImprovedUniversalResumeParser:
             },
             "token_report": {},
             "failed_sections": [],
+            "usage": None,
         }
+

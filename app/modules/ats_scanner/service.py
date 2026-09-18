@@ -1245,6 +1245,9 @@ class ATSScannerService:
         job_description: Optional[str] = None,
         db:              Optional[AsyncSession] = None,
         include_ai:      bool = True,
+        user_id:         Optional[str] = None,
+        request_id:      Optional[str] = None,
+        operation:       str = "ats_scan",
     ) -> Dict:
         logger.info("=== ATS Scan v6.2 Starting ===")
 
@@ -1286,18 +1289,21 @@ class ATSScannerService:
 
         # ── 3. AI analysis (via Resume Builder's shared AI client) ────────────
         ai_insights: Dict = {}
-        if include_ai and db:
+        if include_ai:
             logger.info("[Stage 3] AI analysis")
             try:
                 ai_insights = await self._run_ai_analysis(
                     nr, resume, job_description,
                     rules_score.total_score,
                     keyword_analysis, db, candidate_type,
+                    user_id=user_id,
+                    request_id=request_id,
+                    operation=operation,
                 )
                 logger.info(f"  AI success={ai_insights.get('success')}")
             except Exception as e:
                 logger.warning(f"  AI failed (graceful fallback): {e}")
-                ai_insights = {"success": False, "error": str(e)}
+                ai_insights = {"success": False, "error": str(e), "usage": None}
 
         # ── 3.5. Dynamic multi-dimensional scoring ────────────────────────────
         logger.info("[Stage 3.5] Dynamic multi-dimensional scoring")
@@ -1366,6 +1372,9 @@ class ATSScannerService:
         keyword_analysis: Optional[KeywordAnalysis],
         db,
         candidate_type:  str,
+        user_id:         Optional[str] = None,
+        request_id:      Optional[str] = None,
+        operation:       str = "ats_scan",
     ) -> Dict:
         """
         Runs AI analysis through the Resume Builder's shared AI client
@@ -1435,7 +1444,7 @@ class ATSScannerService:
         }, sort_keys=True, default=str)
         resume_cache_key = hashlib.sha256(fingerprint_src.encode("utf-8")).hexdigest()
 
-        raw = await call_ai(
+        gen_result = await call_ai(
             prompt=prompt,
             system_prompt=(
                 "You are a senior ATS resume expert. Respond ONLY with valid JSON "
@@ -1443,8 +1452,18 @@ class ATSScannerService:
             ),
             max_output_tokens=2048,
             cache_key=resume_cache_key,
+            user_id=user_id,
+            request_id=request_id,
+            operation=operation,
         )
-        return self._parse_ai_response(raw)
+
+        raw = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
+        usage = gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None
+
+        parsed = self._parse_ai_response(raw)
+        if parsed and isinstance(parsed, dict):
+            parsed["usage"] = usage
+        return parsed
 
     def _parse_ai_response(self, raw: str) -> Dict:
         if not raw or not raw.strip():
@@ -1615,6 +1634,7 @@ class ATSScannerService:
                 "key_findings":            self._key_findings(final_score, rules_score.critical_issues_count),
                 "next_steps":              self._next_steps(final_score, rules_score.critical_issues_count),
             },
+            "usage": ai_insights.get("usage") if ai_insights else None,
         }
 
     def _format_issues(self, issues) -> Dict[str, List[Dict]]:

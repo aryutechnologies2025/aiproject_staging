@@ -14,7 +14,12 @@ from typing import Any, Dict, Optional, Type, Union
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from app.modules.resume_builder.gemini_client import get_gemini_client, GeminiServiceError
+from app.modules.resume_builder.gemini_client import (
+    get_gemini_client,
+    GeminiServiceError,
+    UsageMetadata,
+    GenerationResult,
+)
 from app.modules.resume_builder.telemetry import log_ai_usage
 
 load_dotenv()
@@ -70,7 +75,7 @@ class ImprovedAIClientManager:
         document_bytes: Optional[bytes] = None,
         document_mime_type: Optional[str] = None,
         **kwargs,
-    ) -> str:
+    ) -> GenerationResult:
         cache_key = None
         if USE_AI_CACHE and isinstance(prompt, str) and not document_bytes:
             cache_key = _make_cache_key(prompt, system_prompt, kwargs.get("cache_key"))
@@ -79,11 +84,24 @@ class ImprovedAIClientManager:
                 _cache_stats["hits"] += 1
                 self.call_count["cache"] += 1
                 logger.info("[AI cache] hit — serving cached response")
-                return cached
+                return GenerationResult(
+                    text=cached,
+                    usage=UsageMetadata(
+                        provider="cache",
+                        model="cache",
+                        input_tokens=0,
+                        output_tokens=0,
+                        total_tokens=0,
+                        cached_tokens=0,
+                        latency_ms=0.0,
+                        request_id=request_id,
+                        operation=operation,
+                    ),
+                )
             _cache_stats["misses"] += 1
 
         try:
-            result = await self.gemini.generate(
+            result: GenerationResult = await self.gemini.generate(
                 prompt=prompt,
                 system_instruction=system_prompt if system_prompt else None,
                 max_output_tokens=max_output_tokens,
@@ -96,8 +114,8 @@ class ImprovedAIClientManager:
             )
             self.call_count["gemini"] += 1
 
-            if USE_AI_CACHE and cache_key and result:
-                _AI_RESPONSE_CACHE[cache_key] = result
+            if USE_AI_CACHE and cache_key and result.text:
+                _AI_RESPONSE_CACHE[cache_key] = result.text
 
             return result
 
@@ -139,7 +157,7 @@ async def call_ai(
     document_bytes: Optional[bytes] = None,
     document_mime_type: Optional[str] = None,
     **kwargs,
-) -> str:
+) -> GenerationResult:
     """
     Universal call_ai entry point for all resume_builder and ATS modules.
     Exclusively powered by Google Gemini.

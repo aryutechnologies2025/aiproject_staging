@@ -30,6 +30,8 @@ async def parse_resume_with_ai(
     content_type: Optional[str] = None,
     request: Optional[Request] = None,
     user_id: Optional[str] = None,
+    request_id: Optional[str] = None,
+    operation: str = "resume_parse",
 ) -> Dict[str, Any]:
     """
     Main entry point for parsing resumes with Gemini and Deterministic AST fallback.
@@ -39,10 +41,12 @@ async def parse_resume_with_ai(
     try:
         client_ip = "unknown"
         resolved_user_id = user_id or "anonymous"
+        resolved_request_id = request_id
         safe_filename = filename or "resume.pdf"
 
         if request:
             resolved_user_id = request.headers.get("X-User-ID", resolved_user_id)
+            resolved_request_id = resolved_request_id or request.headers.get("X-Request-ID")
             client_ip = RequestValidator.get_client_ip(request)
 
             # Validate request
@@ -97,6 +101,8 @@ async def parse_resume_with_ai(
                     content_type="application/pdf",
                     filename=safe_filename,
                     user_id=resolved_user_id,
+                    request_id=resolved_request_id,
+                    operation=operation,
                 )
             elif fn_lower.endswith((".docx", ".doc")):
                 try:
@@ -116,6 +122,8 @@ async def parse_resume_with_ai(
                 result = await ImprovedUniversalResumeParser.parse_text(
                     text_content=extracted_text,
                     user_id=resolved_user_id,
+                    request_id=resolved_request_id,
+                    operation=operation,
                 )
             else:
                 # Plain text / other supported text formats
@@ -123,11 +131,18 @@ async def parse_resume_with_ai(
                 result = await ImprovedUniversalResumeParser.parse_text(
                     text_content=raw_text,
                     user_id=resolved_user_id,
+                    request_id=resolved_request_id,
+                    operation=operation,
                 )
 
         # ── Execution Path 2: Extractor Output / Text Payload ──
         elif extractor_output is not None:
-            result = await ImprovedUniversalResumeParser.parse(extractor_output)
+            result = await ImprovedUniversalResumeParser.parse(
+                extractor_output,
+                user_id=resolved_user_id,
+                request_id=resolved_request_id,
+                operation=operation,
+            )
         else:
             raise HTTPException(status_code=400, detail="No resume content or file bytes provided for parsing")
 
@@ -137,6 +152,7 @@ async def parse_resume_with_ai(
                 "success": False,
                 "message": "Failed to parse resume",
                 "parsed": None,
+                "usage": None,
             }
 
         parsed_data = result.get("parsed", {})
@@ -160,6 +176,7 @@ async def parse_resume_with_ai(
             "success": True,
             "message": "Resume parsed successfully",
             "parsed": sanitized_result,
+            "usage": result.get("usage"),
         }
 
     except HTTPException:
@@ -170,4 +187,5 @@ async def parse_resume_with_ai(
             "success": False,
             "message": f"Resume parsing failed: {str(e)}",
             "parsed": None,
+            "usage": None,
         }

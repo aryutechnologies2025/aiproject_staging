@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import time
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type, Union
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -31,6 +32,40 @@ DEFAULT_ATS_MODEL = os.getenv("GEMINI_ATS_MODEL", "gemini-3.1-flash-lite")
 
 MAX_RETRIES = 3
 INITIAL_BACKOFF_SEC = 2.0
+
+
+@dataclass
+class UsageMetadata:
+    """Standardized representation of AI provider token usage and performance metadata."""
+    provider: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    cached_tokens: int = 0
+    latency_ms: float = 0.0
+    request_id: Optional[str] = None
+    operation: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "input_tokens": int(self.input_tokens),
+            "output_tokens": int(self.output_tokens),
+            "total_tokens": int(self.total_tokens),
+            "cached_tokens": int(self.cached_tokens),
+            "latency_ms": round(float(self.latency_ms), 2),
+            "operation": self.operation,
+            "request_id": self.request_id,
+        }
+
+
+@dataclass
+class GenerationResult:
+    """Composite result containing generated text and provider-reported usage metadata."""
+    text: str
+    usage: UsageMetadata
 
 
 class GeminiServiceError(Exception):
@@ -78,9 +113,9 @@ class GeminiClient:
         request_id: Optional[str] = None,
         document_bytes: Optional[bytes] = None,
         document_mime_type: Optional[str] = None,
-    ) -> str:
+    ) -> GenerationResult:
         """
-        Execute an asynchronous generation request against Gemini with telemetry and retries.
+        Execute an asynchronous generation request against Gemini with telemetry, usage tracking, and retries.
         """
         if not self.is_configured:
             error_msg = "Gemini API key is not configured."
@@ -138,7 +173,7 @@ class GeminiClient:
 
                 latency_ms = (time.time() - start_time) * 1000
 
-                # Extract usage metadata
+                # Extract actual provider-reported usage metadata
                 input_tokens = 0
                 output_tokens = 0
                 total_tokens = 0
@@ -149,6 +184,18 @@ class GeminiClient:
                     output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
                     total_tokens = getattr(response.usage_metadata, "total_token_count", 0) or 0
                     cached_tokens = getattr(response.usage_metadata, "cached_content_token_count", 0) or 0
+
+                usage = UsageMetadata(
+                    provider="gemini",
+                    model=target_model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=total_tokens,
+                    cached_tokens=cached_tokens,
+                    latency_ms=latency_ms,
+                    request_id=request_id,
+                    operation=operation,
+                )
 
                 # Telemetry logging (NO DB, NO PII)
                 log_ai_usage(
@@ -166,7 +213,10 @@ class GeminiClient:
                     request_id=request_id,
                 )
 
-                return response.text or ""
+                return GenerationResult(
+                    text=response.text or "",
+                    usage=usage,
+                )
 
             except Exception as e:
                 err_str = str(e).lower()

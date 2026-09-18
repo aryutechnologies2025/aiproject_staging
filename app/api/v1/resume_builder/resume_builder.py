@@ -5,7 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from app.modules.resume_builder.extractor import extract_with_llamaparse
-from app.core.security import validate_file_security
+from app.core.security import validate_file_security, RequestContext, get_trusted_request_context
 from app.modules.resume_builder.parser_service import parse_resume_with_ai
 from fastapi.responses import JSONResponse
 import logging
@@ -243,9 +243,8 @@ async def refine_resume(
 
 @router.post("/parse-resume")
 async def parse_resume(
-    # By wrapping your file input with Depends(), the security check 
-    # executes instantly before any extraction processing begins.
-    file: UploadFile = Depends(validate_file_security)
+    file: UploadFile = Depends(validate_file_security),
+    request_ctx: RequestContext = Depends(get_trusted_request_context),
 ):
     try:
         # STEP 1: Read file
@@ -259,12 +258,17 @@ async def parse_resume(
             filename=file.filename,
             content_type=file.content_type or "application/pdf",
         )
-        print(f"Extractor output: {extractor_output}")
         if not extractor_output or not extractor_output.get("raw_items"):
             raise HTTPException(status_code=400, detail="Extraction failed")
 
-        # STEP 3: AI Parsing (NEW SERVICE)
-        ai_result = await parse_resume_with_ai(extractor_output)
+        # STEP 3: AI Parsing (Propagating request context)
+        operation = request_ctx.operation or "resume_parse"
+        ai_result = await parse_resume_with_ai(
+            extractor_output=extractor_output,
+            user_id=request_ctx.user_id,
+            request_id=request_ctx.request_id,
+            operation=operation,
+        )
 
         if not ai_result.get("success"):
             raise HTTPException(status_code=500, detail=ai_result.get("message"))
@@ -272,7 +276,8 @@ async def parse_resume(
         return {
             "success": True,
             "file_name": file.filename,
-            "parsed": ai_result.get("parsed")
+            "parsed": ai_result.get("parsed"),
+            "usage": ai_result.get("usage"),
         }
 
     except HTTPException:

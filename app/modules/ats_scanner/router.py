@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import validate_file_security
+from app.core.security import validate_file_security, RequestContext, get_trusted_request_context
 from app.core.database import get_db
 from app.modules.ats_scanner.service import ATSScannerService, create_ats_scan
 from app.modules.ats_scanner.utils.ats_extractor import extract_resume_markdown
@@ -103,8 +103,9 @@ def _normalise_resume_dict(data: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.post("/scan")
 async def ats_scan(
-    payload: ATSScanRequest,
-    db:      AsyncSession = Depends(get_db),
+    payload:     ATSScanRequest,
+    db:          AsyncSession   = Depends(get_db),
+    request_ctx: RequestContext = Depends(get_trusted_request_context),
 ):
     """Full AI-powered ATS scan — accepts pre-parsed JSON resume."""
     logger.info(
@@ -117,6 +118,9 @@ async def ats_scan(
             job_description=payload.job_description or None,
             db=db,
             include_ai=bool(payload.include_ai),
+            user_id=request_ctx.user_id,
+            request_id=request_ctx.request_id,
+            operation=request_ctx.operation or "ats_scan",
         )
         return result
     except HTTPException:
@@ -133,9 +137,10 @@ async def ats_scan(
 @router.post("/scan-file")
 async def ats_scan_from_file(
     file:            UploadFile     = Depends(validate_file_security),
-    job_description: Optional[str] = Form(default=None),
+    job_description: Optional[str]  = Form(default=None),
     include_ai:      bool           = Form(default=True),
     db:              AsyncSession   = Depends(get_db),
+    request_ctx:     RequestContext = Depends(get_trusted_request_context),
 ):
     """
     Upload PDF or DOCX →
@@ -210,6 +215,9 @@ async def ats_scan_from_file(
             job_description=job_description or None,
             db=db,
             include_ai=include_ai,
+            user_id=request_ctx.user_id,
+            request_id=request_ctx.request_id,
+            operation=request_ctx.operation or "ats_scan",
         )
         result["meta"] = {
             "source":       "file_upload",
