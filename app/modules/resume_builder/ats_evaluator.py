@@ -18,7 +18,7 @@ Zero arbitrary black-box scoring. Every point is explainable.
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from pydantic import BaseModel, Field
 
 from app.modules.resume_builder.gemini_client import get_gemini_client
@@ -77,6 +77,10 @@ class ATSCompositeReport(BaseModel):
     deterministic_breakdown: DeterministicATSBreakdown
     semantic_breakdown: Optional[SemanticATSBreakdown] = None
     summary_feedback: str = ""
+    usage: Optional[List[Dict[str, Any]]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.model_dump() if hasattr(self, "model_dump") else self.dict()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -228,19 +232,22 @@ async def evaluate_ats_semantically(
     job_description: Optional[str] = None,
     user_id: Optional[str] = None,
     request_id: Optional[str] = None,
-) -> SemanticATSBreakdown:
+) -> Tuple[SemanticATSBreakdown, List[Dict[str, Any]]]:
     """
     Executes a single structured Gemini call for semantic ATS fit and recommendations.
     """
     try:
         client = get_gemini_client()
         if not client.is_configured:
-            return SemanticATSBreakdown(
-                role_fit_score=7.0,
-                narrative_quality_score=7.0,
-                semantic_score=14.0,
-                seniority_assessment="Standard Professional",
-                actionable_recommendations=["Add more quantifiable metrics and specific business outcomes."],
+            return (
+                SemanticATSBreakdown(
+                    role_fit_score=7.0,
+                    narrative_quality_score=7.0,
+                    semantic_score=14.0,
+                    seniority_assessment="Standard Professional",
+                    actionable_recommendations=["Add more quantifiable metrics and specific business outcomes."],
+                ),
+                [],
             )
 
         resume_summary_payload = {
@@ -267,16 +274,20 @@ async def evaluate_ats_semantically(
         raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
         breakdown = SemanticATSBreakdown.model_validate_json(raw_json)
         breakdown.semantic_score = round(min(20.0, breakdown.role_fit_score + breakdown.narrative_quality_score), 1)
-        return breakdown
+        usage_list = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
+        return breakdown, usage_list
 
     except Exception as e:
         logger.error(f"[ATSEvaluator] Semantic evaluation error: {e}")
-        return SemanticATSBreakdown(
-            role_fit_score=6.0,
-            narrative_quality_score=6.0,
-            semantic_score=12.0,
-            seniority_assessment="Professional",
-            actionable_recommendations=["Include specific percentages and measurable business impact in your experience bullets."],
+        return (
+            SemanticATSBreakdown(
+                role_fit_score=6.0,
+                narrative_quality_score=6.0,
+                semantic_score=12.0,
+                seniority_assessment="Professional",
+                actionable_recommendations=["Include specific percentages and measurable business impact in your experience bullets."],
+            ),
+            [],
         )
 
 
@@ -309,8 +320,9 @@ async def generate_ats_composite_report(
     det = evaluate_ats_deterministically(resume, job_description)
 
     sem = None
+    usage = None
     if include_semantic:
-        sem = await evaluate_ats_semantically(resume, job_description, user_id=user_id, request_id=request_id)
+        sem, usage = await evaluate_ats_semantically(resume, job_description, user_id=user_id, request_id=request_id)
         total_float = det.total_deterministic_score + sem.semantic_score
     else:
         # Scale 80 pts to 100 pts if semantic analysis is omitted
@@ -334,4 +346,5 @@ async def generate_ats_composite_report(
         deterministic_breakdown=det,
         semantic_breakdown=sem,
         summary_feedback=" ".join(feedback_parts),
+        usage=usage,
     )

@@ -320,7 +320,7 @@ async def generate_cv(
         if not isinstance(resume_data, dict):
             raise HTTPException(400, "resume_data must be a dictionary")
         
-        logger.info(f"CV generation request for {resume_data.get('name', 'Unknown')}")
+        logger.info("CV generation request received")
         
         result = await generate_professional_cv_production(resume_data, db)
         
@@ -386,7 +386,7 @@ async def generate_cv_from_file(
 
             parsed_resume = parse_resume_to_schema(text, file_type, sections_dict)
             
-            logger.info(f"Resume parsed for {parsed_resume.name}")
+            logger.info("Resume parsed successfully from file")
         
         except Exception as e:
             logger.error(f"Resume parsing error: {str(e)}", exc_info=True)

@@ -843,8 +843,7 @@ def normalize_resume(raw: Dict[str, Any]) -> NormalizedResume:
     )
 
     logger.info(
-        f"[Normalizer] contact='{nr.contact.name}' | "
-        f"exp={len(nr.experience)} | edu={len(nr.education)} | "
+        f"[Normalizer] exp={len(nr.experience)} | edu={len(nr.education)} | "
         f"skills={len(nr.skills)} | certs={len(nr.certifications)} | "
         f"proj={len(nr.projects)} | langs={len(nr.languages)}"
     )

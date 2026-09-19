@@ -309,7 +309,7 @@ class ATSMarkdownParser:
         }
 
         logger.info(
-            f"name='{result['name']}' exp={len(result['experience'])} "
+            f"exp={len(result['experience'])} "
             f"edu={len(result['education'])} skills={len(result['skills'])} "
             f"proj={len(result['projects'])}"
         )

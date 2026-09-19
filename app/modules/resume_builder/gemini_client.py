@@ -13,7 +13,7 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, Union
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -56,8 +56,8 @@ class UsageMetadata:
             "total_tokens": int(self.total_tokens),
             "cached_tokens": int(self.cached_tokens),
             "latency_ms": round(float(self.latency_ms), 2),
-            "operation": self.operation,
             "request_id": self.request_id,
+            "operation": self.operation,
         }
 
 
@@ -66,6 +66,18 @@ class GenerationResult:
     """Composite result containing generated text and provider-reported usage metadata."""
     text: str
     usage: UsageMetadata
+    usages: List[UsageMetadata] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.usage and not self.usages:
+            self.usages = [self.usage]
+
+    def to_usage_list(self) -> List[Dict[str, Any]]:
+        if self.usages:
+            return [u.to_dict() for u in self.usages]
+        if self.usage:
+            return [self.usage.to_dict()]
+        return []
 
 
 class GeminiServiceError(Exception):
