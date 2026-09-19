@@ -190,8 +190,7 @@ async def ats_scan_from_file(
     resume_dict = _normalise_resume_dict(parsed)
 
     logger.info(
-        f"Parsed — name='{resume_dict.get('name')}' | "
-        f"exp={len(resume_dict.get('experience') or [])} | "
+        f"Parsed — exp={len(resume_dict.get('experience') or [])} | "
         f"edu={len(resume_dict.get('education') or [])} | "
         f"skills={len(resume_dict.get('skills') or [])}"
     )

@@ -1254,8 +1254,7 @@ class ATSScannerService:
         # ── 0. Normalize — single source of truth for all downstream ─────────
         nr = normalize_resume(resume)
         logger.info(
-            f"  name='{nr.contact.name}' "
-            f"edu={len(nr.education)} exp={len(nr.experience)} "
+            f"  edu={len(nr.education)} exp={len(nr.experience)} "
             f"skills={len(nr.skills)} certs={len(nr.certifications)} "
             f"proj={len(nr.projects)} langs={len(nr.languages)}"
         )
@@ -1458,7 +1457,7 @@ class ATSScannerService:
         )
 
         raw = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
-        usage = gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None
+        usage = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
 
         parsed = self._parse_ai_response(raw)
         if parsed and isinstance(parsed, dict):

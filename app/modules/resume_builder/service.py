@@ -905,7 +905,7 @@ async def generate_professional_cv_production(data: Dict[str, Any], db: AsyncSes
         level = "Entry-level"
     
     try:
-        logger.info(f"Generating CV for {name} ({level})")
+        logger.info(f"Generating CV ({level})")
         
         # Build enhanced prompt
         prompt = build_professional_cv_prompt(data, level)
@@ -919,10 +919,10 @@ async def generate_professional_cv_production(data: Dict[str, Any], db: AsyncSes
         )
         
         if not response or len(response.strip()) < 200:
-            logger.warning(f"Short CV response for {name}: {len(response)} chars")
+            logger.warning(f"Short CV response ({level}): {len(response)} chars")
             raise HTTPException(500, "CV generation produced insufficient content")
         
-        logger.info(f"CV generated successfully for {name} ({len(response)} chars)")
+        logger.info(f"CV generated successfully ({level}) ({len(response)} chars)")
         
         return {
             "status": "success",
@@ -940,7 +940,7 @@ async def generate_professional_cv_production(data: Dict[str, Any], db: AsyncSes
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"CV generation error for {name}: {str(e)}", exc_info=True)
+        logger.error(f"CV generation error ({level}): {str(e)}", exc_info=True)
         raise HTTPException(500, f"CV generation failed: {str(e)}")
  
  
@@ -1069,7 +1069,7 @@ async def generate_cv_from_parsed_resume(
         # Convert parsed resume schema to dict format
         resume_data = _convert_parsed_schema_to_dict(parsed_resume)
         
-        logger.info(f"Generating CV from parsed resume for {resume_data.get('name')}")
+        logger.info("Generating CV from parsed resume")
         
         # Generate CV using standard function
         return await generate_professional_cv_production(resume_data, db)
@@ -1155,7 +1155,7 @@ def _convert_parsed_schema_to_dict(parsed_resume: Any) -> dict:
             }
             resume_dict["education"].append(edu_dict)
         
-        logger.info(f"Converted parsed schema to dict: {resume_dict.get('name')}")
+        logger.info(f"Converted parsed schema to dict (exp: {len(resume_dict['experience'])}, edu: {len(resume_dict['education'])})")
         return resume_dict
     
     except Exception as e:

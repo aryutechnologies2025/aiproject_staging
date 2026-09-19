@@ -110,13 +110,15 @@ class ImprovedUniversalResumeParser:
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
+                usage_list = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
+
                 logger.info(f"✓ Successfully parsed resume document '{filename}' with Gemini")
                 return {
                     "success": True,
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
-                    "usage": gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None,
+                    "usage": usage_list,
                 }
 
         except Exception as e:
@@ -183,12 +185,14 @@ class ImprovedUniversalResumeParser:
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
+                usage_list = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
+
                 return {
                     "success": True,
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
-                    "usage": gen_result.usage.to_dict() if hasattr(gen_result, "usage") and gen_result.usage else None,
+                    "usage": usage_list,
                 }
 
         except Exception as e:

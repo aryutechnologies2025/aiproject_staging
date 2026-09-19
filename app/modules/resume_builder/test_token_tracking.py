@@ -6,21 +6,22 @@ Tests cover:
 3. Candidate tokens mapping (candidates_token_count -> output_tokens).
 4. Total tokens mapping (total_token_count -> total_tokens).
 5. Cached tokens mapping (cached_content_token_count -> cached_tokens).
-6. Usage propagation through resume parser.
-7. Usage propagation through ATS scanner.
+6. Usage list format propagation through resume parser (usage: [{...}]).
+7. Usage list format propagation through ATS scanner (usage: [{...}]).
 8. Request ID propagation across logging/context and response.
-9. Operation specification (resume_parse / ats_scan).
-10. Invalid service key rejection (HTTP 401).
-11. Missing service key rejection (HTTP 401 when configured).
-12. User ID not trusted without valid service authentication.
-13. Resume response retains all existing fields + additive usage.
-14. ATS response retains all existing fields + additive usage.
-15. include_ai=False performs zero Gemini calls and returns usage=None.
-16. Cache hit reports 0 Gemini tokens (not fake usage).
-17. Missing usage metadata is handled safely with 0 tokens.
-18. Existing deterministic fallback remains functional with usage=None.
-19. Existing telemetry continues working seamlessly.
-20. No sensitive information (PII/keys/passwords) written to logs.
+9. Operation specification (resume_parse / ats_scan / ats_semantic_analysis).
+10. Multiple Gemini generations tracking in a single request (usage: [{...}, {...}]).
+11. Invalid service key rejection (HTTP 401).
+12. Missing service key rejection (HTTP 401 when configured).
+13. User ID not trusted without valid service authentication.
+14. Resume response retains all existing fields + additive usage list.
+15. ATS response retains all existing fields + additive usage list.
+16. include_ai=False performs zero Gemini calls and returns usage=None.
+17. Cache hit reports 0 Gemini tokens (not fake usage).
+18. Missing usage metadata is handled safely with 0 tokens.
+19. Existing deterministic fallback remains functional with usage=None.
+20. Existing telemetry continues working seamlessly.
+21. No sensitive information (PII/keys/passwords/candidate names) written to logs.
 """
 
 import asyncio
@@ -81,7 +82,13 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
         self.assertEqual(usage.operation, "resume_parse")
         self.assertGreaterEqual(usage.latency_ms, 0)
 
-    # 17: Safe Handling of Missing Usage Metadata
+        usage_list = result.to_usage_list()
+        self.assertIsInstance(usage_list, list)
+        self.assertEqual(len(usage_list), 1)
+        self.assertEqual(usage_list[0]["input_tokens"], 1420)
+        self.assertEqual(usage_list[0]["request_id"], "req-123")
+
+    # 18: Safe Handling of Missing Usage Metadata
     def test_missing_usage_metadata_handling(self):
         """Ensure missing usage_metadata does not crash and defaults safely to 0."""
         client = GeminiClient(api_key="fake-key")
@@ -101,8 +108,8 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
 
     # 6: Usage Propagation through Resume Parser
     def test_resume_parser_usage_propagation(self):
-        """Verify that usage propagates up through parse_resume_with_ai."""
-        mock_usage = {
+        """Verify that usage propagates up through parse_resume_with_ai as a list."""
+        mock_usage_item = {
             "provider": "gemini",
             "model": "gemini-3.1-flash-lite",
             "input_tokens": 1500,
@@ -120,7 +127,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 "parsed": {"personal_info": {"full_name": "Alice Smith"}},
                 "canonical": {},
                 "source": "gemini",
-                "usage": mock_usage,
+                "usage": [mock_usage_item],
             }
 
             service_result = asyncio.run(parse_resume_with_ai(
@@ -131,12 +138,14 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             ))
             self.assertTrue(service_result["success"])
             self.assertIsNotNone(service_result["usage"])
-            self.assertEqual(service_result["usage"]["total_tokens"], 1900)
-            self.assertEqual(service_result["usage"]["request_id"], "test-req-99")
+            self.assertIsInstance(service_result["usage"], list)
+            self.assertEqual(len(service_result["usage"]), 1)
+            self.assertEqual(service_result["usage"][0]["total_tokens"], 1900)
+            self.assertEqual(service_result["usage"][0]["request_id"], "test-req-99")
 
-    # 7 & 14: ATS Pipeline Usage Propagation and Existing Fields
+    # 7 & 15: ATS Pipeline Usage Propagation and Existing Fields
     def test_ats_scanner_usage_propagation_and_fields(self):
-        """Verify ATS pipeline propagates usage when include_ai=True and keeps all existing fields."""
+        """Verify ATS pipeline propagates usage as a list when include_ai=True and keeps all existing fields."""
         mock_usage = UsageMetadata(
             provider="gemini",
             model="gemini-3.1-flash-lite",
@@ -149,7 +158,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             operation="ats_scan"
         )
         ai_json_response = '{"match_score": 85, "keyword_analysis": {"skills_match_score": 80}}'
-        mock_gen_result = GenerationResult(text=ai_json_response, usage=mock_usage)
+        mock_gen_result = GenerationResult(text=ai_json_response, usage=mock_usage, usages=[mock_usage])
 
         scanner = ATSScannerService()
         with patch("app.modules.ats_scanner.service.call_ai", new_callable=AsyncMock) as mock_call:
@@ -176,16 +185,59 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             self.assertIn("issues", result)
             self.assertIn("ai_analysis", result)
 
-            # Verify additive usage
+            # Verify additive usage list
             self.assertIn("usage", result)
             self.assertIsNotNone(result["usage"])
-            self.assertEqual(result["usage"]["input_tokens"], 2100)
-            self.assertEqual(result["usage"]["output_tokens"], 600)
-            self.assertEqual(result["usage"]["total_tokens"], 2700)
-            self.assertEqual(result["usage"]["request_id"], "ats-req-1")
-            self.assertEqual(result["usage"]["operation"], "ats_scan")
+            self.assertIsInstance(result["usage"], list)
+            self.assertEqual(len(result["usage"]), 1)
+            self.assertEqual(result["usage"][0]["input_tokens"], 2100)
+            self.assertEqual(result["usage"][0]["output_tokens"], 600)
+            self.assertEqual(result["usage"][0]["total_tokens"], 2700)
+            self.assertEqual(result["usage"][0]["request_id"], "ats-req-1")
+            self.assertEqual(result["usage"][0]["operation"], "ats_scan")
 
-    # 15: include_ai=False Performs Zero Gemini Calls
+    # 10: Multiple Gemini Generations Tracking
+    def test_multiple_gemini_generations_tracking(self):
+        """Verify that multiple Gemini calls in a single workflow produce multiple usage items."""
+        gen1_usage = UsageMetadata(
+            provider="gemini",
+            model="gemini-3.1-flash-lite",
+            input_tokens=1000,
+            output_tokens=300,
+            total_tokens=1300,
+            cached_tokens=0,
+            latency_ms=200.0,
+            request_id="multi-req-1",
+            operation="resume_parse_chunk1"
+        )
+        gen2_usage = UsageMetadata(
+            provider="gemini",
+            model="gemini-3.1-flash-lite",
+            input_tokens=1200,
+            output_tokens=400,
+            total_tokens=1600,
+            cached_tokens=100,
+            latency_ms=250.0,
+            request_id="multi-req-1",
+            operation="resume_parse_chunk2"
+        )
+
+        composite_result = GenerationResult(
+            text="Combined output",
+            usage=gen1_usage,
+            usages=[gen1_usage, gen2_usage]
+        )
+
+        usage_list = composite_result.to_usage_list()
+        self.assertEqual(len(usage_list), 2)
+        self.assertEqual(usage_list[0]["input_tokens"], 1000)
+        self.assertEqual(usage_list[0]["operation"], "resume_parse_chunk1")
+        self.assertEqual(usage_list[1]["input_tokens"], 1200)
+        self.assertEqual(usage_list[1]["operation"], "resume_parse_chunk2")
+        self.assertEqual(usage_list[0]["request_id"], "multi-req-1")
+        self.assertEqual(usage_list[1]["request_id"], "multi-req-1")
+
+    # 16: include_ai=False Performs Zero Gemini Calls
     def test_ats_include_ai_false_zero_gemini_calls(self):
         """Verify include_ai=False makes zero Gemini calls and returns usage=None."""
         scanner = ATSScannerService()
@@ -207,7 +259,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             self.assertIsNone(result["usage"])
             self.assertEqual(result["ai_analysis"].get("status"), "not_available")
 
-    # 16: Cache Hit Returns 0 Gemini Tokens
+    # 17: Cache Hit Returns 0 Gemini Tokens
     def test_cache_hit_returns_zero_tokens(self):
         """Verify cache hit does not report fake Gemini token usage."""
         client_mgr = ImprovedAIClientManager()
@@ -230,7 +282,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             self.assertEqual(res.usage.provider, "cache")
             _AI_RESPONSE_CACHE.clear()
 
-    # 18: Deterministic Fallback Handling
+    # 19: Deterministic Fallback Handling
     def test_deterministic_fallback_returns_none_usage(self):
         """Verify that when AI call fails and deterministic parser runs, usage is None."""
         mock_gemini = MagicMock()
@@ -253,7 +305,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 self.assertIn("usage", result)
                 self.assertIsNone(result["usage"])  # Zero/null token usage reported for deterministic fallback
 
-    # 10, 11, 12: Service Authentication & Request Context
+    # 11, 12, 13: Service Authentication & Request Context
     def test_service_auth_missing_key_rejected(self):
         """Verify missing X-Internal-Service-Key returns 401 when secret is set."""
         mock_request = MagicMock(spec=Request)
@@ -298,11 +350,11 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
             self.assertEqual(ctx.request_id, "req_456")
             self.assertEqual(ctx.operation, "resume_parse")
 
-    # 8, 9, 13: Full HTTP Integration via TestClient for Resume and ATS
+    # 8, 9, 14: Full HTTP Integration via TestClient for Resume and ATS
     def test_http_endpoint_parse_resume(self):
-        """Test POST /api/v1/resume/parse-resume with headers and PDF payload."""
+        """Test POST /api/v1/resume/parse-resume with headers and PDF payload returning usage list."""
         with patch.object(settings, "INTERNAL_SERVICE_SECRET", "my_secret_token"):
-            mock_usage = {
+            mock_usage = [{
                 "provider": "gemini",
                 "model": "gemini-3.1-flash-lite",
                 "input_tokens": 1200,
@@ -312,7 +364,7 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 "latency_ms": 500.0,
                 "request_id": "django_req_001",
                 "operation": "resume_parse"
-            }
+            }]
             with patch("app.api.v1.resume_builder.resume_builder.parse_resume_with_ai", new_callable=AsyncMock) as mock_parse:
                 mock_parse.return_value = {
                     "success": True,
@@ -345,10 +397,13 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 self.assertEqual(data["file_name"], "test_resume.pdf")
                 self.assertIn("parsed", data)
                 self.assertIn("usage", data)
-                self.assertEqual(data["usage"]["input_tokens"], 1200)
-                self.assertEqual(data["usage"]["output_tokens"], 400)
-                self.assertEqual(data["usage"]["total_tokens"], 1600)
-                self.assertEqual(data["usage"]["request_id"], "django_req_001")
+                self.assertIsInstance(data["usage"], list)
+                self.assertEqual(len(data["usage"]), 1)
+                self.assertEqual(data["usage"][0]["input_tokens"], 1200)
+                self.assertEqual(data["usage"][0]["output_tokens"], 400)
+                self.assertEqual(data["usage"][0]["total_tokens"], 1600)
+                self.assertEqual(data["usage"][0]["request_id"], "django_req_001")
+                self.assertEqual(data["usage"][0]["operation"], "resume_parse")
 
                 # Test with invalid service key
                 bad_response = self.client.post(
@@ -363,9 +418,9 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 self.assertEqual(bad_response.status_code, 401)
 
     def test_http_endpoint_ats_scan_file(self):
-        """Test POST /api/v1/ats/scan-file with headers and PDF payload."""
+        """Test POST /api/v1/ats/scan-file with headers and PDF payload returning usage list."""
         with patch.object(settings, "INTERNAL_SERVICE_SECRET", "my_secret_token"):
-            mock_usage = {
+            mock_usage = [{
                 "provider": "gemini",
                 "model": "gemini-3.1-flash-lite",
                 "input_tokens": 1800,
@@ -375,9 +430,9 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                 "latency_ms": 750.0,
                 "request_id": "django_ats_req_002",
                 "operation": "ats_scan"
-            }
+            }]
             with patch("app.modules.ats_scanner.router.extract_resume_markdown", new_callable=AsyncMock) as mock_extract:
-                mock_extract.return_value = "# John Doe\n## Summary\nExperienced Engineer\n## Skills\nPython, FastAPI"
+                mock_extract.return_value = "# Candidate Resume\n## Summary\nExperienced Engineer\n## Skills\nPython, FastAPI"
                 
                 with patch("app.modules.ats_scanner.service.ATSScannerService.scan", new_callable=AsyncMock) as mock_scan:
                     mock_scan.return_value = {
@@ -409,8 +464,11 @@ class TestTokenUsageAndSecurity(unittest.TestCase):
                     data = response.json()
                     self.assertEqual(data["ats_score"], 88)
                     self.assertIn("usage", data)
-                    self.assertEqual(data["usage"]["total_tokens"], 2350)
-                    self.assertEqual(data["usage"]["request_id"], "django_ats_req_002")
+                    self.assertIsInstance(data["usage"], list)
+                    self.assertEqual(len(data["usage"]), 1)
+                    self.assertEqual(data["usage"][0]["total_tokens"], 2350)
+                    self.assertEqual(data["usage"][0]["request_id"], "django_ats_req_002")
+                    self.assertEqual(data["usage"][0]["operation"], "ats_scan")
 
 
 if __name__ == "__main__":
