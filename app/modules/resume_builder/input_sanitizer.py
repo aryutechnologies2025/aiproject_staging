@@ -58,9 +58,10 @@ class InputSanitizer:
         return sanitized
 
     @classmethod
-    def sanitize_prompt_text(cls, text: str, max_length: int = 15000) -> str:
+    def sanitize_prompt_text(cls, text: str, max_length: int = 50000) -> str:
         """
-        Sanitizes text intended to be embedded in LLM prompts, neutralizing injection attacks.
+        Sanitizes text intended to be embedded in LLM prompts, neutralizing injection attacks
+        while preserving complete long resume contents.
         """
         if not isinstance(text, str):
             return ""
@@ -84,7 +85,10 @@ class InputSanitizer:
         return "\n".join(lines).strip()
 
     @classmethod
-    def _sanitize_string(cls, text: str, max_length: int = 5000) -> str:
+    def _sanitize_string(cls, text: str, max_length: int = 25000) -> str:
+        """
+        Sanitize string values preserving legitimate newlines, bullets, and long descriptions.
+        """
         if not isinstance(text, str):
             return ""
 
@@ -102,6 +106,12 @@ class InputSanitizer:
         # Neutralize prompt injection
         for pattern in PROMPT_INJECTION_PATTERNS:
             text = re.sub(pattern, "[SANITIZED]", text)
+
+        # Preserve meaningful newlines and paragraph structure
+        if "\n" in text:
+            lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in text.split("\n")]
+            clean_text = "\n".join(lines).strip()
+            return re.sub(r'\n{3,}', '\n\n', clean_text)
 
         return ' '.join(text.split()).strip()
 

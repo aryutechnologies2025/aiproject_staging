@@ -22,6 +22,10 @@ from google import genai
 from google.genai import types
 
 from app.modules.resume_builder.telemetry import log_ai_usage
+from app.modules.resume_builder.token_pricing import (
+    calculate_gemini_cost,
+    TokenCostResult,
+)
 
 load_dotenv()
 logger = logging.getLogger("resume_builder.gemini")
@@ -29,6 +33,7 @@ logger = logging.getLogger("resume_builder.gemini")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DEFAULT_RESUME_MODEL = os.getenv("GEMINI_RESUME_MODEL", "gemini-3.1-flash-lite")
 DEFAULT_ATS_MODEL = os.getenv("GEMINI_ATS_MODEL", "gemini-3.1-flash-lite")
+DEFAULT_MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_RESUME_MAX_OUTPUT_TOKENS", "8192"))
 
 MAX_RETRIES = 3
 INITIAL_BACKOFF_SEC = 2.0
@@ -46,6 +51,14 @@ class UsageMetadata:
     latency_ms: float = 0.0
     request_id: Optional[str] = None
     operation: Optional[str] = None
+    finish_reason: Optional[str] = "STOP"
+    input_cost_inr: Optional[float] = None
+    output_cost_inr: Optional[float] = None
+    cached_cost_inr: Optional[float] = None
+    total_cost_inr: Optional[float] = None
+    currency: str = "INR"
+    cost_status: str = "success"
+    parser_source: str = "gemini"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -55,9 +68,17 @@ class UsageMetadata:
             "output_tokens": int(self.output_tokens),
             "total_tokens": int(self.total_tokens),
             "cached_tokens": int(self.cached_tokens),
+            "input_cost_inr": self.input_cost_inr,
+            "output_cost_inr": self.output_cost_inr,
+            "cached_cost_inr": self.cached_cost_inr,
+            "total_cost_inr": self.total_cost_inr,
+            "currency": self.currency,
             "latency_ms": round(float(self.latency_ms), 2),
             "request_id": self.request_id,
             "operation": self.operation,
+            "finish_reason": self.finish_reason,
+            "cost_status": self.cost_status,
+            "parser_source": self.parser_source,
         }
 
 
@@ -166,8 +187,10 @@ class GeminiClient:
         }
         if system_instruction:
             config_kwargs["system_instruction"] = system_instruction
-        if max_output_tokens:
-            config_kwargs["max_output_tokens"] = max_output_tokens
+        
+        effective_max_tokens = max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS
+        config_kwargs["max_output_tokens"] = effective_max_tokens
+
         if response_schema:
             config_kwargs["response_mime_type"] = "application/json"
             config_kwargs["response_schema"] = response_schema
@@ -191,11 +214,52 @@ class GeminiClient:
                 total_tokens = 0
                 cached_tokens = 0
 
-                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                has_usage = hasattr(response, "usage_metadata") and response.usage_metadata is not None
+                if has_usage:
                     input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
                     output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
                     total_tokens = getattr(response.usage_metadata, "total_token_count", 0) or 0
                     cached_tokens = getattr(response.usage_metadata, "cached_content_token_count", 0) or 0
+
+                    # Calculate Decimal INR costs
+                    cost_res = calculate_gemini_cost(
+                        model=target_model,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cached_tokens=cached_tokens,
+                        provider="gemini",
+                    )
+                else:
+                    input_tokens = 0
+                    output_tokens = 0
+                    total_tokens = 0
+                    cached_tokens = 0
+                    cost_res = TokenCostResult(
+                        input_cost_inr=None,
+                        output_cost_inr=None,
+                        cached_cost_inr=None,
+                        total_cost_inr=None,
+                        currency="INR",
+                        cost_status="missing_usage_metadata",
+                        input_tokens=0,
+                        output_tokens=0,
+                        cached_tokens=0,
+                        total_tokens=0,
+                    )
+
+                # Extract finish_reason
+                finish_reason = "STOP"
+                if hasattr(response, "candidates") and response.candidates:
+                    cand = response.candidates[0]
+                    fr = getattr(cand, "finish_reason", None)
+                    if fr:
+                        finish_reason = str(getattr(fr, "name", fr))
+
+                if "MAX_TOKENS" in finish_reason.upper():
+                    logger.warning(
+                        f"[Gemini] Generation truncated by MAX_TOKENS for operation '{operation}', request_id='{request_id}'"
+                    )
+                    finish_reason = "MAX_TOKENS"
 
                 usage = UsageMetadata(
                     provider="gemini",
@@ -207,6 +271,14 @@ class GeminiClient:
                     latency_ms=latency_ms,
                     request_id=request_id,
                     operation=operation,
+                    finish_reason=finish_reason,
+                    input_cost_inr=cost_res.input_cost_inr,
+                    output_cost_inr=cost_res.output_cost_inr,
+                    cached_cost_inr=cost_res.cached_cost_inr,
+                    total_cost_inr=cost_res.total_cost_inr,
+                    currency=cost_res.currency,
+                    cost_status=cost_res.cost_status,
+                    parser_source="gemini",
                 )
 
                 # Telemetry logging (NO DB, NO PII)
@@ -218,6 +290,13 @@ class GeminiClient:
                     output_tokens=output_tokens,
                     total_tokens=total_tokens,
                     cached_tokens=cached_tokens,
+                    input_cost_inr=cost_res.input_cost_inr,
+                    output_cost_inr=cost_res.output_cost_inr,
+                    cached_cost_inr=cost_res.cached_cost_inr,
+                    total_cost_inr=cost_res.total_cost_inr,
+                    currency=cost_res.currency,
+                    finish_reason=finish_reason,
+                    parser_source="gemini",
                     latency_ms=latency_ms,
                     status="success",
                     retry_count=attempt,

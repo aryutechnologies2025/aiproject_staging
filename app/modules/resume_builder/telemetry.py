@@ -16,6 +16,8 @@ import uuid
 
 from app.modules.resume_builder.model_router import ModelRouter
 
+from decimal import Decimal
+
 logger = logging.getLogger("resume_builder.telemetry")
 
 # In-memory token metrics store (Process lifetime, zero database dependency)
@@ -25,7 +27,7 @@ _MAX_IN_MEMORY_RECORDS = 5000
 
 def sanitize_value(val: Any) -> Any:
     """Ensure no raw PII or nested sensitive structures leak into telemetry logs."""
-    if isinstance(val, (int, float, bool)) or val is None:
+    if isinstance(val, (int, float, bool, Decimal)) or val is None:
         return val
     s = str(val)
     # Mask emails
@@ -56,7 +58,16 @@ def log_ai_usage(
     correlation_id: Optional[str] = None,
     endpoint: Optional[str] = None,
     workflow: Optional[str] = None,
+    finish_reason: Optional[str] = None,
+    input_cost_inr: Optional[Decimal] = None,
+    output_cost_inr: Optional[Decimal] = None,
+    cached_cost_inr: Optional[Decimal] = None,
+    total_cost_inr: Optional[Decimal] = None,
+    currency: str = "INR",
+    parser_source: str = "gemini",
+    cost_status: str = "calculated",
     extra_meta: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Log an AI usage event to structured JSON logger and in-memory aggregator with dynamic cost calculation.
@@ -67,7 +78,7 @@ def log_ai_usage(
 
     calculated_total = total_tokens if total_tokens > 0 else (input_tokens + output_tokens)
 
-    # Compute estimated monetary cost
+    # Compute estimated monetary cost in USD (internal/historical)
     estimated_cost_usd = ModelRouter.calculate_cost(
         provider=provider,
         model=model,
@@ -87,11 +98,19 @@ def log_ai_usage(
         "operation": operation,
         "endpoint": endpoint or "unknown",
         "workflow": workflow or "resume_builder",
+        "parser_source": parser_source,
+        "finish_reason": finish_reason or ("STOP" if status == "success" else "ERROR"),
         "input_tokens": int(input_tokens),
         "output_tokens": int(output_tokens),
         "total_tokens": int(calculated_total),
         "cached_tokens": int(cached_tokens),
         "thinking_tokens": int(thinking_tokens),
+        "input_cost_inr": input_cost_inr,
+        "output_cost_inr": output_cost_inr,
+        "cached_cost_inr": cached_cost_inr,
+        "total_cost_inr": total_cost_inr,
+        "currency": currency,
+        "cost_status": cost_status,
         "estimated_cost_usd": estimated_cost_usd,
         "latency_ms": round(float(latency_ms), 2),
         "status": status,
@@ -102,8 +121,16 @@ def log_ai_usage(
     if extra_meta:
         record["meta"] = {k: sanitize_value(v) for k, v in extra_meta.items()}
 
-    # Structured JSON log output
-    logger.info(json.dumps(record))
+    # Structured JSON log output (safe serialization with default=str for Decimals)
+    try:
+        # Convert Decimal values to float/str for clean JSON logging
+        log_copy = dict(record)
+        for k in ("input_cost_inr", "output_cost_inr", "cached_cost_inr", "total_cost_inr"):
+            if isinstance(log_copy.get(k), Decimal):
+                log_copy[k] = float(log_copy[k])
+        logger.info(json.dumps(log_copy, default=str))
+    except Exception as log_err:
+        logger.warning(f"Telemetry logging error: {log_err}")
 
     # Append to in-memory store with bounded size
     global _USAGE_RECORDS
@@ -135,6 +162,14 @@ def get_usage_summary(user_id: Optional[str] = None, operation: Optional[str] = 
     total_cached = sum(r.get("cached_tokens", 0) for r in records)
     total_cost_usd = round(sum(r.get("estimated_cost_usd", 0.0) for r in records), 6)
 
+    # Sum total INR cost using Decimal
+    inr_costs = [
+        Decimal(str(r["total_cost_inr"]))
+        for r in records
+        if r.get("total_cost_inr") is not None
+    ]
+    total_cost_inr = sum(inr_costs, Decimal("0.000000")) if inr_costs else Decimal("0.00")
+
     latencies = [r.get("latency_ms", 0.0) for r in records if r.get("latency_ms", 0.0) > 0]
     avg_latency = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
 
@@ -143,10 +178,12 @@ def get_usage_summary(user_id: Optional[str] = None, operation: Optional[str] = 
     for r in records:
         prov = r.get("provider", "unknown")
         if prov not in by_provider:
-            by_provider[prov] = {"calls": 0, "tokens": 0, "cost_usd": 0.0, "errors": 0}
+            by_provider[prov] = {"calls": 0, "tokens": 0, "cost_usd": 0.0, "cost_inr": Decimal("0.00"), "errors": 0}
         by_provider[prov]["calls"] += 1
         by_provider[prov]["tokens"] += r.get("total_tokens", 0)
         by_provider[prov]["cost_usd"] = round(by_provider[prov]["cost_usd"] + r.get("estimated_cost_usd", 0.0), 6)
+        if r.get("total_cost_inr") is not None:
+            by_provider[prov]["cost_inr"] += Decimal(str(r["total_cost_inr"]))
         if r.get("status") != "success":
             by_provider[prov]["errors"] += 1
 
@@ -160,6 +197,8 @@ def get_usage_summary(user_id: Optional[str] = None, operation: Optional[str] = 
         "total_tokens": total_tokens,
         "total_cached_tokens": total_cached,
         "total_estimated_cost_usd": total_cost_usd,
+        "total_cost_inr": total_cost_inr,
+        "currency": "INR",
         "average_latency_ms": avg_latency,
         "by_provider": by_provider,
     }

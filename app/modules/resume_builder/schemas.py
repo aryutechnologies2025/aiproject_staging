@@ -30,7 +30,10 @@ class ExperienceItem(BaseModel):
     fromYear: str = Field(default="", description="Start year or start date (e.g. '2021' or 'Jan 2021')")
     toYear: str = Field(default="", description="End year or 'Present'")
     isOngoing: bool = Field(default=False, description="True if this is the current active role")
-    bullets: List[str] = Field(default_factory=list, description="Key accomplishments, responsibilities, and metrics")
+    description: str = Field(default="", description="Complete narrative description, role overview, team context, and paragraph overview")
+    responsibilities: List[str] = Field(default_factory=list, description="All individual responsibilities and duties")
+    bullets: List[str] = Field(default_factory=list, description="All bullet points, key accomplishments, responsibilities, and metrics verbatim from resume")
+    achievements: List[str] = Field(default_factory=list, description="All specific achievements, awards, and quantified impact")
 
 
 class EducationItem(BaseModel):
@@ -39,15 +42,21 @@ class EducationItem(BaseModel):
     location: str = Field(default="", description="Institution location")
     fromYear: str = Field(default="", description="Start year (e.g. '2017')")
     toYear: str = Field(default="", description="Graduation/completion year (e.g. '2021')")
+    description: str = Field(default="", description="Academic description, honors, GPA, thesis, or details")
+    achievements: List[str] = Field(default_factory=list, description="Academic achievements, honors, awards, or scholarships")
+    coursework: List[str] = Field(default_factory=list, description="Relevant coursework, subjects, or specializations")
 
 
 class ProjectItem(BaseModel):
     title: str = Field(default="", description="Project name / title")
-    description: str = Field(default="", description="High-level project summary or purpose")
+    description: str = Field(
+        default="",
+        description="Comprehensive project description containing full purpose, scope, implementation details, responsibilities, architecture, technologies, outcomes, and metrics without shortening"
+    )
     technologies: List[str] = Field(default_factory=list, description="Tools, frameworks, and programming languages used")
     fromYear: str = Field(default="", description="Start year")
     toYear: str = Field(default="", description="End year")
-    bullets: List[str] = Field(default_factory=list, description="Specific project achievements and features")
+    bullets: List[str] = Field(default_factory=list, description="All specific project achievement bullets, implementation steps, and feature details")
 
 
 class CertificationItem(BaseModel):
@@ -61,12 +70,13 @@ class CanonicalResume(BaseModel):
     Unified canonical resume schema representing the entire structured resume.
     """
     personal_information: PersonalInformation = Field(default_factory=PersonalInformation)
-    summary: str = Field(default="", description="Executive summary, profile, or objective statement")
+    summary: str = Field(default="", description="Executive summary, profile, or objective statement verbatim")
     skills: List[str] = Field(default_factory=list, description="List of technical skills, competencies, and tools")
-    experience: List[ExperienceItem] = Field(default_factory=list, description="Chronological work experience history")
+    experience: List[ExperienceItem] = Field(default_factory=list, description="Chronological work experience history with full detail")
     education: List[EducationItem] = Field(default_factory=list, description="Academic credentials and educational background")
-    projects: List[ProjectItem] = Field(default_factory=list, description="Key personal, academic, or professional projects")
+    projects: List[ProjectItem] = Field(default_factory=list, description="All personal, academic, client, or professional projects")
     certifications: List[CertificationItem] = Field(default_factory=list, description="Certificates, credentials, or licenses")
+    achievements: List[str] = Field(default_factory=list, description="Top-level honors, awards, recognitions, and major accomplishments")
     languages: List[str] = Field(default_factory=list, description="Spoken/written human languages (e.g. English, Tamil)")
     other: List[str] = Field(default_factory=list, description="Additional sections like awards, volunteer work, publications")
 
@@ -79,6 +89,8 @@ def map_to_legacy_parse_dict(canonical: CanonicalResume) -> Dict[str, Any]:
     """
     Maps CanonicalResume into the exact legacy dictionary schema expected by
     the `/parse-resume` endpoint and frontend builder components.
+    Additive fields (description, responsibilities, achievements, coursework) are included
+    without removing or modifying any existing keys.
     """
     p_info = canonical.personal_information
     return {
@@ -101,7 +113,10 @@ def map_to_legacy_parse_dict(canonical: CanonicalResume) -> Dict[str, Any]:
                 "fromYear": exp.fromYear,
                 "toYear": exp.toYear,
                 "isOngoing": exp.isOngoing,
+                "description": exp.description,
+                "responsibilities": exp.responsibilities,
                 "bullets": exp.bullets,
+                "achievements": exp.achievements,
             }
             for exp in canonical.experience
         ],
@@ -112,6 +127,9 @@ def map_to_legacy_parse_dict(canonical: CanonicalResume) -> Dict[str, Any]:
                 "location": edu.location,
                 "fromYear": edu.fromYear,
                 "toYear": edu.toYear,
+                "description": edu.description,
+                "achievements": edu.achievements,
+                "coursework": edu.coursework,
             }
             for edu in canonical.education
         ],
@@ -135,6 +153,7 @@ def map_to_legacy_parse_dict(canonical: CanonicalResume) -> Dict[str, Any]:
             }
             for cert in canonical.certifications
         ],
+        "achievements": canonical.achievements or [],
         "languages": canonical.languages or [],
         "other": canonical.other or [],
     }
