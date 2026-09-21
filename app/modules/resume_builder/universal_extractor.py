@@ -22,7 +22,7 @@ class UniversalExtractor:
     @staticmethod
     def get_all_items_flat(raw_items: List[Dict[str, Any]]) -> List[str]:
         """
-        Return text lines annotated with block types for layout-aware parsing.
+        Return text lines annotated with block types for layout-aware parsing without duplication.
         """
         items: List[str] = []
 
@@ -30,7 +30,7 @@ class UniversalExtractor:
             text = item.get("text", "").strip()
             block_type = item.get("type", "text").lower()
 
-            if not text:
+            if not text and not item.get("items"):
                 continue
 
             if block_type in ("heading", "h1", "h2", "h3", "title"):
@@ -42,11 +42,15 @@ class UniversalExtractor:
             else:
                 tag = "[TEXT]"
 
-            items.append(f"{tag} {text}")
+            if text:
+                items.append(f"{tag} {text}")
 
-            for nested in item.get("items", []):
-                val = nested.strip() if isinstance(nested, str) else ""
-                if val:
+            nested = item.get("items", [])
+            text_lines = [l.strip() for l in text.split("\n") if l.strip()]
+            for sub in nested:
+                val = sub.strip() if isinstance(sub, str) else ""
+                # Avoid appending nested items if they are simply duplicate lines of text
+                if val and val not in text_lines and val not in text:
                     items.append(f"[LIST] {val}")
 
         return items
@@ -54,17 +58,32 @@ class UniversalExtractor:
     @staticmethod
     def extract_all_content(raw_items: List[Dict[str, Any]]) -> str:
         """
-        Aggregates all raw layout items into a clean multiline document string.
+        Aggregates all raw layout items into a clean multiline document string without duplication.
         """
         lines = []
         for item in raw_items:
             text = item.get("text", "").strip()
-            if text:
-                lines.append(text)
-            for nested in item.get("items", []):
-                val = nested.strip() if isinstance(nested, str) else ""
-                if val:
+            nested_items = item.get("items", [])
+            clean_nested = [
+                n.strip() for n in nested_items
+                if isinstance(n, str) and n.strip()
+            ]
+
+            if not text:
+                for val in clean_nested:
                     lines.append(f"• {val}")
+            elif not clean_nested:
+                lines.append(text)
+            else:
+                # Check if nested items are simply duplicate lines of text
+                text_lines = [l.strip() for l in text.split("\n") if l.strip()]
+                if clean_nested == text_lines:
+                    lines.append(text)
+                else:
+                    lines.append(text)
+                    for val in clean_nested:
+                        if val not in text and f"• {val}" not in text:
+                            lines.append(f"• {val}")
         return "\n".join(lines).strip()
 
     @staticmethod

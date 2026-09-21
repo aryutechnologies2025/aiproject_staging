@@ -277,6 +277,10 @@ async def parse_resume(
             "success": True,
             "file_name": file.filename,
             "parsed": ai_result.get("parsed"),
+            "source": ai_result.get("source", "gemini"),
+            "parser_source": ai_result.get("parser_source", ai_result.get("source", "gemini")),
+            "parse_status": ai_result.get("parse_status", "complete"),
+            "finish_reason": ai_result.get("finish_reason", "STOP"),
             "usage": ai_result.get("usage"),
         }
 

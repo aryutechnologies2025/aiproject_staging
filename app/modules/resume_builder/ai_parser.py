@@ -10,6 +10,7 @@ Guarantees 100% service uptime even if external AI APIs experience rate limits (
 
 import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -23,8 +24,18 @@ from app.modules.resume_builder.universal_extractor import UniversalExtractor
 
 logger = logging.getLogger("resume_builder.ai_parser")
 
+DEFAULT_MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_RESUME_MAX_OUTPUT_TOKENS", "8192"))
+
 EXTRACTION_SYSTEM_PROMPT = """You are an expert AI Resume Parser and Career Data Extraction Engine.
 Analyze the provided resume document or text thoroughly and extract all information into the requested JSON schema.
+
+CRITICAL INSTRUCTIONS — EXTRACTION COMPLETENESS & FIDELITY:
+1. Do not summarize or condense resume content. Preserve complete descriptions, responsibilities, accomplishments, metrics, project details, and bullet points from the source document. Extract all available information that fits the schema.
+2. If an experience section contains a paragraph description, preserve the full paragraph in the appropriate description field. Do not convert a long description into a short summary.
+3. Extract ALL projects present in the resume. Preserve the complete project description and all project bullets.
+4. Extract ALL bullet points verbatim without shortening, omitting, or combining items.
+5. Preserve original wording, numbers, percentages, team sizes, and technical terminology where practical.
+6. Never invent, hallucinate, or assume information not present in the document.
 
 Extraction Guidelines:
 1. "personal_information":
@@ -36,42 +47,88 @@ Extraction Guidelines:
    - "link": Comma-separated URLs (LinkedIn, GitHub, Portfolio, Website).
 
 2. "summary":
-   - The professional summary, executive summary, objective, or profile statement.
+   - Complete professional summary, executive profile, or objective statement verbatim. Do not truncate.
 
 3. "experience":
-   - Extract ALL employment history and internships.
-   - Extract "position", "company", "location", "fromYear", "toYear", "isOngoing" (true if current).
-   - "bullets": List of all bullet points, accomplishments, metrics, and responsibilities. Do not skip any bullets.
+   - Extract ALL employment history, internships, and freelance roles.
+   - "position": Job title or role.
+   - "company": Organization or company name.
+   - "location": Job location or Remote.
+   - "fromYear", "toYear": Start and end dates.
+   - "isOngoing": True if currently active role.
+   - "description": Complete paragraph overview / role context if present.
+   - "responsibilities": All individual responsibilities.
+   - "bullets": Complete list of ALL bullet points and accomplishments verbatim.
+   - "achievements": Key quantified achievements.
 
 4. "education":
-   - Extract ALL degrees, diplomas, academic programs.
-   - "degree", "institution", "location", "fromYear", "toYear".
+   - Extract ALL academic programs, degrees, diplomas, high school credentials.
+   - "degree", "institution", "location", "fromYear", "toYear", "description", "achievements", "coursework".
 
 5. "skills":
-   - Extract all technical, programming, domain, and tool skills mentioned across the entire resume.
+   - Extract all technical, programming, domain, framework, and tool skills mentioned across the entire resume.
    - Deduplicate and normalize.
 
 6. "projects":
-   - Extract key projects: "title", "description", "technologies" (list), "fromYear", "toYear", "bullets".
+   - Extract ALL projects present in the resume, not only key projects.
+   - "title": Project name.
+   - "description": Comprehensive project description containing full purpose, scope, architecture, technologies, outcomes, and metrics without shortening.
+   - "technologies": Complete list of tools/languages used.
+   - "fromYear", "toYear": Dates if specified.
+   - "bullets": All project bullets and implementation details verbatim.
 
 7. "certifications":
-   - Extract all licenses and certifications: "title", "issuer", "year".
+   - Extract all licenses, certifications, and credentials with issuer and year.
 
-8. "languages":
-   - List all spoken/written languages.
+8. "achievements":
+   - Top-level awards, honors, competitions, recognitions.
 
-9. "other":
-   - Awards, honors, publications, or volunteer work.
+9. "languages":
+   - All spoken and written languages.
 
-Accuracy is paramount. Never invent or hallucinate dates, names, or metrics not present in the document.
+10. "other":
+   - Publications, patents, volunteer work, extracurriculars, affiliations.
+
 Return ONLY the structured JSON according to the schema.
 """
+
+
+def _clean_json_text(text: str) -> str:
+    """Clean markdown code fences and extraneous whitespace from raw LLM output."""
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    return cleaned.strip()
+
+
+def _build_fallback_usage(operation: str) -> List[Dict[str, Any]]:
+    """Build standardized telemetry record for deterministic fallback executions."""
+    return [
+        {
+            "provider": "internal",
+            "model": "deterministic_fallback",
+            "operation": operation,
+            "parser_source": "deterministic_fallback",
+            "finish_reason": "FALLBACK",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "cached_tokens": 0,
+            "total_cost_inr": None,
+            "input_cost_inr": None,
+            "output_cost_inr": None,
+            "cached_cost_inr": None,
+            "currency": "INR",
+            "cost_status": "not_applicable",
+        }
+    ]
 
 
 class ImprovedUniversalResumeParser:
     """
     High-performance resume parser leveraging single-call Gemini structured extraction
-    with transparent deterministic AST fallback.
+    with transparent deterministic AST fallback and complete cost/truncation tracking.
     """
 
     @staticmethod
@@ -82,18 +139,24 @@ class ImprovedUniversalResumeParser:
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
         operation: str = "resume_parsing_document",
+        max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Parse raw resume document bytes directly using Gemini document understanding,
         with local PyMuPDF deterministic fallback on any error.
         """
+        captured_usage: Optional[List[Dict[str, Any]]] = None
+        finish_reason: str = "STOP"
+
         try:
             client = get_gemini_client()
             if client.is_configured:
                 prompt = (
                     f"Extract the complete structured information from this resume document ({filename}). "
-                    "Ensure all jobs, dates, skills, and contact details are accurately extracted."
+                    "Ensure all jobs, dates, skills, contact details, project descriptions, and bullets are accurately extracted without shortening."
                 )
+
+                budget = max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS
 
                 gen_result = await client.generate(
                     prompt=prompt,
@@ -104,21 +167,35 @@ class ImprovedUniversalResumeParser:
                     operation=operation,
                     user_id=user_id,
                     request_id=request_id,
+                    max_output_tokens=budget,
                 )
 
-                raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
+                if hasattr(gen_result, "to_usage_list"):
+                    captured_usage = gen_result.to_usage_list()
+                elif hasattr(gen_result, "usage") and gen_result.usage:
+                    captured_usage = [gen_result.usage.to_dict()]
+
+                finish_reason = gen_result.usage.finish_reason if (hasattr(gen_result, "usage") and gen_result.usage) else "STOP"
+
+                if finish_reason == "MAX_TOKENS":
+                    logger.warning(f"[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on '{filename}'. Response may be incomplete.")
+
+                raw_json = _clean_json_text(gen_result.text if hasattr(gen_result, "text") else str(gen_result))
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
-                usage_list = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
+                parse_status = "truncated" if finish_reason == "MAX_TOKENS" else "complete"
 
-                logger.info(f"✓ Successfully parsed resume document '{filename}' with Gemini")
+                logger.info(f"✓ Successfully parsed resume document '{filename}' with Gemini (finish_reason={finish_reason})")
                 return {
                     "success": True,
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
-                    "usage": usage_list,
+                    "parser_source": "gemini",
+                    "parse_status": parse_status,
+                    "finish_reason": finish_reason,
+                    "usage": captured_usage,
                 }
 
         except Exception as e:
@@ -139,16 +216,21 @@ class ImprovedUniversalResumeParser:
             legacy_dict = map_to_legacy_parse_dict(canonical)
             logger.info(f"✓ Successfully parsed '{filename}' via Deterministic AST Fallback")
 
+            usage_to_return = captured_usage if captured_usage else None
+
             return {
                 "success": True,
                 "parsed": legacy_dict,
                 "canonical": canonical.model_dump(),
                 "source": "deterministic_fallback",
-                "usage": None,
+                "parser_source": "deterministic_fallback",
+                "parse_status": "truncated" if finish_reason == "MAX_TOKENS" else "fallback",
+                "finish_reason": finish_reason if captured_usage else "FALLBACK",
+                "usage": usage_to_return,
             }
         except Exception as fallback_err:
             logger.error(f"[AIParser] Fallback parsing also failed: {fallback_err}", exc_info=True)
-            return ImprovedUniversalResumeParser._empty_result()
+            return ImprovedUniversalResumeParser._empty_result(usage=captured_usage)
 
     @staticmethod
     async def parse_text(
@@ -156,6 +238,7 @@ class ImprovedUniversalResumeParser:
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
         operation: str = "resume_parse",
+        max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Parse extracted text content using Gemini structured output with deterministic fallback.
@@ -164,13 +247,18 @@ class ImprovedUniversalResumeParser:
             logger.warning("[AIParser] Empty or insufficient text for parsing.")
             return ImprovedUniversalResumeParser._empty_result()
 
+        captured_usage: Optional[List[Dict[str, Any]]] = None
+        finish_reason: str = "STOP"
+
         try:
             client = get_gemini_client()
             if client.is_configured:
                 prompt = (
-                    "Extract the complete structured information from the following resume text:\n\n"
+                    "Extract the complete structured information from the following resume text without shortening or omitting any content:\n\n"
                     f"{text_content}"
                 )
+
+                budget = max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS
 
                 gen_result = await client.generate(
                     prompt=prompt,
@@ -179,20 +267,34 @@ class ImprovedUniversalResumeParser:
                     operation=operation,
                     user_id=user_id,
                     request_id=request_id,
+                    max_output_tokens=budget,
                 )
 
-                raw_json = gen_result.text if hasattr(gen_result, "text") else str(gen_result)
+                if hasattr(gen_result, "to_usage_list"):
+                    captured_usage = gen_result.to_usage_list()
+                elif hasattr(gen_result, "usage") and gen_result.usage:
+                    captured_usage = [gen_result.usage.to_dict()]
+
+                finish_reason = gen_result.usage.finish_reason if (hasattr(gen_result, "usage") and gen_result.usage) else "STOP"
+
+                if finish_reason == "MAX_TOKENS":
+                    logger.warning("[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on text parse. Response may be incomplete.")
+
+                raw_json = _clean_json_text(gen_result.text if hasattr(gen_result, "text") else str(gen_result))
                 canonical = CanonicalResume.model_validate_json(raw_json)
                 legacy_dict = map_to_legacy_parse_dict(canonical)
 
-                usage_list = gen_result.to_usage_list() if hasattr(gen_result, "to_usage_list") else ([gen_result.usage.to_dict()] if hasattr(gen_result, "usage") and gen_result.usage else [])
+                parse_status = "truncated" if finish_reason == "MAX_TOKENS" else "complete"
 
                 return {
                     "success": True,
                     "parsed": legacy_dict,
                     "canonical": canonical.model_dump(),
                     "source": "gemini",
-                    "usage": usage_list,
+                    "parser_source": "gemini",
+                    "parse_status": parse_status,
+                    "finish_reason": finish_reason,
+                    "usage": captured_usage,
                 }
 
         except Exception as e:
@@ -202,16 +304,21 @@ class ImprovedUniversalResumeParser:
         try:
             canonical = DeterministicResumeParser.parse_text(text_content)
             legacy_dict = map_to_legacy_parse_dict(canonical)
+            usage_to_return = captured_usage if captured_usage else None
+
             return {
                 "success": True,
                 "parsed": legacy_dict,
                 "canonical": canonical.model_dump(),
                 "source": "deterministic_fallback",
-                "usage": None,
+                "parser_source": "deterministic_fallback",
+                "parse_status": "truncated" if finish_reason == "MAX_TOKENS" else "fallback",
+                "finish_reason": finish_reason if captured_usage else "FALLBACK",
+                "usage": usage_to_return,
             }
         except Exception as fallback_err:
             logger.error(f"[AIParser] Fallback parsing failed: {fallback_err}")
-            return ImprovedUniversalResumeParser._empty_result()
+            return ImprovedUniversalResumeParser._empty_result(usage=captured_usage)
 
     @staticmethod
     async def parse(
@@ -219,6 +326,7 @@ class ImprovedUniversalResumeParser:
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
         operation: str = "resume_parse",
+        max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Backward-compatible parse method supporting raw_items lists, text keys, or raw strings.
@@ -242,7 +350,13 @@ class ImprovedUniversalResumeParser:
             elif "content" in extractor_output:
                 text_content = str(extractor_output["content"])
             elif "parsed" in extractor_output and isinstance(extractor_output["parsed"], dict):
-                return {"success": True, "parsed": extractor_output["parsed"], "source": "pre_parsed", "usage": None}
+                return {
+                    "success": True,
+                    "parsed": extractor_output["parsed"],
+                    "source": "pre_parsed",
+                    "parser_source": "pre_parsed",
+                    "usage": None,
+                }
 
         if not text_content or len(text_content.strip()) < 10:
             return ImprovedUniversalResumeParser._empty_result()
@@ -252,6 +366,7 @@ class ImprovedUniversalResumeParser:
             user_id=user_id,
             request_id=request_id,
             operation=operation,
+            max_output_tokens=max_output_tokens,
         )
 
         # Regex-based contact safety net to ensure zero contact data is missed
@@ -267,7 +382,7 @@ class ImprovedUniversalResumeParser:
         return result
 
     @staticmethod
-    def _empty_result() -> Dict[str, Any]:
+    def _empty_result(usage: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         return {
             "success": False,
             "parsed": {
@@ -283,6 +398,8 @@ class ImprovedUniversalResumeParser:
             },
             "token_report": {},
             "failed_sections": [],
-            "usage": None,
+            "source": "none",
+            "parser_source": "none",
+            "usage": usage,
         }
 

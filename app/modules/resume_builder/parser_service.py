@@ -176,6 +176,10 @@ async def parse_resume_with_ai(
             "success": True,
             "message": "Resume parsed successfully",
             "parsed": sanitized_result,
+            "source": result.get("source", "gemini"),
+            "parser_source": result.get("parser_source", result.get("source", "gemini")),
+            "parse_status": result.get("parse_status", "complete"),
+            "finish_reason": result.get("finish_reason", "STOP"),
             "usage": result.get("usage"),
         }
 

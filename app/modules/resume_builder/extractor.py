@@ -39,10 +39,17 @@ def extract_local_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
             if not text:
                 continue
             x0, y0, x1, y1 = b[0], b[1], b[2], b[3]
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+            bullet_lines = [
+                l for l in lines
+                if l.startswith("•") or l.startswith("-") or l.startswith("*") or l.startswith("–")
+            ]
+            is_list = bool(bullet_lines and len(bullet_lines) >= len(lines) * 0.7)
+
             blocks.append({
                 "text": text,
-                "type": "text",
-                "items": [line.strip() for line in text.split("\n") if line.strip()],
+                "type": "list" if is_list else "text",
+                "items": bullet_lines if is_list else [],
                 "x": float(x0),
                 "y": float(y0),
                 "w": float(x1 - x0),
@@ -70,7 +77,7 @@ def extract_local_docx(file_bytes: bytes) -> List[Dict[str, Any]]:
         blocks.append({
             "text": text,
             "type": "text",
-            "items": [text],
+            "items": [],
             "x": 0.0,
             "y": float(p_idx * 20),
             "w": 600.0,
@@ -86,7 +93,7 @@ def extract_local_docx(file_bytes: bytes) -> List[Dict[str, Any]]:
                 blocks.append({
                     "text": row_text,
                     "type": "table_row",
-                    "items": [row_text],
+                    "items": [],
                     "x": 0.0,
                     "y": 0.0,
                     "w": 600.0,
@@ -146,33 +153,98 @@ def normalize_items(items: List) -> List[Dict[str, Any]]:
 
 
 def detect_columns(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Detect number of columns using x-coordinate clustering"""
+    """
+    Detect columns per page using gutter analysis.
+    Distinguishes legitimate two-column layouts from single-column resumes with:
+    - bullet indentation
+    - date alignment / right-aligned dates
+    - contact headers
+    """
     if not blocks:
         return blocks
 
-    x_positions = sorted(set(b["x"] for b in blocks if b["x"] > 0))
-    if len(x_positions) <= 1:
-        for b in blocks:
-            b["column"] = 0
-        return blocks
-
-    gaps = [x_positions[i + 1] - x_positions[i] for i in range(len(x_positions) - 1)]
-    if not gaps:
-        for b in blocks:
-            b["column"] = 0
-        return blocks
-
-    threshold = max(gaps) * 0.5
-    current_col = 0
-    col_map = {}
-
-    for i, x in enumerate(x_positions):
-        if i > 0 and (x - x_positions[i - 1]) > threshold:
-            current_col += 1
-        col_map[x] = current_col
-
+    # Process page by page
+    pages: Dict[int, List[Dict[str, Any]]] = {}
     for b in blocks:
-        b["column"] = col_map.get(b["x"], 0)
+        p = b.get("page", 1)
+        pages.setdefault(p, []).append(b)
+
+    for p, page_blocks in pages.items():
+        if len(page_blocks) < 4:
+            for b in page_blocks:
+                b["column"] = 0
+            continue
+
+        min_x = min(b["x"] for b in page_blocks)
+        max_x = max(b["x"] + b.get("w", 0) for b in page_blocks)
+        page_width = max(max_x - min_x, 400.0)
+
+        total_text_len = sum(len(b.get("text", "")) for b in page_blocks)
+        if total_text_len == 0:
+            for b in page_blocks:
+                b["column"] = 0
+            continue
+
+        # Look for a genuine 2-column gutter between 20% and 75% of page width
+        best_gutter = None
+        min_crossing_blocks = len(page_blocks)
+
+        step = 15.0
+        start_x = min_x + 0.20 * page_width
+        end_x = min_x + 0.75 * page_width
+
+        curr_split = start_x
+        while curr_split <= end_x:
+            left_blocks = []
+            right_blocks = []
+            crossing_blocks = []
+
+            for b in page_blocks:
+                bx = b["x"]
+                bw = b.get("w", 0)
+                br = bx + bw
+
+                if br <= curr_split + 5:
+                    left_blocks.append(b)
+                elif bx >= curr_split - 5:
+                    right_blocks.append(b)
+                else:
+                    crossing_blocks.append(b)
+
+            left_text_len = sum(len(b.get("text", "")) for b in left_blocks)
+            right_text_len = sum(len(b.get("text", "")) for b in right_blocks)
+
+            # Both columns must have substantial body text (each at least 20% of total)
+            # and at least 3 distinct blocks each to qualify as a real 2-column layout
+            if (
+                left_text_len >= 0.20 * total_text_len
+                and right_text_len >= 0.20 * total_text_len
+                and len(left_blocks) >= 3
+                and len(right_blocks) >= 3
+            ):
+                if len(crossing_blocks) < min_crossing_blocks and len(crossing_blocks) <= max(2, int(len(page_blocks) * 0.25)):
+                    min_crossing_blocks = len(crossing_blocks)
+                    best_gutter = curr_split
+
+            curr_split += step
+
+        if best_gutter is not None:
+            # Genuine 2-column layout found
+            for b in page_blocks:
+                bx = b["x"]
+                bw = b.get("w", 0)
+                br = bx + bw
+                if bx < best_gutter and br > best_gutter + 30:
+                    # Spanning header
+                    b["column"] = 0
+                elif bx >= best_gutter - 10:
+                    b["column"] = 1
+                else:
+                    b["column"] = 0
+        else:
+            # Single-column resume: Keep all blocks in column 0 so normal top-to-bottom reading order is preserved
+            for b in page_blocks:
+                b["column"] = 0
 
     return blocks
 

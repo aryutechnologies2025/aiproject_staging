@@ -217,7 +217,14 @@ class DeterministicResumeParser:
             elif current_exp:
                 cleaned_line = line.strip(" •-*–—\t")
                 if cleaned_line:
-                    current_exp["bullets"].append(cleaned_line)
+                    if line.startswith(("•", "-", "*", "–", "—", "+")):
+                        current_exp["bullets"].append(cleaned_line)
+                    else:
+                        # Narrative description line
+                        if current_exp.get("description"):
+                            current_exp["description"] += " " + cleaned_line
+                        else:
+                            current_exp["description"] = cleaned_line
 
         if current_exp and (current_exp.get("position") or current_exp.get("bullets")):
             items.append(ExperienceItem(**current_exp))
@@ -233,11 +240,25 @@ class DeterministicResumeParser:
             date_match = re.search(r"\b(19\d\d|20\d\d)\b", line)
             if is_degree:
                 yr = date_match.group(1) if date_match else ""
-                clean_degree = line.strip(" •-*–—\t")
+                clean_line = re.sub(r"\b(19\d\d|20\d\d)\b", "", line).strip(" •-*–—|,/\t")
+
+                # Try to separate degree and institution if separated by |, -, or 'at'
+                degree_part = clean_line
+                institution_part = ""
+                for sep in [" | ", " - ", " – ", " — ", " at ", " from "]:
+                    if sep in clean_line:
+                        parts = clean_line.split(sep, 1)
+                        p0, p1 = parts[0].strip(), parts[1].strip()
+                        if any(kw in p0.lower() for kw in DEGREE_KEYWORDS):
+                            degree_part, institution_part = p0, p1
+                        elif any(kw in p1.lower() for kw in DEGREE_KEYWORDS):
+                            degree_part, institution_part = p1, p0
+                        break
+
                 items.append(
                     EducationItem(
-                        degree=clean_degree,
-                        institution="",
+                        degree=degree_part,
+                        institution=institution_part,
                         location="",
                         fromYear="",
                         toYear=yr,
@@ -255,16 +276,23 @@ class DeterministicResumeParser:
                 if current_proj:
                     current_proj["bullets"].append(line.strip(" •-*–—\t"))
             else:
-                if current_proj:
-                    projects.append(ProjectItem(**current_proj))
-                current_proj = {
-                    "title": line.strip(" •-*–—:\t"),
-                    "description": "",
-                    "technologies": [],
-                    "fromYear": "",
-                    "toYear": "",
-                    "bullets": [],
-                }
+                clean_line = line.strip(" •-*–—:\t")
+                # If current_proj exists and has no bullets yet, subsequent non-bullet lines are description
+                if current_proj and not current_proj["bullets"] and not current_proj["description"]:
+                    current_proj["description"] = clean_line
+                elif current_proj and not current_proj["bullets"] and current_proj["description"]:
+                    current_proj["description"] += " " + clean_line
+                else:
+                    if current_proj:
+                        projects.append(ProjectItem(**current_proj))
+                    current_proj = {
+                        "title": clean_line,
+                        "description": "",
+                        "technologies": [],
+                        "fromYear": "",
+                        "toYear": "",
+                        "bullets": [],
+                    }
 
         if current_proj:
             projects.append(ProjectItem(**current_proj))
