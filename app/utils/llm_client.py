@@ -46,8 +46,22 @@ async def call_llm(
 ) -> str:
 
     try:
+        logger.info(
+            "LLM DEBUG: payload prepared; timeout=%s model=%s url=%s",
+            OLLAMA_TIMEOUT,
+            OLLAMA_MODEL,
+            _OLLAMA_CHAT_URL,
+        )
         # Load system prompt
         system_prompt = await get_prompt(db, agent_name)
+        import time
+        start = time.monotonic()
+
+        logger.info(
+            "LLM DEBUG: get_prompt completed in %.3fs",
+            time.monotonic() - start
+        )
+
         if not system_prompt:
             system_prompt = "You are YURA, a helpful AI assistant built by Aryu Enterprises. Provide clear, professional responses."
 
@@ -62,9 +76,22 @@ async def call_llm(
             max_tokens=4096,
         )
 
+        logger.info(
+            "LLM DEBUG: calling Ollama URL=%s model=%s",
+            _OLLAMA_CHAT_URL,
+            OLLAMA_MODEL,
+        )
+
+
         async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
             resp = await client.post(_OLLAMA_CHAT_URL, json=payload)
             resp.raise_for_status()
+
+        logger.info(
+            "LLM DEBUG: Ollama HTTP completed in %.3fs status=%s",
+            time.monotonic() - start,
+            resp.status_code,
+        )
 
         data = resp.json()
         response = data["message"]["content"].strip()
