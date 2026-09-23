@@ -2,7 +2,7 @@ services:
 
   api:
     build: .
-    image: sivaarun10/aryu_api:latest
+    image: aryutechnologies2025/aryu_api:latest
     container_name: aryu_api
     restart: always
     env_file:
