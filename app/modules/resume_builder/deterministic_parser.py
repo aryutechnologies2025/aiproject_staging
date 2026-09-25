@@ -3,9 +3,12 @@ deterministic_parser.py — Pure Algorithmic Abstract Syntax Tree (AST) Resume P
 
 Provides:
 - 100% offline, zero-token, sub-50ms deterministic resume parsing.
-- Section segmentation, contact extraction, date parsing, and entity classification.
+- Robust entity association (Position + Company + Dates + Responsibilities).
+- Multi-project description preservation and education credentials extraction.
 - Serves as the high-availability safety fallback when Gemini API is unavailable or rate-limited.
 """
+
+from __future__ import annotations
 
 import logging
 import re
@@ -29,7 +32,7 @@ URL_REGEX = r"(?:https?://)?(?:www\.)?(?:linkedin\.com/in/[^\s,]+|github\.com/[^
 DATE_RANGE_REGEX = r"(?i)(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)?\.?\s*\d{4})\s*(?:-|–|—|to)\s*(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)?\.?\s*\d{4}|present|current|ongoing|now)\b"
 
 SECTION_PATTERNS = {
-    "experience": r"(?i)^(?:work\s+)?experience|employment(?:\s+history)?|work\s+history|professional\s+experience$",
+    "experience": r"(?i)^(?:work\s+)?experience|employment(?:\s+history)?|work\s+history|professional\s+experience|internships$",
     "education": r"(?i)^education|academic(?:\s+background)?|qualifications|academic\s+qualifications$",
     "skills": r"(?i)^technical\s+skills|skills(?:\s+&\s+tools)?|tech\s+stack|core\s+competencies|technologies(?:\s+used)?$",
     "summary": r"(?i)^professional\s+summary|summary|profile|about\s+me|executive\s+summary|objective$",
@@ -41,13 +44,19 @@ SECTION_PATTERNS = {
 DEGREE_KEYWORDS = [
     "bachelor", "master", "phd", "b.tech", "m.tech", "b.e", "m.e", "b.sc", "m.sc",
     "b.s.", "b.s", "m.s.", "m.s", "b.a.", "b.a", "m.a.", "m.a", "bba", "mba", "bca", "mca",
-    "diploma", "associate", "doctorate", "high school", "engineering", "science", "arts", "degree",
+    "diploma", "associate", "doctorate", "high school", "hr sec school", "secondary school",
+    "matriculation", "engineering", "science", "arts", "degree",
 ]
 
 JOB_TITLE_KEYWORDS = [
     "engineer", "developer", "architect", "manager", "lead", "analyst", "consultant",
-    "specialist", "administrator", "officer", "intern", "associate", "director", "designer",
-    "scientist", "programmer", "coordinator", "executive",
+    "specialist", "administrator", "officer", "intern", "internship", "associate", "director", "designer",
+    "scientist", "programmer", "coordinator", "executive", "trainee", "founder", "lead",
+]
+
+COMPANY_INDICATORS = [
+    "pvt ltd", "ltd", "inc", "corp", "llc", "enterprises", "infotech", "technologies",
+    "solutions", "studios", "systems", "consulting", "group", "services", "labs", "agency",
 ]
 
 
@@ -72,7 +81,7 @@ class DeterministicResumeParser:
         # 2. Segment into Sections
         section_map = cls._segment_sections(lines)
 
-        # Also check for inline skill definitions (e.g. "Skills: Python, FastAPI...")
+        # Also check for inline skill definitions
         skills = cls._parse_skills(section_map.get("skills", []))
         if not skills:
             for line in lines:
@@ -105,10 +114,18 @@ class DeterministicResumeParser:
         email_match = re.search(EMAIL_REGEX, text)
         email = email_match.group(0) if email_match else ""
 
-        phone_match = re.search(PHONE_REGEX, text)
-        phone = phone_match.group(0).strip() if phone_match else ""
-        if len(re.findall(r"\d", phone)) < 7:
-            phone = ""
+        # Multi-candidate phone extraction: reject short 5-6 digit zip codes
+        phone = ""
+        phone_matches = re.finditer(PHONE_REGEX, text[:1500])
+        candidates = []
+        for m in phone_matches:
+            cand = m.group(0).strip()
+            digits = re.findall(r"\d", cand)
+            if len(digits) >= 10 or (len(digits) >= 7 and cand.startswith("+")):
+                candidates.append(cand)
+        if candidates:
+            candidates.sort(key=lambda c: (c.startswith("+"), len(re.findall(r"\d", c))), reverse=True)
+            phone = candidates[0]
 
         urls = re.findall(URL_REGEX, text, re.IGNORECASE)
         unique_urls = list(dict.fromkeys(urls))
@@ -129,7 +146,7 @@ class DeterministicResumeParser:
                 continue
 
         location = ""
-        loc_match = re.search(r"\b([A-Z][a-zA-Z\s]+,\s*[A-Z]{2}|[A-Z][a-zA-Z\s]+,\s*[A-Z][a-zA-Z\s]+)\b", text[:800])
+        loc_match = re.search(r"\b([A-Z][a-zA-Z\s]+,\s*[A-Z]{2}|[A-Z][a-zA-Z\s]+,\s*[A-Z][a-zA-Z\s]+(?:\s+\d{5,6})?)\b", text[:800])
         if loc_match:
             location = loc_match.group(0).strip()
 
@@ -173,10 +190,10 @@ class DeterministicResumeParser:
     @classmethod
     def _parse_skills(cls, lines: List[str]) -> List[str]:
         raw_text = " ".join(lines)
-        tokens = re.split(r"[,|•;/\n]", raw_text)
+        tokens = re.split(r"[,|•;/\n?]", raw_text)
         skills = []
         for t in tokens:
-            cleaned = t.strip(" -:*•[]()").strip()
+            cleaned = t.strip(" -:*•[]()?\t").strip()
             if ":" in cleaned:
                 cleaned = cleaned.split(":")[-1].strip()
             if cleaned and len(cleaned) < 40 and not any(kw in cleaned.lower() for kw in ("skills", "tools", "competencies", "technologies")):
@@ -186,66 +203,94 @@ class DeterministicResumeParser:
     @classmethod
     def _parse_experience(cls, lines: List[str]) -> List[ExperienceItem]:
         items: List[ExperienceItem] = []
-        current_exp: Optional[Dict[str, Any]] = None
+        cur: Optional[Dict[str, Any]] = None
 
         for line in lines:
-            date_match = re.search(DATE_RANGE_REGEX, line)
-            is_job_title = any(kw in line.lower() for kw in JOB_TITLE_KEYWORDS)
-            is_bullet = line.startswith(("•", "-", "*", "–", "—", "+")) or (current_exp and len(line.split()) > 7)
+            clean = line.strip()
+            if not clean:
+                continue
 
-            if date_match or (is_job_title and not is_bullet):
-                if current_exp and (current_exp.get("position") or current_exp.get("bullets")):
-                    items.append(ExperienceItem(**current_exp))
+            clean_lower = clean.lower()
+            date_match = re.search(DATE_RANGE_REGEX, clean)
+            is_bullet = clean.startswith(("•", "-", "*", "–", "—", "·", "+"))
+            is_title = any(kw in clean_lower for kw in JOB_TITLE_KEYWORDS) and not is_bullet
+            is_comp = any(ci in clean_lower for ci in COMPANY_INDICATORS) and not is_bullet
 
-                from_yr, to_yr = "", ""
-                is_ongoing = False
+            # A new experience item starts when a new job title is encountered
+            if (is_title or (date_match and not cur)) and not is_bullet:
+                if cur and (cur.get("position") or cur.get("bullets") or cur.get("description")):
+                    items.append(ExperienceItem(**cur))
+
+                clean_title = re.sub(DATE_RANGE_REGEX, "", clean).strip(" -|•,\t")
+                from_yr, to_yr, ongoing = "", "", False
                 if date_match:
                     from_yr = date_match.group(1).strip()
                     to_yr = date_match.group(2).strip()
-                    is_ongoing = to_yr.lower() in ("present", "current", "ongoing", "now")
+                    ongoing = to_yr.lower() in ("present", "current", "ongoing", "now")
 
-                clean_title = re.sub(DATE_RANGE_REGEX, "", line).strip(" -|•,\t")
-                current_exp = {
+                cur = {
                     "position": clean_title if clean_title else "Professional",
                     "company": "",
                     "location": "",
                     "fromYear": from_yr,
                     "toYear": to_yr,
-                    "isOngoing": is_ongoing,
+                    "isOngoing": ongoing,
+                    "description": "",
                     "bullets": [],
                 }
-            elif current_exp:
-                cleaned_line = line.strip(" •-*–—\t")
-                if cleaned_line:
-                    if line.startswith(("•", "-", "*", "–", "—", "+")):
-                        current_exp["bullets"].append(cleaned_line)
+            elif cur and date_match and not cur["fromYear"]:
+                cur["fromYear"] = date_match.group(1).strip()
+                cur["toYear"] = date_match.group(2).strip()
+                cur["isOngoing"] = cur["toYear"].lower() in ("present", "current", "ongoing", "now")
+                rem = re.sub(DATE_RANGE_REGEX, "", clean).strip(" -|•,\t")
+                if rem and not cur["company"]:
+                    cur["company"] = rem
+            elif cur and is_comp and not cur["company"]:
+                parts = [p.strip() for p in re.split(r"[-•|–—]", clean) if p.strip()]
+                cur["company"] = parts[0]
+                if len(parts) > 1:
+                    cur["location"] = parts[1]
+            elif cur:
+                cleaned_line = clean.strip(" •-*–—·\t")
+                if is_bullet:
+                    cur["bullets"].append(cleaned_line)
+                else:
+                    if not cur["company"] and len(cleaned_line.split()) <= 6 and not any(kw in cleaned_line.lower() for kw in ("with", "experienced", "skilled", "working", "responsible")):
+                        cur["company"] = cleaned_line
+                    elif cur["description"]:
+                        cur["description"] += " " + cleaned_line
                     else:
-                        # Narrative description line
-                        if current_exp.get("description"):
-                            current_exp["description"] += " " + cleaned_line
-                        else:
-                            current_exp["description"] = cleaned_line
+                        cur["description"] = cleaned_line
 
-        if current_exp and (current_exp.get("position") or current_exp.get("bullets")):
-            items.append(ExperienceItem(**current_exp))
+        if cur and (cur.get("position") or cur.get("bullets") or cur.get("description")):
+            items.append(ExperienceItem(**cur))
 
         return items
 
     @classmethod
     def _parse_education(cls, lines: List[str]) -> List[EducationItem]:
         items: List[EducationItem] = []
-        for line in lines:
-            line_lower = line.lower()
-            is_degree = any(kw in line_lower for kw in DEGREE_KEYWORDS) or "university" in line_lower or "college" in line_lower
-            date_match = re.search(r"\b(19\d\d|20\d\d)\b", line)
-            if is_degree:
-                yr = date_match.group(1) if date_match else ""
-                clean_line = re.sub(r"\b(19\d\d|20\d\d)\b", "", line).strip(" •-*–—|,/\t")
+        cur: Optional[Dict[str, Any]] = None
 
-                # Try to separate degree and institution if separated by |, -, or 'at'
+        for line in lines:
+            clean = line.strip()
+            if not clean:
+                continue
+
+            clean_lower = clean.lower()
+            is_deg = any(kw in clean_lower for kw in DEGREE_KEYWORDS) or "university" in clean_lower or "college" in clean_lower or "school" in clean_lower
+            date_match = re.search(r"\b(19\d\d|20\d\d)\b", clean)
+
+            if is_deg:
+                if cur and (cur.get("degree") or cur.get("institution")):
+                    items.append(EducationItem(**cur))
+
+                yr = date_match.group(1) if date_match else ""
+                clean_line = re.sub(r"\b(19\d\d|20\d\d)\b", "", clean).strip(" •-*–—|,/\t")
                 degree_part = clean_line
                 institution_part = ""
-                for sep in [" | ", " - ", " – ", " — ", " at ", " from "]:
+
+                for sep in [" | ", " - ", " – ", " — ", " at ", " from ", ", "]:
                     if sep in clean_line:
                         parts = clean_line.split(sep, 1)
                         p0, p1 = parts[0].strip(), parts[1].strip()
@@ -255,47 +300,59 @@ class DeterministicResumeParser:
                             degree_part, institution_part = p1, p0
                         break
 
-                items.append(
-                    EducationItem(
-                        degree=degree_part,
-                        institution=institution_part,
-                        location="",
-                        fromYear="",
-                        toYear=yr,
-                    )
-                )
+                cur = {
+                    "degree": degree_part,
+                    "institution": institution_part or degree_part,
+                    "location": "",
+                    "fromYear": "",
+                    "toYear": yr,
+                }
+            elif cur and date_match and not cur["toYear"]:
+                cur["toYear"] = date_match.group(1)
+            elif cur and not cur["institution"]:
+                cur["institution"] = clean
+
+        if cur and (cur.get("degree") or cur.get("institution")):
+            items.append(EducationItem(**cur))
+
         return items
 
     @classmethod
     def _parse_projects(cls, lines: List[str]) -> List[ProjectItem]:
         projects: List[ProjectItem] = []
-        current_proj: Optional[Dict[str, Any]] = None
+        cur: Optional[Dict[str, Any]] = None
 
         for line in lines:
-            if line.startswith(("•", "-", "*")):
-                if current_proj:
-                    current_proj["bullets"].append(line.strip(" •-*–—\t"))
-            else:
-                clean_line = line.strip(" •-*–—:\t")
-                # If current_proj exists and has no bullets yet, subsequent non-bullet lines are description
-                if current_proj and not current_proj["bullets"] and not current_proj["description"]:
-                    current_proj["description"] = clean_line
-                elif current_proj and not current_proj["bullets"] and current_proj["description"]:
-                    current_proj["description"] += " " + clean_line
-                else:
-                    if current_proj:
-                        projects.append(ProjectItem(**current_proj))
-                    current_proj = {
-                        "title": clean_line,
-                        "description": "",
-                        "technologies": [],
-                        "fromYear": "",
-                        "toYear": "",
-                        "bullets": [],
-                    }
+            clean = line.strip()
+            if not clean:
+                continue
 
-        if current_proj:
-            projects.append(ProjectItem(**current_proj))
+            is_bullet = clean.startswith(("•", "-", "*", "–", "—", "·", "+"))
+            clean_text = clean.strip(" •-*–—·:\t")
+
+            # Project title line heuristic: short line without trailing period
+            if not is_bullet and len(clean.split()) <= 8 and len(clean) < 70 and not clean.endswith("."):
+                if cur and (cur.get("title") and (cur.get("description") or cur.get("bullets"))):
+                    projects.append(ProjectItem(**cur))
+                cur = {
+                    "title": clean_text,
+                    "description": "",
+                    "technologies": [],
+                    "fromYear": "",
+                    "toYear": "",
+                    "bullets": [],
+                }
+            elif cur:
+                if is_bullet:
+                    cur["bullets"].append(clean_text)
+                else:
+                    if cur["description"]:
+                        cur["description"] += " " + clean_text
+                    else:
+                        cur["description"] = clean_text
+
+        if cur and (cur.get("title") and (cur.get("description") or cur.get("bullets"))):
+            projects.append(ProjectItem(**cur))
 
         return projects
 
