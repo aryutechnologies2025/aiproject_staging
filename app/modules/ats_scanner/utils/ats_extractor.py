@@ -236,6 +236,14 @@ def _nested_texts(item) -> List[str]:
 
 def _local_extract_markdown(file_bytes: bytes, filename: str) -> str:
     fname = filename.lower()
+    try:
+        from app.modules.resume_builder.universal_extractor import UniversalDocumentExtractor
+        doc = UniversalDocumentExtractor.extract_document(file_bytes, filename)
+        if doc and doc.markdown and len(doc.markdown.strip()) > 30:
+            return doc.markdown
+    except Exception as e:
+        logger.warning(f"Universal extractor in ATS local extract failed ({e}), using legacy fallback...")
+
     if fname.endswith(".pdf"):
         return _pdf_to_markdown(file_bytes)
     elif fname.endswith(".docx"):

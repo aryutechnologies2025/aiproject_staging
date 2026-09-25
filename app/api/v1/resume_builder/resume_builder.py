@@ -17,6 +17,7 @@ from app.modules.resume_builder.service import (
     suggest_summary,
     suggest_project,
     build_skills_prompt,
+    suggest_skills,
     suggest_education,
     generate_ats_resume_json,
     refine_resume_section,
@@ -129,39 +130,15 @@ async def generate_skills(
     """Generate 5-8 hard technical skills for target roles"""
     try:
         job_titles = data.get("job_titles", [])
-        career_level = data.get("career_level", "experienced")
 
-        if not job_titles:
+        if not job_titles and not data.get("job_title"):
             raise HTTPException(status_code=400, detail="job_titles list is required")
         
-        if not isinstance(job_titles, list):
+        if job_titles and not isinstance(job_titles, list) and not isinstance(job_titles, str):
             raise HTTPException(status_code=400, detail="job_titles must be a list")
 
-        logger.info(f"Generating skills for {len(job_titles)} roles")
-        
-        user_prompt = build_skills_prompt(
-            job_titles=job_titles,
-            career_level=career_level
-        )
-
-        response = await call_llm(
-            user_message=user_prompt,
-            agent_name="resume_builder",
-            db=db,
-        )
-
-        skills = [line.strip() for line in response.splitlines() if line.strip()]
-        
-        if not skills:
-            raise HTTPException(status_code=500, detail="Failed to generate skills")
-        
-        logger.info(f"Generated {len(skills)} skills")
-        
-        return {
-            "skills": skills,
-            "count": len(skills),
-            "quality_notes": "Skills prioritized by market demand and role relevance"
-        }
+        logger.info("Generating skills for candidate profile")
+        return await suggest_skills(data, db)
     
     except HTTPException:
         raise

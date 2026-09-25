@@ -2,10 +2,14 @@
 extractor.py — Layout-aware document extractor for resume_builder.
 
 Supports:
-- High-speed local PyMuPDF (fitz) text and layout extraction (zero network latency, 0 tokens, <50ms).
+- Multi-stage layout-aware PDF extraction (zero network latency, 0 tokens, <50ms).
+- Automatic OCR fallback for scanned and low-quality documents.
+- Multi-column and sidebar reconstruction preserving reading order.
 - Python-docx extraction for DOCX resumes.
-- Optional fallback to LlamaCloud if local extraction is incomplete or complex scanned images are detected.
+- Optional fallback to LlamaCloud if local extraction is incomplete and LlamaCloud is configured.
 """
+
+from __future__ import annotations
 
 import io
 import logging
@@ -13,6 +17,9 @@ import os
 from typing import Any, Dict, List, Optional
 import fitz  # PyMuPDF
 import docx
+
+from app.modules.resume_builder.universal_extractor import UniversalDocumentExtractor, ExtractedDocument
+from app.modules.resume_builder.layout_reconstructor import LayoutReconstructor
 
 try:
     from llama_cloud import AsyncLlamaCloud
@@ -29,35 +36,7 @@ def extract_local_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
     Extract structured text blocks and layout metadata from PDF bytes using PyMuPDF.
     """
     doc = fitz.open(stream=file_bytes, filetype="pdf")
-    blocks: List[Dict[str, Any]] = []
-
-    for page_idx, page in enumerate(doc):
-        # Extract structured text blocks: (x0, y0, x1, y1, "text", block_no, block_type)
-        page_blocks = page.get_text("blocks")
-        for b in page_blocks:
-            text = b[4].strip()
-            if not text:
-                continue
-            x0, y0, x1, y1 = b[0], b[1], b[2], b[3]
-            lines = [line.strip() for line in text.split("\n") if line.strip()]
-            bullet_lines = [
-                l for l in lines
-                if l.startswith("•") or l.startswith("-") or l.startswith("*") or l.startswith("–")
-            ]
-            is_list = bool(bullet_lines and len(bullet_lines) >= len(lines) * 0.7)
-
-            blocks.append({
-                "text": text,
-                "type": "list" if is_list else "text",
-                "items": bullet_lines if is_list else [],
-                "x": float(x0),
-                "y": float(y0),
-                "w": float(x1 - x0),
-                "h": float(y1 - y0),
-                "page": page_idx + 1,
-                "column": 0,
-            })
-
+    blocks = LayoutReconstructor.extract_structured_document(doc)
     doc.close()
     return blocks
 
@@ -155,15 +134,10 @@ def normalize_items(items: List) -> List[Dict[str, Any]]:
 def detect_columns(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Detect columns per page using gutter analysis.
-    Distinguishes legitimate two-column layouts from single-column resumes with:
-    - bullet indentation
-    - date alignment / right-aligned dates
-    - contact headers
     """
     if not blocks:
         return blocks
 
-    # Process page by page
     pages: Dict[int, List[Dict[str, Any]]] = {}
     for b in blocks:
         p = b.get("page", 1)
@@ -185,7 +159,6 @@ def detect_columns(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 b["column"] = 0
             continue
 
-        # Look for a genuine 2-column gutter between 20% and 75% of page width
         best_gutter = None
         min_crossing_blocks = len(page_blocks)
 
@@ -214,8 +187,6 @@ def detect_columns(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             left_text_len = sum(len(b.get("text", "")) for b in left_blocks)
             right_text_len = sum(len(b.get("text", "")) for b in right_blocks)
 
-            # Both columns must have substantial body text (each at least 20% of total)
-            # and at least 3 distinct blocks each to qualify as a real 2-column layout
             if (
                 left_text_len >= 0.20 * total_text_len
                 and right_text_len >= 0.20 * total_text_len
@@ -229,20 +200,17 @@ def detect_columns(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             curr_split += step
 
         if best_gutter is not None:
-            # Genuine 2-column layout found
             for b in page_blocks:
                 bx = b["x"]
                 bw = b.get("w", 0)
                 br = bx + bw
                 if bx < best_gutter and br > best_gutter + 30:
-                    # Spanning header
                     b["column"] = 0
                 elif bx >= best_gutter - 10:
                     b["column"] = 1
                 else:
                     b["column"] = 0
         else:
-            # Single-column resume: Keep all blocks in column 0 so normal top-to-bottom reading order is preserved
             for b in page_blocks:
                 b["column"] = 0
 
@@ -310,34 +278,36 @@ def merge_links(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 async def extract_with_llamaparse(file_bytes: bytes, filename: str, content_type: str) -> Dict[str, Any]:
     """
-    Extract resume document blocks.
-    Executes local deterministic PyMuPDF / docx extraction (<50ms, 0 tokens) first.
+    Unified extraction entry point.
+    Executes local multi-stage extraction (inspection -> layout reconstruction -> quality check -> OCR fallback).
     Falls back to LlamaCloud only if local extraction returns empty content and LlamaCloud is configured.
     """
-    filename_lower = filename.lower()
+    try:
+        extracted = UniversalDocumentExtractor.extract_document(
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+        )
+        if extracted and extracted.raw_items:
+            logger.info(
+                f"✓ UniversalExtractor extracted {len(extracted.raw_items)} blocks from '{filename}' "
+                f"(type={extracted.document_type}, quality={extracted.quality_score:.2f}, ocr={extracted.ocr_used})"
+            )
+            return {
+                "raw_items": extracted.raw_items,
+                "raw_text": extracted.raw_text,
+                "markdown": extracted.markdown,
+                "document_type": extracted.document_type,
+                "quality_score": extracted.quality_score,
+                "ocr_used": extracted.ocr_used,
+                "page_count": extracted.page_count,
+                "page_images": extracted.page_images,
+                "success": True,
+            }
+    except Exception as e:
+        logger.warning(f"Universal extraction error for '{filename}': {e}. Trying fallback...")
 
-    # ── Path 1: Local PDF Extraction (PyMuPDF) ──
-    if filename_lower.endswith(".pdf") or "pdf" in content_type.lower():
-        try:
-            local_blocks = extract_local_pdf(file_bytes)
-            if local_blocks:
-                ordered = reconstruct_layout(local_blocks)
-                logger.info(f"✓ Local PyMuPDF extracted {len(ordered)} blocks from '{filename}' (<20ms, 0 cost)")
-                return {"raw_items": ordered, "success": True}
-        except Exception as e:
-            logger.warning(f"Local PDF extraction error for '{filename}': {e}. Trying fallback...")
-
-    # ── Path 2: Local DOCX Extraction ──
-    if filename_lower.endswith(".docx") or "wordprocessingml" in content_type.lower():
-        try:
-            docx_blocks = extract_local_docx(file_bytes)
-            if docx_blocks:
-                logger.info(f"✓ Local docx extracted {len(docx_blocks)} blocks from '{filename}'")
-                return {"raw_items": docx_blocks, "success": True}
-        except Exception as e:
-            logger.warning(f"Local DOCX extraction error for '{filename}': {e}")
-
-    # ── Path 3: LlamaCloud Fallback (If configured) ──
+    # ── LlamaCloud Fallback (If configured and local extraction returned empty) ──
     if LLAMA_CLOUD_AVAILABLE and LLAMA_CLOUD_API_KEY:
         try:
             logger.info(f"Invoking LlamaCloud fallback for '{filename}'...")
@@ -368,7 +338,7 @@ async def extract_with_llamaparse(file_bytes: bytes, filename: str, content_type
         except Exception as e:
             logger.error(f"LlamaCloud fallback failed for '{filename}': {e}")
 
-    # ── Path 4: Fallback Raw String Extraction ──
+    # ── Fallback Raw String Extraction ──
     try:
         raw_text = file_bytes.decode("utf-8", errors="ignore").strip()
         if raw_text:
@@ -384,9 +354,9 @@ async def extract_with_llamaparse(file_bytes: bytes, filename: str, content_type
                 "page": 1,
                 "column": 0,
             } for idx, line in enumerate(lines)]
-            return {"raw_items": blocks, "success": True}
+            return {"raw_items": blocks, "raw_text": raw_text, "markdown": raw_text, "success": True}
     except Exception:
         pass
 
     logger.error(f"Failed to extract content from '{filename}'")
-    return {"raw_items": [], "success": False}
+    return {"raw_items": [], "raw_text": "", "markdown": "", "success": False}

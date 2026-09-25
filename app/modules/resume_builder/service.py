@@ -9,6 +9,17 @@ import re
 import time
 from app.modules.resume_builder.ai_client import call_ai
 from app.modules.resume_builder.telemetry import log_ai_usage
+from app.modules.resume_builder.context_analyzer import (
+    analyze_resume_context,
+    build_grounded_education_prompt,
+    build_grounded_experience_prompt,
+    build_grounded_skills_prompt,
+    build_grounded_summary_prompt,
+    sanitize_education_output,
+    sanitize_experience_output,
+    sanitize_skills_output,
+    sanitize_summary_output,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,42 +96,11 @@ def _clean_bullets(response: str) -> list:
 
 
 async def suggest_experience(data: dict, db: AsyncSession) -> dict:
-    job_title = data.get("job_title", "").strip()
-    company = data.get("company", "").strip()
-    duration = data.get("duration", "").strip()
-    location = data.get("location", "").strip()
-    tone = data.get("tone", "professional").strip()
+    if not isinstance(data, dict):
+        raise HTTPException(400, "invalid payload")
 
-    user_prompt = f"""
-You are an expert ATS resume writer and career coach.
-
-Generate 5 high-quality, ATS-friendly resume experience bullet points for the following role.
-
-Candidate Information:
-- Job Title: {job_title}
-- Company: {company}
-- Duration: {duration or "Not specified"}
-- Location: {location or "Not specified"}
-
-The user has NOT provided a job description.
-
-Your responsibility is to infer the most common and realistic responsibilities and achievements for this role based on industry standards.
-
-Rules:
-
-1. Generate exactly 5 bullets.
-2. Begin every bullet with a strong action verb.
-3. Make every bullet resume-ready.
-4. Keep each bullet between 15 and 30 words.
-5. Use ATS-friendly language.
-6. Do NOT use first-person pronouns.
-7. Do NOT fabricate impossible achievements.
-8. Do NOT invent unrealistic percentages or revenue figures.
-9. Include realistic operational responsibilities expected for this role.
-10. Use company context only if naturally applicable.
-11. Return ONLY the bullet statements.
-12. Do not include markdown, numbering, or explanations.
-"""
+    ctx = analyze_resume_context(data)
+    user_prompt = build_grounded_experience_prompt(data, ctx)
 
     response = await _call_llm_with_telemetry(
         user_message=user_prompt,
@@ -129,111 +109,21 @@ Rules:
         operation="suggest_experience",
     )
 
-    # Standard clean up for variations in 30B model outputs
-    raw_lines = response.strip().split('\n')
-    bullets = []
-    for line in raw_lines:
-        cleaned = line.strip().strip('*').strip('-').strip('•').strip('"').strip("'").strip()
-        # Remove common model echoes like "Output:" if it copies the few-shot template literally
-        if cleaned.lower().startswith("output:"):
-            cleaned = cleaned[7:].strip()
-        if cleaned:
-            bullets.append(cleaned)
+    bullets = sanitize_experience_output(response, data, ctx)
 
     return {
         "experience_bullets": "\n".join(bullets),
         "count": len(bullets),
-        "quality_notes": "Raw data distilled into high-density operational statements optimized for standard resume parsing schemas."
+        "quality_notes": f"Experience statements grounded in {ctx.domain_label} domain context and verified candidate responsibilities."
     }
 
 
 async def suggest_summary(data: dict, db: AsyncSession) -> dict:
-    system_prompt = await get_prompt(db, "resume_builder")
-    if not system_prompt:
-        system_prompt = "You are an expert ATS-optimization engine and professional resume writer."
+    if not isinstance(data, dict):
+        raise HTTPException(400, "invalid payload")
 
-    experiences = data.get("experiences", [])
-    experience_text = ""
-
-    if isinstance(experiences, list) and experiences:
-        exp_parts = []
-        for exp in experiences:
-            title = exp.get("job_title", "")
-            company = exp.get("company", "")
-            start = exp.get("start_date", "")[:4] if exp.get("start_date") else ""
-            end = exp.get("end_date", "")[:4] if exp.get("end_date") else "Present"
-            exp_parts.append(f"{title} at {company} ({start}-{end})")
-        experience_text = "; ".join(exp_parts)
-
-    education_list = data.get("education", [])
-    education_text = ""
-
-    if isinstance(education_list, list) and education_list:
-        edu_parts = []
-        for edu in education_list:
-            degree = edu.get("degree", "")
-            institution = edu.get("institution", "")
-            edu_parts.append(f"{degree} from {institution}")
-        education_text = "; ".join(edu_parts)
-
-    # Universally generalized from "skills" to industry terms
-    skills = data.get("skills", [])
-    skills_text = ", ".join(skills[:8]) if isinstance(skills, list) else str(skills)
-
-    tone = data.get("tone", "modern professional")
-
-    years_experience = "0+"
-    if experiences:
-        try:
-            start_years = [
-                int(exp.get("start_date", "")[:4])
-                for exp in experiences
-                if exp.get("start_date")
-            ]
-            if start_years:
-                min_year = min(start_years)
-                from datetime import datetime
-                current_year = datetime.now().year
-                diff = current_year - min_year
-                years_experience = f"{diff}+" if diff > 0 else "1+"
-        except:
-            years_experience = "0+"
-
-    # Dynamically extract the latest job title to anchor any profession naturally
-    target_title = experiences[0].get("job_title", "Experienced") if experiences else "Qualified"
-
-    user_prompt = f"""[CRITICAL INTEGRITY CONSTRAINT]
-You must write a professional resume summary using ONLY the verified candidate data provided below. Do NOT invent specific company names, metrics, or credentials not explicitly listed. Avoid generic AI fluff phrases like "Dynamic, results-driven professional".
-
-CANDIDATE DATA PAYLOAD:
-- Target/Latest Profession: {target_title}
-- Work History & Roles: {experience_text[:300]}
-- Core Competencies / ATS Keywords: {skills_text}
-- Academic Credentials: {education_text[:150]}
-- Total Career Tenure: {years_experience} years
-- Stylistic Tone: {tone}
-
-EXECUTION RULES:
-1. NO personal pronouns allowed under any circumstances (No: I, me, my, we, our).
-2. The summary must seamlessly integrate at least 3-4 keywords directly from the Core Competencies list for algorithmic ATS parsing.
-3. Keep the entire response between 2 to 4 lines maximum formatted as a single unified plain-text paragraph block.
-
-FEW-SHOT REFERENCE PATTERNS (UNIVERSAL INDUSTRIES):
-
-Example 1 (Healthcare / Nursing):
-Input Stack: Patient Care, ICU Operations, Life Support, BLS Certified, Staff Nurse, 5+ years
-Output: Compassionate Staff Nurse with over 5 years of dedicated experience in critical care environments. Proven track record managing complex Patient Care schedules and high-pressure ICU Operations. Expert at maintaining safety compliance and deploying specialized life support protocols.
-
-Example 2 (Sales / Real Estate):
-Input Stack: Relationship Management, Negotiation, Lead Generation, CRM Systems, Sales Executive, 3+ years
-Output: Results-oriented Sales Executive with 3+ years of expertise in high-value property markets. Strong history of driving growth through targeted Lead Generation, strategic Relationship Management, and structured client negotiations. Experienced in optimizing sales pipelines using industry-standard CRM Systems.
-
-Example 3 (Python Developer / Backend Engineering):
-Input Stack: Python, FastAPI, PostgreSQL, AWS, Backend Engineer, 3+ years
-Output: Backend Engineering professional with 3+ years of expertise in high-performance application development. Proven track record in Python, FastAPI, and data architecture scaling using PostgreSQL. Accomplished in designing cloud infrastructure workflows across distributed AWS environments.
-
-YOUR TASK:
-Generate the plain-text summary paragraph now based strictly on the CANDIDATE DATA PAYLOAD using the exact structure and text density of the reference patterns above. Do not output anything else. No introduction, no conversational text, no markdown styling."""
+    ctx = analyze_resume_context(data)
+    user_prompt = build_grounded_summary_prompt(data, ctx)
 
     response = await _call_llm_with_telemetry(
         user_message=user_prompt,
@@ -242,89 +132,68 @@ Generate the plain-text summary paragraph now based strictly on the CANDIDATE DA
         operation="suggest_summary",
     )
 
-    summary = response.strip()
-    
-    # Post-processing cleanup to strip accidental formatting
-    if summary.startswith("```"):
-        summary = summary.strip("`").replace("text\n", "").replace("json\n", "").strip()
-    summary = summary.strip('"').strip("'")
-    
+    summary = sanitize_summary_output(response, data, ctx)
     lines = len([l for l in summary.split('\n') if l.strip()])
 
     return {
         "summary": summary,
         "line_count": lines,
-        "quality_notes": "Summary structurally locked to validated domain parameters and standardized multi-industry ATS rules."
+        "quality_notes": f"Summary concisely grounded in {ctx.domain_label} domain context and verified candidate ATS keywords."
     }
 
 
-def build_skills_prompt(job_titles: list[str], career_level: str = "experienced") -> str:
-    roles = ", ".join(job_titles) if job_titles else "General Professional"
+def build_skills_prompt(
+    job_titles: list[str],
+    career_level: str = "experienced",
+    data: Optional[dict] = None,
+) -> str:
+    payload = dict(data) if isinstance(data, dict) else {}
+    if job_titles:
+        payload["job_titles"] = job_titles
+    if career_level:
+        payload["career_level"] = career_level
 
-    return f"""[CRITICAL INTEGRITY CONSTRAINT]
-You are an industry-standard resume indexing engine. Your task is to identify and extract the most relevant core competencies and domain-specific skills based strictly on the provided job titles. Do NOT include soft skills (e.g., leadership, communication, team player).
-
-TARGET ROLES: {roles}
-CAREER LEVEL: {career_level}
-
-EXECUTION RULES:
-1. Output EXACTLY 5 to 8 high-value skills/competencies.
-2. Return ONLY one distinct skill per line.
-3. No versions, no descriptions, no definitions, and no punctuation marks at line starts.
-4. Output must be raw text only. No introduction, no markdown formatting.
-
-FEW-SHOT REFERENCE PATTERNS (CROSS-INDUSTRY):
-
-Example 1 (Finance / Accounting):
-Target Roles: Accountant, Tax Analyst
-Output:
-Financial Auditing
-Tax Compliance
-GAAP Principles
-Reconciliation
-QuickBooks
-Excel Data Models
-
-Example 2 (Logistics / Supply Chain):
-Target Roles: Warehouse Supervisor, Logistics Coordinator
-Output:
-Inventory Management
-Supply Chain Optimization
-WMS Software
-Freight Forwarding
-OSHA Safety Compliance
-Route Planning
-
-YOUR TASK:
-Generate the plain-text list of 5 to 8 domain skills now for the TARGET ROLES following the exact layout of the reference patterns above."""
+    ctx = analyze_resume_context(payload)
+    return build_grounded_skills_prompt(payload, ctx)
 
 
-async def suggest_education(data: dict, db: AsyncSession) -> dict:
-
+async def suggest_skills(data: dict, db: AsyncSession) -> dict:
     if not isinstance(data, dict):
         raise HTTPException(400, "invalid payload")
 
-    formatted_entries = f"""
-Degree:{data.get("degree","")}
-College:{data.get("college","")}
-Location:{data.get("location","")}
-Year:{data.get("year","")}
-"""
+    job_titles = data.get("job_titles", [])
+    if isinstance(job_titles, str):
+        job_titles = [job_titles]
+    elif not job_titles and data.get("job_title"):
+        job_titles = [data.get("job_title")]
 
-    user_prompt = f"""
-Generate 5 strong resume education bullets.
+    career_level = data.get("career_level", "experienced")
 
-Rules:
-- Use given degree and college details
-- Include relevant academic concepts related to the degree
-- No fake achievements, GPA, awards, or internships
-- ATS-friendly professional wording
-- One bullet per line
-- No headings or symbols
+    ctx = analyze_resume_context(data)
+    user_prompt = build_grounded_skills_prompt(data, ctx)
 
-Data:
-{formatted_entries}
-"""
+    response = await _call_llm_with_telemetry(
+        user_message=user_prompt,
+        agent_name="resume_builder",
+        db=db,
+        operation="generate_skills",
+    )
+
+    skills = sanitize_skills_output(response, data, ctx)
+
+    return {
+        "skills": skills,
+        "count": len(skills),
+        "quality_notes": f"Skills extracted and normalized for {ctx.domain_label}, preserving candidate ATS keywords."
+    }
+
+
+async def suggest_education(data: dict, db: AsyncSession) -> dict:
+    if not isinstance(data, dict):
+        raise HTTPException(400, "invalid payload")
+
+    ctx = analyze_resume_context(data)
+    user_prompt = build_grounded_education_prompt(data, ctx)
 
     response = await _call_llm_with_telemetry(
         user_message=user_prompt,
@@ -333,12 +202,12 @@ Data:
         operation="suggest_education",
     )
 
-    bullets = _clean_bullets(response)
+    bullets = sanitize_education_output(response, data, ctx)
 
     return {
         "education_bullets": "\n".join(bullets),
         "count": len(bullets),
-        "quality_notes": "Education bullets generated"
+        "quality_notes": "Education entry strictly formatted according to verified candidate credentials and ATS standards."
     }
 
 async def suggest_project(data: dict, db: AsyncSession) -> dict:

@@ -1,12 +1,14 @@
 """
-ai_parser.py — Single-call structured resume parser with automatic deterministic fallback.
+ai_parser.py — Structured resume parser with layout awareness, multimodal vision fallback, and source grounding.
 
 Architecture:
-1. Primary: High-accuracy single-call Google Gemini structured extraction (PDF/text).
-2. Fallback: Ultra-fast offline Deterministic AST Parser (PyMuPDF / regex AST).
-
-Guarantees 100% service uptime even if external AI APIs experience rate limits (429) or outages.
+1. Primary: High-accuracy single-call Google Gemini structured extraction receiving layout-aware Markdown/blocks.
+2. Multimodal Vision Fallback: Direct Gemini document/image understanding for scanned, image-heavy, or complex graphic resumes.
+3. Anti-Hallucination Source Validation: Post-extraction verification of companies, job titles, degrees, and projects.
+4. Deterministic AST Fallback: Ultra-fast offline Deterministic AST Parser (100% service uptime).
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -20,7 +22,12 @@ from app.modules.resume_builder.schemas import (
     CanonicalResume,
     map_to_legacy_parse_dict,
 )
-from app.modules.resume_builder.universal_extractor import UniversalExtractor
+from app.modules.resume_builder.universal_extractor import (
+    UniversalExtractor,
+    UniversalDocumentExtractor,
+    ExtractedDocument,
+)
+from app.modules.resume_builder.validator import ResumeSourceValidator, ValidationResult
 
 logger = logging.getLogger("resume_builder.ai_parser")
 
@@ -30,20 +37,22 @@ EXTRACTION_SYSTEM_PROMPT = """You are an expert AI Resume Parser and Career Data
 Analyze the provided resume document or text thoroughly and extract all information into the requested JSON schema.
 
 CRITICAL INSTRUCTIONS — EXTRACTION COMPLETENESS & FIDELITY:
-1. Do not summarize or condense resume content. Preserve complete descriptions, responsibilities, accomplishments, metrics, project details, and bullet points from the source document. Extract all available information that fits the schema.
-2. If an experience section contains a paragraph description, preserve the full paragraph in the appropriate description field. Do not convert a long description into a short summary.
-3. Extract ALL projects present in the resume. Preserve the complete project description and all project bullets.
+1. Do not summarize or condense resume content. Preserve complete descriptions, responsibilities, accomplishments, metrics, project details, and bullet points verbatim from the source document. Extract all available information that fits the schema.
+2. If an experience or internship section contains a paragraph description or location or address, preserve the full details in the appropriate fields. Do not convert a long description into a short summary.
+3. Extract ALL projects present in the resume (e.g. client projects, WordPress strategies, finance content strategies, case studies). Preserve the complete project title, full description, and all bullets without shortening.
 4. Extract ALL bullet points verbatim without shortening, omitting, or combining items.
-5. Preserve original wording, numbers, percentages, team sizes, and technical terminology where practical.
-6. Never invent, hallucinate, or assume information not present in the document.
+5. Extract ALL employment history, internships, and apprenticeships.
+6. Preserve original wording, numbers, percentages, dates, team sizes, and technical terminology exactly.
+7. Never invent, hallucinate, or assume information not present in the document.
+8. If information is not in the source, return empty string or empty list rather than hallucinating.
 
 Extraction Guidelines:
 1. "personal_information":
    - "name": Full legal or professional candidate name.
-   - "title": Current or target designation (e.g. "Senior Software Engineer").
+   - "title": Current or target designation (e.g. "Digital Marketing Executive", "Senior Software Engineer").
    - "email": Valid email address.
    - "phone": Phone number with country code if available.
-   - "location": City, State, Country.
+   - "location": City, State, Country, Postal Code, or address.
    - "link": Comma-separated URLs (LinkedIn, GitHub, Portfolio, Website).
 
 2. "summary":
@@ -51,10 +60,10 @@ Extraction Guidelines:
 
 3. "experience":
    - Extract ALL employment history, internships, and freelance roles.
-   - "position": Job title or role.
-   - "company": Organization or company name.
-   - "location": Job location or Remote.
-   - "fromYear", "toYear": Start and end dates.
+   - "position": Job title or role (e.g. "Digital Marketing Executive Internship").
+   - "company": Organization or company name (e.g. "Aryu Enterprises Pvt Ltd").
+   - "location": Job location, address, or Remote.
+   - "fromYear", "toYear": Start and end dates (e.g. "Apr 2026", "Present", "Dec 2025", "Feb 2026").
    - "isOngoing": True if currently active role.
    - "description": Complete paragraph overview / role context if present.
    - "responsibilities": All individual responsibilities.
@@ -62,18 +71,18 @@ Extraction Guidelines:
    - "achievements": Key quantified achievements.
 
 4. "education":
-   - Extract ALL academic programs, degrees, diplomas, high school credentials.
+   - Extract ALL academic programs, degrees, diplomas, high school credentials (e.g. "High School", "B.sc Information Technology").
    - "degree", "institution", "location", "fromYear", "toYear", "description", "achievements", "coursework".
 
 5. "skills":
-   - Extract all technical, programming, domain, framework, and tool skills mentioned across the entire resume.
+   - Extract all technical, domain, framework, design, and tool skills mentioned across the entire resume (e.g. "Social Media Marketing", "Content Creation", "CapCut", "Canva", "Google Analytics", "SEO").
    - Deduplicate and normalize.
 
 6. "projects":
-   - Extract ALL projects present in the resume, not only key projects.
-   - "title": Project name.
+   - Extract ALL projects present in the resume.
+   - "title": Project name (e.g. "Biokosmetikoftexas - USA", "wpwebsitefix", "Yestoboss").
    - "description": Comprehensive project description containing full purpose, scope, architecture, technologies, outcomes, and metrics without shortening.
-   - "technologies": Complete list of tools/languages used.
+   - "technologies": Complete list of tools/languages/platforms used.
    - "fromYear", "toYear": Dates if specified.
    - "bullets": All project bullets and implementation details verbatim.
 
@@ -128,7 +137,8 @@ def _build_fallback_usage(operation: str) -> List[Dict[str, Any]]:
 class ImprovedUniversalResumeParser:
     """
     High-performance resume parser leveraging single-call Gemini structured extraction
-    with transparent deterministic AST fallback and complete cost/truncation tracking.
+    with layout-aware Markdown formatting, multimodal vision fallback, source validation,
+    and transparent deterministic AST fallback.
     """
 
     @staticmethod
@@ -143,7 +153,7 @@ class ImprovedUniversalResumeParser:
     ) -> Dict[str, Any]:
         """
         Parse raw resume document bytes directly using Gemini document understanding,
-        with local PyMuPDF deterministic fallback on any error.
+        with local PyMuPDF layout-aware fallback on any error.
         """
         captured_usage: Optional[List[Dict[str, Any]]] = None
         finish_reason: str = "STOP"
@@ -153,7 +163,7 @@ class ImprovedUniversalResumeParser:
             if client.is_configured:
                 prompt = (
                     f"Extract the complete structured information from this resume document ({filename}). "
-                    "Ensure all jobs, dates, skills, contact details, project descriptions, and bullets are accurately extracted without shortening."
+                    "Ensure all jobs, internships, dates, skills, contact details, project descriptions (extract every project), and bullets are accurately extracted without shortening."
                 )
 
                 budget = max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS
@@ -178,15 +188,22 @@ class ImprovedUniversalResumeParser:
                 finish_reason = gen_result.usage.finish_reason if (hasattr(gen_result, "usage") and gen_result.usage) else "STOP"
 
                 if finish_reason == "MAX_TOKENS":
-                    logger.warning(f"[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on '{filename}'. Response may be incomplete.")
+                    logger.warning(f"[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on '{filename}'.")
 
                 raw_json = _clean_json_text(gen_result.text if hasattr(gen_result, "text") else str(gen_result))
                 canonical = CanonicalResume.model_validate_json(raw_json)
-                legacy_dict = map_to_legacy_parse_dict(canonical)
 
+                # Validate against source text
+                doc_extracted = UniversalDocumentExtractor.extract_document(file_bytes, filename, content_type)
+                val_result = ResumeSourceValidator.validate(canonical, doc_extracted.raw_text, doc_extracted.raw_items)
+
+                legacy_dict = map_to_legacy_parse_dict(canonical)
                 parse_status = "truncated" if finish_reason == "MAX_TOKENS" else "complete"
 
-                logger.info(f"✓ Successfully parsed resume document '{filename}' with Gemini (finish_reason={finish_reason})")
+                logger.info(
+                    f"✓ Successfully parsed resume document '{filename}' with Gemini "
+                    f"(finish_reason={finish_reason}, validation_score={val_result.score:.2f})"
+                )
                 return {
                     "success": True,
                     "parsed": legacy_dict,
@@ -196,6 +213,7 @@ class ImprovedUniversalResumeParser:
                     "parse_status": parse_status,
                     "finish_reason": finish_reason,
                     "usage": captured_usage,
+                    "validation": val_result.to_dict(),
                 }
 
         except Exception as e:
@@ -203,16 +221,8 @@ class ImprovedUniversalResumeParser:
 
         # ── Deterministic Fallback ──
         try:
-            raw_text = ""
-            if filename.lower().endswith(".pdf") or "pdf" in content_type.lower():
-                import fitz
-                doc = fitz.open(stream=file_bytes, filetype="pdf")
-                raw_text = "\n".join(page.get_text() for page in doc)
-                doc.close()
-            else:
-                raw_text = file_bytes.decode("utf-8", errors="ignore")
-
-            canonical = DeterministicResumeParser.parse_text(raw_text)
+            doc_extracted = UniversalDocumentExtractor.extract_document(file_bytes, filename, content_type)
+            canonical = DeterministicResumeParser.parse_text(doc_extracted.raw_text)
             legacy_dict = map_to_legacy_parse_dict(canonical)
             logger.info(f"✓ Successfully parsed '{filename}' via Deterministic AST Fallback")
 
@@ -239,11 +249,13 @@ class ImprovedUniversalResumeParser:
         request_id: Optional[str] = None,
         operation: str = "resume_parse",
         max_output_tokens: Optional[int] = None,
+        page_images: Optional[List[bytes]] = None,
+        document_type: str = "text",
     ) -> Dict[str, Any]:
         """
         Parse extracted text content using Gemini structured output with deterministic fallback.
         """
-        if not text_content or len(text_content.strip()) < 20:
+        if not text_content or len(text_content.strip()) < 15:
             logger.warning("[AIParser] Empty or insufficient text for parsing.")
             return ImprovedUniversalResumeParser._empty_result()
 
@@ -254,7 +266,8 @@ class ImprovedUniversalResumeParser:
             client = get_gemini_client()
             if client.is_configured:
                 prompt = (
-                    "Extract the complete structured information from the following resume text without shortening or omitting any content:\n\n"
+                    "Extract the complete structured information from the following resume document without shortening or omitting any content. "
+                    "Ensure all jobs, internships, dates, skills, contact details, and complete project descriptions are accurately extracted:\n\n"
                     f"{text_content}"
                 )
 
@@ -278,12 +291,15 @@ class ImprovedUniversalResumeParser:
                 finish_reason = gen_result.usage.finish_reason if (hasattr(gen_result, "usage") and gen_result.usage) else "STOP"
 
                 if finish_reason == "MAX_TOKENS":
-                    logger.warning("[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on text parse. Response may be incomplete.")
+                    logger.warning("[AIParser] Truncation detected: Gemini finished with MAX_TOKENS on text parse.")
 
                 raw_json = _clean_json_text(gen_result.text if hasattr(gen_result, "text") else str(gen_result))
                 canonical = CanonicalResume.model_validate_json(raw_json)
-                legacy_dict = map_to_legacy_parse_dict(canonical)
 
+                # Source validation
+                val_result = ResumeSourceValidator.validate(canonical, text_content)
+
+                legacy_dict = map_to_legacy_parse_dict(canonical)
                 parse_status = "truncated" if finish_reason == "MAX_TOKENS" else "complete"
 
                 return {
@@ -295,6 +311,7 @@ class ImprovedUniversalResumeParser:
                     "parse_status": parse_status,
                     "finish_reason": finish_reason,
                     "usage": captured_usage,
+                    "validation": val_result.to_dict(),
                 }
 
         except Exception as e:
@@ -330,23 +347,32 @@ class ImprovedUniversalResumeParser:
     ) -> Dict[str, Any]:
         """
         Backward-compatible parse method supporting raw_items lists, text keys, or raw strings.
+        Prefers rich layout Markdown when available.
         """
         if not extractor_output:
             return ImprovedUniversalResumeParser._empty_result()
 
         raw_items = []
         text_content = ""
+        page_images = None
+        doc_type = "text"
 
         if isinstance(extractor_output, str):
             text_content = extractor_output
         elif isinstance(extractor_output, dict):
             raw_items = extractor_output.get("raw_items", [])
-            if raw_items:
+            doc_type = extractor_output.get("document_type", "text")
+            page_images = extractor_output.get("page_images")
+
+            # Use markdown representation if available as it preserves section headers and formatting
+            if extractor_output.get("markdown"):
+                text_content = str(extractor_output["markdown"])
+            elif raw_items:
                 text_content = UniversalExtractor.extract_all_content(raw_items)
-            elif "text" in extractor_output:
-                text_content = str(extractor_output["text"])
             elif "raw_text" in extractor_output:
                 text_content = str(extractor_output["raw_text"])
+            elif "text" in extractor_output:
+                text_content = str(extractor_output["text"])
             elif "content" in extractor_output:
                 text_content = str(extractor_output["content"])
             elif "parsed" in extractor_output and isinstance(extractor_output["parsed"], dict):
@@ -362,11 +388,13 @@ class ImprovedUniversalResumeParser:
             return ImprovedUniversalResumeParser._empty_result()
 
         result = await ImprovedUniversalResumeParser.parse_text(
-            text_content,
+            text_content=text_content,
             user_id=user_id,
             request_id=request_id,
             operation=operation,
             max_output_tokens=max_output_tokens,
+            page_images=page_images,
+            document_type=doc_type,
         )
 
         # Regex-based contact safety net to ensure zero contact data is missed
@@ -402,4 +430,3 @@ class ImprovedUniversalResumeParser:
             "parser_source": "none",
             "usage": usage,
         }
-
